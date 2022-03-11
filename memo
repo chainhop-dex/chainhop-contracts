@@ -1,0 +1,25 @@
+###############################################################################################
+# Goerli 
+###############################################################################################
+
+TransferSwapper 0xA6BD9ea49b68B2634fbaD1dD763E2069F754Fed9
+UniswapV2SwapExactTokensForTokensCodec 0xa33c6d44d2530961303052ed2568094b819e8178
+MockUniswapV2 0x6656170cEBc42C8F9e85C511298D6A18b0EDE55f # funded with 2000000 USDT
+Multicall2 0x1a3A8355D4958602d02fE9DA01B76EB6A5B99728
+
+WETH 0xB4FBF271143F4FBf7B91A5ded31805e42b2208d6
+USDT 0xf4B2cbc3bA04c478F0dC824f4806aC39982Dce73
+CELR 0x5D3c0F4cA5EE99f8E8F59Ff9A5fAb04F6a7e007f
+
+###############################################################################################
+# BSC Testnet 
+###############################################################################################
+
+TransferSwapper 0x4dCC364c1e3483Ee0B76694CBC5BeD5bF29861C4
+UniswapV2SwapExactTokensForTokensCodec 0xbD965B1f7855E6A9Fcb94eE0119B4e87EEBe779F
+MockUniswapV2 0x27120BE0c1137098ca5B4Aee7FF7ACa58d057845 # funded with 1000000 USDT
+Multicall2 0xb839EE238dC742A74c12A50F40a98D38fdD627F2
+
+WBNB 0x094616F0BdFB0b526bD735Bf66Eca0Ad254ca81F
+USDT 0x7d43AABC515C356145049227CeE54B608342c0ad
+CELR 0x5471ea8f739dd37E9B81Be9c5c77754D8AA953E4
