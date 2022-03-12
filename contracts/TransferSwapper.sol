@@ -94,7 +94,7 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         }
         if (msg.value > 0) {
             // msg value > 0 automatically implies the sender wants to swap native tokens
-            require(msg.value >= amountIn, "insfcnt amt");
+            require(msg.value >= amountIn, "insfcnt amt"); // insufficient amount
             IWETH(nativeWrap).deposit{value: msg.value}();
         } else {
             IERC20(tokenIn).safeTransferFrom(msg.sender, address(this), amountIn);
@@ -183,7 +183,8 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
             tokenOut = _token;
             status = RequestStatus.Succeeded;
         }
-        _sendToken(tokenOut, dstAmount - m.fee, m.receiver, nativeOut);
+        dstAmount = dstAmount - m.fee;
+        _sendToken(tokenOut, dstAmount, m.receiver, nativeOut);
         emit RequestDone(m.id, dstAmount, m.fee, status);
     }
 
@@ -223,15 +224,6 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         }
     }
 
-    function toHex(bytes memory data) public pure returns (bytes memory res) {
-        res = new bytes(data.length * 2);
-        bytes memory alphabet = "0123456789abcdef";
-        for (uint256 i = 0; i < data.length; i++) {
-            res[i * 2 + 0] = alphabet[uint256(uint8(data[i])) >> 4];
-            res[i * 2 + 1] = alphabet[uint256(uint8(data[i])) & 15];
-        }
-    }
-
     function _encodeRequestMessage(
         bytes32 _id,
         TransferDescription memory _desc,
@@ -246,7 +238,7 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         bytes32 hash = keccak256(abi.encodePacked("executor fee", _desc.feeDeadline, _desc.dstChainId, _desc.fee));
         bytes32 signHash = hash.toEthSignedMessageHash();
         verifySig(signHash, _desc.feeSig);
-        require(_desc.feeDeadline > block.timestamp, "fee expired");
+        require(_desc.feeDeadline > block.timestamp, "deadline exceeded");
     }
 
     function setNativeWrap(address _nativeWrap) external onlyOwner {
