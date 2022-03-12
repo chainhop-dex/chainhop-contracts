@@ -29,14 +29,12 @@ function encodeMessage(
   id: string,
   swaps: ICodec.SwapDescriptionStruct[],
   receiver: string,
-  nonce: number,
   nativeOut: boolean,
-  fee: BigNumber,
-  feeDeadline: BigNumber
+  fee: BigNumber
 ): string {
   const encoded = ethers.utils.defaultAbiCoder.encode(
-    ['bytes32, ((address dex, bytes data)[], address, uint64, bool, uint256, uint256)'],
-    [[id, swaps, receiver, nonce, nativeOut, fee, feeDeadline]]
+    ['bytes32, ((address dex, bytes data)[], address, bool, uint256)'],
+    [[id, swaps, receiver, nativeOut, fee]]
   );
   return encoded;
 }

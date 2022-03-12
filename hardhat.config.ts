@@ -123,7 +123,12 @@ const cloverPrivateKey = process.env.CLOVER_PRIVATE_KEY || DEFAULT_PRIVATE_KEY;
 const config: HardhatUserConfig = {
   defaultNetwork: 'hardhat',
   networks: {
-    hardhat: {},
+    hardhat: {
+      // forking: {
+      //   url: 'https://eth-goerli.alchemyapi.io/v2/mERHmS0nJJ-3O3th4bOkVVSOjMrtoluG'
+      //   blockNumber: 6519148
+      // }
+    },
     localhost: { timeout: 600000 },
     kovan: {
       url: kovanEndpoint,
