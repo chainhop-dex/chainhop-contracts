@@ -103,7 +103,7 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         uint256 amountOut = amountIn;
         if (_srcSwaps.length != 0) {
             bool ok;
-            (ok, amountOut) = executeSwaps(_srcSwaps, tokenIn, tokenOut, amountIn, codecs);
+            (ok, amountOut) = executeSwaps(_srcSwaps, codecs);
             require(ok, "swap fail");
         }
 
@@ -161,31 +161,45 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         bytes memory _message
     ) external payable override onlyMessageBus returns (bool ok) {
         Request memory m = abi.decode((_message), (Request));
-        address tokenOut;
-        ICodec[] memory codecs;
 
-        RequestStatus status;
-        uint256 dstAmount = _amount;
+        // handle the case where amount received is not enough to pay fee
+        if (_amount < m.fee) {
+            m.fee = _amount;
+            emit RequestDone(m.id, 0, m.fee, RequestStatus.Succeeded);
+            return true;
+        } else {
+            _amount = _amount - m.fee;
+        }
+
+        RequestStatus status = RequestStatus.Succeeded;
+        address tokenOut = _token;
         bool nativeOut = m.nativeOut;
+        uint256 totalAmountOut = _amount;
 
         if (m.swaps.length != 0) {
+            ICodec[] memory codecs;
+            address tokenIn;
             // swap first before sending the token out to user
-            (ok, dstAmount) = executeSwapsWithOverride(m.swaps, _amount, codecs);
+            (, tokenIn, tokenOut, codecs) = sanitizeSwaps(m.swaps);
+            require(tokenIn == _token, "tkin mm");
+            SwapResult[] memory swapResults = new SwapResult[](m.swaps.length);
+            (swapResults, totalAmountOut) = executeSwapsWithOverride(m.swaps, codecs, tokenIn, _amount);
+            // this won't work for multi route swaps
+            // TODO restructure contracts to handle partial fill & full revert
+            ok = swapResults[0].success;
             if (ok) {
                 status = RequestStatus.Succeeded;
             } else {
-                // handle swap failure, send the received bridge token directly to receiver
                 status = RequestStatus.Fallback;
-                nativeOut = false;
+                // reset token and amount to bridge out token and amount
+                totalAmountOut = _amount;
+                tokenOut = _token;
             }
-        } else {
-            // no need to swap, directly send the bridged token to user
-            tokenOut = _token;
-            status = RequestStatus.Succeeded;
         }
-        dstAmount = dstAmount - m.fee;
-        _sendToken(tokenOut, dstAmount, m.receiver, nativeOut);
-        emit RequestDone(m.id, dstAmount, m.fee, status);
+
+        nativeOut = nativeOut && tokenOut == nativeWrap;
+        _sendToken(tokenOut, totalAmountOut, m.receiver, nativeOut);
+        emit RequestDone(m.id, totalAmountOut, m.fee, status);
     }
 
     function executeMessageWithTransferFallback(
@@ -215,7 +229,7 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         bool _nativeOut
     ) private {
         if (_nativeOut) {
-            require(_token == nativeWrap, "tkin no native");
+            require(_token == nativeWrap, "tk no native");
             IWETH(nativeWrap).withdraw(_amount);
             (bool sent, ) = _receiver.call{value: _amount, gas: 50000}("");
             require(sent, "send fail");

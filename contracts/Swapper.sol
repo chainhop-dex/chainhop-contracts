@@ -9,10 +9,13 @@ import "./Codecs.sol";
 import "./interfaces/ICodec.sol";
 import "./interfaces/IWETH.sol";
 
-import "hardhat/console.sol";
-
 abstract contract Swapper is Codecs {
     using SafeERC20 for IERC20;
+
+    struct SwapResult {
+        bool success;
+        uint256 amountOut;
+    }
 
     function sanitizeSwaps(ICodec.SwapDescription[] memory _swap)
         internal
@@ -26,14 +29,10 @@ abstract contract Swapper is Codecs {
     {
         address prevTokenIn;
         address prevTokenOut;
-        codecs = new ICodec[](_swap.length);
-
-        // loading required codecs into memory upfront to avoid repeated storage access
-        (bytes4[] memory selectors, ICodec[] memory _codecs) = loadCodecs(_swap);
+        codecs = loadCodecs(_swap);
 
         for (uint256 i = 0; i < _swap.length; i++) {
-            ICodec codec = getCodec(selectors, _codecs, bytes4(_swap[i].data));
-            (uint256 _amountIn, address _tokenIn, address _tokenOut) = codec.decodeCalldata(_swap[i]);
+            (uint256 _amountIn, address _tokenIn, address _tokenOut) = codecs[i].decodeCalldata(_swap[i]);
             require(prevTokenIn == address(0) || prevTokenIn == _tokenIn, "tkin mismatch");
             prevTokenIn = _tokenIn;
             require(prevTokenOut == address(0) || prevTokenOut == _tokenOut, "tko mismatch");
@@ -42,46 +41,38 @@ abstract contract Swapper is Codecs {
             totalAmountIn += _amountIn;
             tokenIn = _tokenIn;
             tokenOut = _tokenOut;
-            codecs[i] = codec;
         }
     }
 
     function executeSwaps(
         ICodec.SwapDescription[] memory _swaps,
-        address _tokenIn,
-        address _tokenOut,
-        uint256 _amountIn,
         ICodec[] memory _codecs // _codecs[i] is for _swaps[i]
     ) internal returns (bool ok, uint256 totalAmountOut) {
-        uint256 balBefore = IERC20(_tokenOut).balanceOf(address(this));
         for (uint256 i = 0; i < _swaps.length; i++) {
-            IERC20(_tokenIn).safeIncreaseAllowance(_swaps[i].dex, _amountIn);
+            (uint256 amountIn, address tokenIn, ) = _codecs[i].decodeCalldata(_swaps[i]);
+            IERC20(tokenIn).safeIncreaseAllowance(_swaps[i].dex, amountIn);
             bytes memory res;
             (ok, res) = _swaps[i].dex.call(_swaps[i].data);
             if (!ok) {
-                console.log("revert reason", string(res));
                 return (false, 0);
             }
             totalAmountOut += _codecs[i].decodeReturnData(res);
         }
-        uint256 balAfter = IERC20(_tokenOut).balanceOf(address(this));
-        require(balAfter - balBefore >= totalAmountOut, "amount mm");
     }
 
     function executeSwapsWithOverride(
         ICodec.SwapDescription[] memory _swaps,
-        uint256 _amountInOverride,
-        ICodec[] memory _codecs // _codecs[i] is for _swaps[i]
-    ) internal returns (bool ok, uint256 totalAmountOut) {
+        ICodec[] memory _codecs, // _codecs[i] is for _swaps[i]
+        address _tokenIn,
+        uint256 _amountInOverride
+    ) internal returns (SwapResult[] memory results, uint256 totalAmountOut) {
         uint256[] memory amountIns = _redistributeAmountIn(_swaps, _amountInOverride, _codecs);
+        results = new SwapResult[](_swaps.length);
         // execute the swaps with adjusted amountIns
         for (uint256 i = 0; i < _swaps.length; i++) {
-            uint256 amountOut;
-            (ok, amountOut) = _executeSwapWithOverride(_codecs[i], _swaps[i], amountIns[i]);
-            if (ok) {
-                return (false, 0);
-            }
+            (bool ok, uint256 amountOut) = _executeSwapWithOverride(_codecs[i], _swaps[i], _tokenIn, amountIns[i]);
             totalAmountOut += amountOut;
+            results[i] = SwapResult({success: ok, amountOut: amountOut});
         }
     }
 
@@ -111,12 +102,11 @@ abstract contract Swapper is Codecs {
     function _executeSwapWithOverride(
         ICodec _codec,
         ICodec.SwapDescription memory _swap,
+        address _tokenIn,
         uint256 _amountInOverride
-    ) internal returns (bool, uint256 amountOut) {
-        (uint256 amountIn, address tokenIn, ) = _codec.decodeCalldata(_swap);
-        IERC20(tokenIn).safeIncreaseAllowance(_swap.dex, amountIn);
-
+    ) private returns (bool, uint256 amountOut) {
         bytes memory swapCalldata = _codec.encodeCalldataWithOverride(_swap.data, _amountInOverride);
+        IERC20(_tokenIn).safeIncreaseAllowance(_swap.dex, _amountInOverride);
         (bool ok, bytes memory res) = _swap.dex.call(swapCalldata);
         if (ok) {
             amountOut = _codec.decodeReturnData(res);

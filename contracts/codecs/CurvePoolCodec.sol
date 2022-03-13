@@ -6,7 +6,7 @@ import "../interfaces/IUniswapV2Router01.sol";
 import "../interfaces/ICodec.sol";
 import "../interfaces/ICurvePool.sol";
 
-contract CurvePoolCodec {
+contract CurvePoolCodec is ICodec {
     struct SwapCalldata {
         int128 i;
         int128 j;

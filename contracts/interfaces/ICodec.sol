@@ -8,9 +8,6 @@ interface ICodec {
         bytes data; // the data to call the dex with
     }
 
-    // for which selector does this codec apply
-    function whichSelector() external pure returns (bytes4);
-
     function decodeCalldata(SwapDescription calldata swap)
         external
         view

@@ -4,9 +4,7 @@ pragma solidity >=0.8.12;
 
 import "../interfaces/ICodec.sol";
 
-import "hardhat/console.sol";
-
-contract UniswapV2SwapExactTokensForTokensCodec {
+contract UniswapV2SwapExactTokensForTokensCodec is ICodec {
     function decodeCalldata(ICodec.SwapDescription calldata _swap)
         external
         pure

@@ -5,7 +5,7 @@ pragma solidity >=0.8.12;
 import "../interfaces/ICodec.sol";
 import "../interfaces/ISwapRouter.sol";
 
-contract UniswapV3ExactInputSingleCodec {
+contract UniswapV3ExactInputSingleCodec is ICodec {
     struct SwapCalldata {
         bytes4 selector;
         ISwapRouter.ExactInputSingleParams params;

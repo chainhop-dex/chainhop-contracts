@@ -11,6 +11,11 @@ import {
   TokenContracts
 } from './common';
 
+export interface TestContext extends ChainhopFixture {
+  sender: Wallet;
+  receiver: Wallet;
+}
+
 export interface ChainhopFixture extends ChainHopContracts, BridgeContracts, TokenContracts {
   admin: Wallet;
   accounts: Wallet[];
@@ -34,10 +39,10 @@ export const chainhopFixture = async ([admin]: Wallet[]): Promise<ChainhopFixtur
     feeCollector.address,
     bridge.messageBus.address
   );
-
-  await tokens.tokenA.connect(admin).transfer(chainhop.mockV2.address, parseUnits('10000000'));
-  await tokens.tokenB.connect(admin).transfer(chainhop.mockV2.address, parseUnits('10000000'));
-
+  await tokens.tokenA.transfer(chainhop.mockV2.address, parseUnits('10000000'));
+  await tokens.tokenB.transfer(chainhop.mockV2.address, parseUnits('10000000'));
+  await tokens.weth.transfer(chainhop.mockV2.address, parseUnits('10000000'));
+  await tokens.weth.deposit({ value: parseUnits('20') });
   await chainhop.mockV2.setFakeSlippage(parseUnits('5', 4));
 
   return { ...bridge, ...bridge, ...chainhop, ...tokens, admin, accounts, signer, feeCollector, chainId };

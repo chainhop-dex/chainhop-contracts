@@ -9,7 +9,7 @@ contract MockUniswapV2 {
     using SafeERC20 for IERC20;
 
     uint256 fakeSlippage; // 100% = 100 * 1e4
-    uint256 hundredPercent = 100 * 1e4;
+    uint256 constant HUNDRED_PERC = 100 * 1e4;
 
     constructor(uint256 _fakeSlippage) {
         fakeSlippage = _fakeSlippage;
@@ -24,10 +24,11 @@ contract MockUniswapV2 {
     ) external returns (uint256[] memory amounts) {
         require(deadline != 0 && deadline > block.timestamp, "deadline exceeded");
         require(path.length > 1, "path must have more than 1 token in it");
-        IERC20(path[0]).transferFrom(msg.sender, address(this), amountIn);
+
         // fake simulate slippage
-        uint256 amountAfterSlippage = (amountIn * (hundredPercent - fakeSlippage)) / hundredPercent;
+        uint256 amountAfterSlippage = (amountIn * (HUNDRED_PERC - fakeSlippage)) / HUNDRED_PERC;
         require(amountAfterSlippage >= amountOutMin, "bad slippage");
+        IERC20(path[0]).safeTransferFrom(msg.sender, address(this), amountIn);
         IERC20(path[path.length - 1]).safeTransfer(to, amountAfterSlippage);
         uint256[] memory ret = new uint256[](2);
         ret[0] = amountIn;
