@@ -5,7 +5,7 @@ import { ethers } from 'hardhat';
 import { TransferSwapper } from '../../typechain';
 import { BridgeType } from '../types';
 import { ICodec } from './../../typechain/ICodec';
-import { UINT64_MAX, ZERO_ADDR } from './constants';
+import { UINT64_MAX } from './constants';
 import { TestContext } from './fixtures';
 
 export function slip(amount: BigNumber, perc: number): BigNumber {
@@ -33,11 +33,12 @@ export function encodeMessage(
   swaps: ICodec.SwapDescriptionStruct[],
   receiver: string,
   nativeOut: boolean,
-  fee: BigNumber
+  fee: BigNumber,
+  allowPartialFill = false
 ): string {
   const encoded = ethers.utils.defaultAbiCoder.encode(
-    ['(bytes32, (address dex, bytes data)[], address, bool, uint256)'],
-    [[id, swaps, receiver, nativeOut, fee]]
+    ['(bytes32, (address dex, bytes data)[], address, bool, uint256, bool)'],
+    [[id, swaps, receiver, nativeOut, fee, allowPartialFill]]
   );
   return encoded;
 }
@@ -72,14 +73,14 @@ export function buildUniV2Swap(
   return { dex, data };
 }
 
-export interface SingleUniV2SwapsOpts {
+export interface UniV2SwapsOpts {
   amountOutMin?: BigNumber;
   tokenIn?: string;
   tokenOut?: string;
   to?: string;
 }
 
-export function buildSingleUniV2Swaps(c: TestContext, amountIn: BigNumber, opts?: SingleUniV2SwapsOpts) {
+export function buildUniV2Swaps(c: TestContext, amountIn: BigNumber, opts?: UniV2SwapsOpts) {
   const amountOutMin = opts?.amountOutMin ?? slip(amountIn, 5);
   const tokenIn = opts?.tokenIn ?? c.tokenA.address;
   const tokenOut = opts?.tokenOut ?? c.tokenB.address;
@@ -110,14 +111,14 @@ export async function buildTransferDesc(c: TestContext, opts?: TransferDescOpts)
     nonce: 1,
     receiver: c.receiver.address,
 
-    allowPartialFill: false,
     nativeOut: opts?.nativeOut ?? false,
     dstChainId: dstChainId,
     fee: fee,
     feeDeadline: feeDeadline,
     feeSig: feeSig,
     amountIn: opts?.amountIn || parseUnits('0'),
-    tokenIn: opts?.tokenIn || ZERO_ADDR
+    tokenIn: opts?.tokenIn || c.tokenA.address,
+    allowPartialFill: false
   };
   return desc;
 }

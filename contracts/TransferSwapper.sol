@@ -96,6 +96,10 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         address tokenOut = _desc.tokenIn;
         ICodec[] memory codecs;
 
+        if (_srcSwaps.length != 0) {
+            (amountIn, tokenIn, tokenOut, codecs) = sanitizeSwaps(_srcSwaps);
+            require(tokenIn == _desc.tokenIn, "tkin mm");
+        }
         if (msg.value > 0) {
             // msg value > 0 automatically implies the sender wants to swap native tokens
             require(msg.value >= amountIn, "insfcnt amt"); // insufficient amount
@@ -106,7 +110,6 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         // swap if needed
         uint256 amountOut = amountIn;
         if (_srcSwaps.length != 0) {
-            (amountIn, tokenIn, tokenOut, codecs) = sanitizeSwaps(_srcSwaps);
             bool ok;
             (ok, amountOut) = executeSwaps(_srcSwaps, codecs);
             require(ok, "swap fail");

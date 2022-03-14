@@ -39,6 +39,8 @@ export const ZERO_ADDR = '0x0000000000000000000000000000000000000000';
 
 export const UINT64_MAX = '9223372036854775807';
 
+export const ZERO_AMOUNT = parseUnits('0');
+
 export const userPrivKeys = [
   '0x36f2243a51a0f879b1859fff1a663ac04aeebca1bcff4d7dc5a8b38e53211199',
   '0xc0bf10873ddb6d554838f5e4f0c000e85d3307754151add9813ff331b746390d',
