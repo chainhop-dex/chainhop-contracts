@@ -12,11 +12,6 @@ import "./interfaces/IWETH.sol";
 abstract contract Swapper is Codecs {
     using SafeERC20 for IERC20;
 
-    struct SwapResult {
-        bool success;
-        uint256 amountOut;
-    }
-
     function sanitizeSwaps(ICodec.SwapDescription[] memory _swap)
         internal
         view
@@ -64,16 +59,21 @@ abstract contract Swapper is Codecs {
         ICodec.SwapDescription[] memory _swaps,
         ICodec[] memory _codecs, // _codecs[i] is for _swaps[i]
         address _tokenIn,
-        uint256 _amountInOverride
-    ) internal returns (SwapResult[] memory results, uint256 totalAmountOut) {
+        uint256 _amountInOverride,
+        bool _allowPartialFill
+    ) internal returns (uint256 sumAmtOut, uint256 sumAmtFailed) {
         uint256[] memory amountIns = _redistributeAmountIn(_swaps, _amountInOverride, _codecs);
-        results = new SwapResult[](_swaps.length);
         // execute the swaps with adjusted amountIns
         for (uint256 i = 0; i < _swaps.length; i++) {
             (bool ok, uint256 amountOut) = _executeSwapWithOverride(_codecs[i], _swaps[i], _tokenIn, amountIns[i]);
-            totalAmountOut += amountOut;
-            results[i] = SwapResult({success: ok, amountOut: amountOut});
+            require(ok || _allowPartialFill, "swap failed");
+            if (ok) {
+                sumAmtOut += amountOut;
+            } else {
+                sumAmtFailed += amountIns[i];
+            }
         }
+        require(sumAmtOut > 0, "all swaps failed");
     }
 
     function _redistributeAmountIn(

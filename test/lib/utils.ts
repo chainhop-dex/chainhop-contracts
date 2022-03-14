@@ -110,6 +110,7 @@ export async function buildTransferDesc(c: TestContext, opts?: TransferDescOpts)
     nonce: 1,
     receiver: c.receiver.address,
 
+    allowPartialFill: false,
     nativeOut: opts?.nativeOut ?? false,
     dstChainId: dstChainId,
     fee: fee,

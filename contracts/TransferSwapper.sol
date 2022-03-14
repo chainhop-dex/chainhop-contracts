@@ -33,6 +33,9 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         bytes feeSig;
         uint256 amountIn; // required if no swap on src chain
         address tokenIn; // required if no swap on src chain
+        // in case of multi route swaps, whether to allow the successful swaps to go through
+        // and sending the amountIn of the failed swaps back to user
+        bool allowPartialFill;
     }
 
     struct Request {
@@ -41,6 +44,7 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         address receiver; // the receiving party (the user) of the final output token
         bool nativeOut;
         uint256 fee;
+        bool allowPartialFill;
     }
 
     enum RequestStatus {
@@ -53,8 +57,10 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
     event DirectSwap(bytes32 id, uint256 amountIn, address tokenIn, uint256 amountOut, address tokenOut);
     // emitted when operations on src chain is done, the transfer is sent through the bridge
     event RequestSent(bytes32 id, uint64 dstChainId, uint256 srcAmount, address srcToken, address dstToken);
-    // emitted when operations on dst chain is done
-    event RequestDone(bytes32 id, uint256 dstAmount, uint256 feeCollected, RequestStatus status);
+    // emitted when operations on dst chain is done.
+    // dstAmount is denominated by dstToken, refundAmount is denominated by bridge out token.
+    // if refundAmount is a non-zero number, it means the "allow partial fill" option is turned on.
+    event RequestDone(bytes32 id, uint256 dstAmount, uint256 refundAmount, uint256 feeCollected, RequestStatus status);
 
     // erc20 wrap of the gas token of this chain, e.g. WETH
     address public nativeWrap;
@@ -90,9 +96,6 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         address tokenOut = _desc.tokenIn;
         ICodec[] memory codecs;
 
-        if (_srcSwaps.length != 0) {
-            (amountIn, tokenIn, tokenOut, codecs) = sanitizeSwaps(_srcSwaps);
-        }
         if (msg.value > 0) {
             // msg value > 0 automatically implies the sender wants to swap native tokens
             require(msg.value >= amountIn, "insfcnt amt"); // insufficient amount
@@ -103,6 +106,7 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         // swap if needed
         uint256 amountOut = amountIn;
         if (_srcSwaps.length != 0) {
+            (amountIn, tokenIn, tokenOut, codecs) = sanitizeSwaps(_srcSwaps);
             bool ok;
             (ok, amountOut) = executeSwaps(_srcSwaps, codecs);
             require(ok, "swap fail");
@@ -166,16 +170,16 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         // handle the case where amount received is not enough to pay fee
         if (_amount < m.fee) {
             m.fee = _amount;
-            emit RequestDone(m.id, 0, m.fee, RequestStatus.Succeeded);
+            emit RequestDone(m.id, 0, 0, m.fee, RequestStatus.Succeeded);
             return true;
         } else {
             _amount = _amount - m.fee;
         }
 
-        RequestStatus status = RequestStatus.Succeeded;
         address tokenOut = _token;
         bool nativeOut = m.nativeOut;
-        uint256 totalAmountOut = _amount;
+        uint256 sumAmtOut = _amount;
+        uint256 sumAmtFailed;
 
         if (m.swaps.length != 0) {
             ICodec[] memory codecs;
@@ -183,24 +187,15 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
             // swap first before sending the token out to user
             (, tokenIn, tokenOut, codecs) = sanitizeSwaps(m.swaps);
             require(tokenIn == _token, "tkin mm");
-            SwapResult[] memory swapResults = new SwapResult[](m.swaps.length);
-            (swapResults, totalAmountOut) = executeSwapsWithOverride(m.swaps, codecs, tokenIn, _amount);
-            // this won't work for multi route swaps
-            // TODO restructure contracts to handle partial fill & full revert
-            ok = swapResults[0].success;
-            if (ok) {
-                status = RequestStatus.Succeeded;
-            } else {
-                status = RequestStatus.Fallback;
-                // reset token and amount to bridge out token and amount
-                totalAmountOut = _amount;
-                tokenOut = _token;
-            }
+            (sumAmtOut, sumAmtFailed) = executeSwapsWithOverride(m.swaps, codecs, tokenIn, _amount, m.allowPartialFill);
+            // if at this stage the tx is not reverted, it means at least 1 swap in routes succeeded
         }
-
-        nativeOut = nativeOut && tokenOut == nativeWrap;
-        _sendToken(tokenOut, totalAmountOut, m.receiver, nativeOut);
-        emit RequestDone(m.id, totalAmountOut, m.fee, status);
+        if (sumAmtFailed > 0) {
+            _sendToken(_token, sumAmtFailed, m.receiver, false);
+        }
+        _sendToken(tokenOut, sumAmtOut, m.receiver, nativeOut);
+        // status is always success as long as this function call doesn't revert. partial fill is also considered success
+        emit RequestDone(m.id, sumAmtOut, sumAmtFailed, m.fee, RequestStatus.Succeeded);
     }
 
     function executeMessageWithTransferFallback(
@@ -212,10 +207,10 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
     ) external payable override onlyMessageBus returns (bool) {
         Request memory m = abi.decode((_message), (Request));
 
-        uint256 dstAmount = _amount - m.fee;
-        _sendToken(_token, dstAmount, m.receiver, false);
+        uint256 refundAmount = _amount - m.fee; // no need to check amount >= fee as it's already checked before
+        _sendToken(_token, refundAmount, m.receiver, false);
 
-        emit RequestDone(m.id, dstAmount, m.fee, RequestStatus.Fallback);
+        emit RequestDone(m.id, 0, refundAmount, m.fee, RequestStatus.Fallback);
         return true;
     }
 
@@ -245,7 +240,14 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         ICodec.SwapDescription[] memory _swaps
     ) private pure returns (bytes memory message) {
         message = abi.encode(
-            Request({id: _id, swaps: _swaps, receiver: _desc.receiver, nativeOut: _desc.nativeOut, fee: _desc.fee})
+            Request({
+                id: _id,
+                swaps: _swaps,
+                receiver: _desc.receiver,
+                nativeOut: _desc.nativeOut,
+                fee: _desc.fee,
+                allowPartialFill: _desc.allowPartialFill
+            })
         );
     }
 
