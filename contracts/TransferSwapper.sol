@@ -29,7 +29,8 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         bool nativeOut; // whether to unwrap before sending the final token to user
         uint256 fee;
         uint256 feeDeadline; // the unix timestamp before which the fee is valid
-        // sig of keccak256(abi.encodePacked("executor fee", feeDeadline, dstChainId, fee))
+        // sig of sha3("executor fee", srcChainId, dstChainId, amountIn, tokenIn, feeDeadline, fee)
+        // see _verifyFee()
         bytes feeSig;
         uint256 amountIn; // required if no swap on src chain
         address tokenIn; // required if no swap on src chain
@@ -255,7 +256,17 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
     }
 
     function _verifyFee(TransferDescription memory _desc) private view {
-        bytes32 hash = keccak256(abi.encodePacked("executor fee", _desc.feeDeadline, _desc.dstChainId, _desc.fee));
+        bytes32 hash = keccak256(
+            abi.encodePacked(
+                "executor fee",
+                uint64(block.chainid),
+                _desc.dstChainId,
+                _desc.amountIn,
+                _desc.tokenIn,
+                _desc.feeDeadline,
+                _desc.fee
+            )
+        );
         bytes32 signHash = hash.toEthSignedMessageHash();
         verifySig(signHash, _desc.feeSig);
         require(_desc.feeDeadline > block.timestamp, "deadline exceeded");
