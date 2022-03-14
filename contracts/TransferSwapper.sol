@@ -25,7 +25,7 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         uint64 dstChainId;
         uint32 maxBridgeSlippage;
         MessageSenderLib.BridgeType bridgeType;
-        uint64 nonce; // nonce is needed for dedup tx at this contract and bridge
+        uint64 nonce; // nonce is needed for de-dup tx at this contract and bridge
         bool nativeOut; // whether to unwrap before sending the final token to user
         uint256 fee;
         uint256 feeDeadline; // the unix timestamp before which the fee is valid
@@ -81,7 +81,7 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         ICodec.SwapDescription[] calldata _srcSwaps,
         ICodec.SwapDescription[] calldata _dstSwaps
     ) external payable {
-        // a request needs to inccur a swap, a transfer, or both. otherwise it's a nop and we revert early to save gas
+        // a request needs to incur a swap, a transfer, or both. otherwise it's a nop and we revert early to save gas
         require(_srcSwaps.length != 0 || _desc.dstChainId != uint64(block.chainid), "nop");
         require(_srcSwaps.length != 0 || (_desc.amountIn != 0 && _desc.tokenIn != address(0)), "nop");
 
