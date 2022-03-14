@@ -47,9 +47,28 @@ export function computeId(sender: string, receiver: string, srcChainId: number, 
   return keccak256(['address', 'address', 'uint64', 'uint64'], [sender, receiver, srcChainId, nonce]);
 }
 
-export function encodeSignFeeData(fee: BigNumber, feeDeadline: BigNumber, dstChainId: number) {
-  const hash = keccak256(['string', 'uint256', 'uint64', 'uint256'], ['executor fee', feeDeadline, dstChainId, fee]);
-  return hex2Bytes(hash);
+export interface FeeSigOverride {
+  srcChainId?: number;
+  dstChainId?: number;
+  amountIn?: BigNumber;
+  tokenIn?: string;
+  feeDeadline?: BigNumber;
+  fee?: BigNumber;
+}
+
+export async function signFee(c: TestContext, opts?: FeeSigOverride) {
+  const srcChainId = opts?.srcChainId ?? c.chainId;
+  const dstChainId = opts?.dstChainId ?? c.chainId + 1;
+  const amountIn = opts?.amountIn ?? parseUnits('100');
+  const tokenIn = opts?.tokenIn ?? c.tokenA.address;
+  const feeDeadline = opts?.feeDeadline ?? BigNumber.from(Math.floor(Date.now() / 1000 + 600));
+  const fee = opts?.fee ?? parseUnits('1');
+  const hash = keccak256(
+    ['string', 'uint64', 'uint64', 'uint256', 'address', 'uint256', 'uint256'],
+    ['executor fee', srcChainId, dstChainId, amountIn, tokenIn, feeDeadline, fee]
+  );
+  const signData = hex2Bytes(hash);
+  return c.signer.signMessage(signData);
 }
 
 // 0x3df02124 exchange(int128,int128,uint256,uint256)
@@ -73,14 +92,14 @@ export function buildUniV2Swap(
   return { dex, data };
 }
 
-export interface UniV2SwapsOpts {
+export interface UniV2SwapsOverride {
   amountOutMin?: BigNumber;
   tokenIn?: string;
   tokenOut?: string;
   to?: string;
 }
 
-export function buildUniV2Swaps(c: TestContext, amountIn: BigNumber, opts?: UniV2SwapsOpts) {
+export function buildUniV2Swaps(c: TestContext, amountIn: BigNumber, opts?: UniV2SwapsOverride) {
   const amountOutMin = opts?.amountOutMin ?? slip(amountIn, 5);
   const tokenIn = opts?.tokenIn ?? c.tokenA.address;
   const tokenOut = opts?.tokenOut ?? c.tokenB.address;
@@ -96,14 +115,14 @@ export interface TransferDescOpts {
   amountIn?: BigNumber;
   tokenIn?: string;
   nativeOut?: boolean;
+  allowPartialFill?: boolean;
 }
 
-export async function buildTransferDesc(c: TestContext, opts?: TransferDescOpts) {
+export function buildTransferDesc(c: TestContext, feeSig: string, opts?: TransferDescOpts) {
   const dstChainId = opts?.dstChainId ?? c.chainId + 1;
 
-  const fee = opts?.fee ?? BigNumber.from(1000000);
+  const fee = opts?.fee ?? parseUnits('1');
   const feeDeadline = opts?.feeDeadline ?? BigNumber.from(Math.floor(Date.now() / 1000 + 600));
-  const feeSig = opts?.feeSig ?? (await c.signer.signMessage(encodeSignFeeData(fee, feeDeadline, dstChainId)));
 
   const desc: TransferSwapper.TransferDescriptionStruct = {
     bridgeType: BridgeType.Liquidity,
@@ -120,5 +139,6 @@ export async function buildTransferDesc(c: TestContext, opts?: TransferDescOpts)
     tokenIn: opts?.tokenIn || c.tokenA.address,
     allowPartialFill: false
   };
+
   return desc;
 }

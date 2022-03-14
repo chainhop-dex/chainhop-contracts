@@ -32,8 +32,9 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         // sig of sha3("executor fee", srcChainId, dstChainId, amountIn, tokenIn, feeDeadline, fee)
         // see _verifyFee()
         bytes feeSig;
-        uint256 amountIn; // required if no swap on src chain
-        address tokenIn; // required if no swap on src chain
+        // IMPORTANT: amountIn and tokenIn are completely ignored src chain has a swap
+        uint256 amountIn;
+        address tokenIn;
         // in case of multi route swaps, whether to allow the successful swaps to go through
         // and sending the amountIn of the failed swaps back to user
         bool allowPartialFill;
@@ -128,6 +129,7 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         if (_dstSwaps.length != 0) {
             (, , dstTokenOut, ) = sanitizeSwaps(_dstSwaps);
         }
+        _verifyFee(_desc, amountIn, tokenIn);
         // transfer through bridge
         _transfer(id, _dstTransferSwapper, _desc, _dstSwaps, amountOut, tokenOut);
         emit RequestSent(id, _desc.dstChainId, amountIn, tokenIn, dstTokenOut);
@@ -142,7 +144,6 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         uint256 _amount,
         address _token
     ) private {
-        _verifyFee(_desc);
         bytes memory requestMessage = _encodeRequestMessage(_id, _desc, _dstSwaps);
         MessageSenderLib.sendMessageWithTransfer(
             _dstTransferSwapper,
@@ -255,14 +256,18 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         );
     }
 
-    function _verifyFee(TransferDescription memory _desc) private view {
+    function _verifyFee(
+        TransferDescription memory _desc,
+        uint256 _amountIn,
+        address _tokenIn
+    ) private view {
         bytes32 hash = keccak256(
             abi.encodePacked(
                 "executor fee",
                 uint64(block.chainid),
                 _desc.dstChainId,
-                _desc.amountIn,
-                _desc.tokenIn,
+                _amountIn,
+                _tokenIn,
                 _desc.feeDeadline,
                 _desc.fee
             )
