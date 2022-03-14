@@ -89,6 +89,7 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         address tokenIn = _desc.tokenIn;
         address tokenOut = _desc.tokenIn;
         ICodec[] memory codecs;
+
         if (_srcSwaps.length != 0) {
             (amountIn, tokenIn, tokenOut, codecs) = sanitizeSwaps(_srcSwaps);
         }
