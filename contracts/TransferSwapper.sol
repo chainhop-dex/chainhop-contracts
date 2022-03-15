@@ -26,6 +26,7 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         uint32 maxBridgeSlippage;
         MessageSenderLib.BridgeType bridgeType;
         uint64 nonce; // nonce is needed for de-dup tx at this contract and bridge
+        bool nativeIn; // whether to check msg.value and wrap token before swapping/sending
         bool nativeOut; // whether to unwrap before sending the final token to user
         uint256 fee;
         uint256 feeDeadline; // the unix timestamp before which the fee is valid
@@ -58,7 +59,14 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
     // emitted when requested dstChainId == srcChainId, no bridging
     event DirectSwap(bytes32 id, uint256 amountIn, address tokenIn, uint256 amountOut, address tokenOut);
     // emitted when operations on src chain is done, the transfer is sent through the bridge
-    event RequestSent(bytes32 id, uint64 dstChainId, uint256 srcAmount, address srcToken, address dstToken);
+    event RequestSent(
+        bytes32 id,
+        bytes32 transferId,
+        uint64 dstChainId,
+        uint256 srcAmount,
+        address srcToken,
+        address dstToken
+    );
     // emitted when operations on dst chain is done.
     // dstAmount is denominated by dstToken, refundAmount is denominated by bridge out token.
     // if refundAmount is a non-zero number, it means the "allow partial fill" option is turned on.
@@ -102,8 +110,7 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
             (amountIn, tokenIn, tokenOut, codecs) = sanitizeSwaps(_srcSwaps);
             require(tokenIn == _desc.tokenIn, "tkin mm");
         }
-        if (msg.value > 0) {
-            // msg value > 0 automatically implies the sender wants to swap native tokens
+        if (_desc.nativeIn) {
             require(msg.value >= amountIn, "insfcnt amt"); // insufficient amount
             IWETH(nativeWrap).deposit{value: msg.value}();
         } else {
@@ -117,7 +124,7 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
             require(ok, "swap fail");
         }
 
-        bytes32 id = keccak256(abi.encodePacked(msg.sender, _desc.receiver, uint64(block.chainid), _desc.nonce));
+        bytes32 id = _computeId(_desc.receiver, _desc.nonce);
         // direct send if needed
         if (_desc.dstChainId == uint64(block.chainid)) {
             emit DirectSwap(id, amountIn, tokenIn, amountOut, tokenOut);
@@ -131,8 +138,8 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         }
         _verifyFee(_desc, amountIn, tokenIn);
         // transfer through bridge
-        _transfer(id, _dstTransferSwapper, _desc, _dstSwaps, amountOut, tokenOut);
-        emit RequestSent(id, _desc.dstChainId, amountIn, tokenIn, dstTokenOut);
+        bytes32 transferId = _transfer(id, _dstTransferSwapper, _desc, _dstSwaps, amountOut, tokenOut);
+        emit RequestSent(id, transferId, _desc.dstChainId, amountIn, tokenIn, dstTokenOut);
     }
 
     // for stack too deep
@@ -143,9 +150,9 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         ICodec.SwapDescription[] memory _dstSwaps,
         uint256 _amount,
         address _token
-    ) private {
+    ) private returns (bytes32 transferId) {
         bytes memory requestMessage = _encodeRequestMessage(_id, _desc, _dstSwaps);
-        MessageSenderLib.sendMessageWithTransfer(
+        transferId = MessageSenderLib.sendMessageWithTransfer(
             _dstTransferSwapper,
             _token,
             _amount,
@@ -222,6 +229,9 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
     /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
      * Misc
      * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+    function _computeId(address _receiver, uint64 _nonce) private view returns (bytes32) {
+        return keccak256(abi.encodePacked(msg.sender, _receiver, uint64(block.chainid), _nonce));
+    }
 
     function _sendToken(
         address _token,
