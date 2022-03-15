@@ -70,7 +70,14 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
     // emitted when operations on dst chain is done.
     // dstAmount is denominated by dstToken, refundAmount is denominated by bridge out token.
     // if refundAmount is a non-zero number, it means the "allow partial fill" option is turned on.
-    event RequestDone(bytes32 id, uint256 dstAmount, uint256 refundAmount, uint256 feeCollected, RequestStatus status);
+    event RequestDone(
+        bytes32 id,
+        uint256 dstAmount,
+        uint256 refundAmount,
+        address refundToken,
+        uint256 feeCollected,
+        RequestStatus status
+    );
 
     // erc20 wrap of the gas token of this chain, e.g. WETH
     address public nativeWrap;
@@ -182,7 +189,7 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         // handle the case where amount received is not enough to pay fee
         if (_amount < m.fee) {
             m.fee = _amount;
-            emit RequestDone(m.id, 0, 0, m.fee, RequestStatus.Succeeded);
+            emit RequestDone(m.id, 0, 0, _token, m.fee, RequestStatus.Succeeded);
             return true;
         } else {
             _amount = _amount - m.fee;
@@ -207,7 +214,7 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         }
         _sendToken(tokenOut, sumAmtOut, m.receiver, nativeOut);
         // status is always success as long as this function call doesn't revert. partial fill is also considered success
-        emit RequestDone(m.id, sumAmtOut, sumAmtFailed, m.fee, RequestStatus.Succeeded);
+        emit RequestDone(m.id, sumAmtOut, sumAmtFailed, _token, m.fee, RequestStatus.Succeeded);
     }
 
     function executeMessageWithTransferFallback(
@@ -222,7 +229,7 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         uint256 refundAmount = _amount - m.fee; // no need to check amount >= fee as it's already checked before
         _sendToken(_token, refundAmount, m.receiver, false);
 
-        emit RequestDone(m.id, 0, refundAmount, m.fee, RequestStatus.Fallback);
+        emit RequestDone(m.id, 0, refundAmount, _token, m.fee, RequestStatus.Fallback);
         return true;
     }
 
