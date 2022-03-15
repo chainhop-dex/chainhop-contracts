@@ -305,3 +305,27 @@ describe('executeMessageWithTransferFallback', function () {
     await expect(tx).to.emit(c.xswap, 'RequestDone').withArgs(id, 0, expectRefundAmt, c.tokenA.address, fee, 2); // 2 fallback
   });
 });
+
+describe('fee', function () {
+  beforeEach(async () => {
+    await prepareContext();
+    // impersonate MessageBus as admin to gain access to calling executeMessageWithTransfer
+    await c.xswap.connect(c.admin).setMessageBus(c.admin.address);
+  });
+  it('should collect fee', async function () {
+    const amountIn = parseUnits('100');
+    const id = utils.computeId(c.sender.address, c.receiver.address, 1, 1);
+    const fee = parseUnits('1');
+    const msg = utils.encodeMessage(id, [], c.receiver.address, false, fee);
+
+    await c.tokenA.transfer(c.xswap.address, amountIn);
+    const tx = await c.xswap.executeMessageWithTransfer(ZERO_ADDR, c.tokenA.address, amountIn, 0, msg);
+    const expectAmountOut = amountIn.sub(fee);
+    await expect(tx).to.emit(c.xswap, 'RequestDone').withArgs(id, expectAmountOut, 0, c.tokenA.address, fee, 1);
+
+    const balBefore = await c.tokenA.balanceOf(c.feeCollector.address);
+    await c.xswap.connect(c.feeCollector).collectFee([c.tokenA.address], c.feeCollector.address);
+    const balAfter = await c.tokenA.balanceOf(c.feeCollector.address);
+    await expect(balAfter.sub(balBefore)).to.equal(fee);
+  });
+});
