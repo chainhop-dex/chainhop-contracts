@@ -80,6 +80,7 @@ abstract contract Swapper is Codecs {
      * @param _codecs the codecs for each swap
      * @param _amountInOverride the amountIn to substitute the amountIns in swaps for
      * @dev _amountInOverride serves the purpose of correcting the estimated amountIns to actual bridge outs
+     * @dev _amountInOverride is also distributed according to the weight of each original amountIn
      * @return sumAmtOut the sum of all amounts gained from swapping
      * @return sumAmtFailed the sum of all amounts that fails to swap
      */

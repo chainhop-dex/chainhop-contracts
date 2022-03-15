@@ -267,6 +267,7 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         _sendToken(tokenOut, sumAmtOut, m.receiver, nativeOut);
         // status is always success as long as this function call doesn't revert. partial fill is also considered success
         emit RequestDone(m.id, sumAmtOut, sumAmtFailed, _token, m.fee, RequestStatus.Succeeded);
+        return true;
     }
 
     /**
