@@ -2,7 +2,7 @@
 # Goerli
 ###############################################################################################
 
-TransferSwapper 0xD9e58B089cdAFec55C1967755Dd43F59C727e6B8
+TransferSwapper 0x15cD06a93b4Eef6E170AA0aE542692B972280E5E
 UniswapV2SwapExactTokensForTokensCodec 0xEa6367A7f9742F6c6E91F1eB46234eCe449ab951
 Multicall2 0x9c1e3ACe5B7F8B5B6816F7e346F5a53b0F1f8060
 
@@ -14,7 +14,7 @@ CELR 0x5D3c0F4cA5EE99f8E8F59Ff9A5fAb04F6a7e007f
 # BSC Testnet
 ###############################################################################################
 
-TransferSwapper 0x456ee18D0d129071738d6A14336ca940D231389A
+TransferSwapper 0xEB2b9Df7f65e4DF775699Be067d95ff5117d5909
 UniswapV2SwapExactTokensForTokensCodec 0x19982ad7EA4b29F56eb0D012558731dd7dFe8DF2
 Multicall2 0xeEbb6638D27086123aA5DBe0ef06CEeB17ee0D02
 

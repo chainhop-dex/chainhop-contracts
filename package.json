@@ -11,7 +11,9 @@
     "size-contracts": "hardhat size-contracts | sed -r 's/[[:cntrl:]]\\[[0-9]{1,3}m//g' > reports/contract_sizes.txt",
     "test": "hardhat test",
     "deploy": "hardhat deploy",
-    "verify": "hardhat verify"
+    "verify": "hardhat verify",
+    "deploy:goerli": "yarn deploy --network goerli --tags TransferSwapper",
+    "deploy:bscTest": "yarn deploy --network bscTest --tags TransferSwapper"
   },
   "license": "GPL-3.0",
   "devDependencies": {
