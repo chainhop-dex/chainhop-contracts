@@ -57,7 +57,7 @@ describe('transferWithSwap', () => {
     const amountIn = parseUnits('100');
     const srcSwaps = utils.buildUniV2Swaps(c, amountIn, { tokenIn: c.weth.address });
     const feeSig = await utils.signFee(c);
-    const desc = await utils.buildTransferDesc(c, feeSig, { tokenIn: c.weth.address });
+    const desc = await utils.buildTransferDesc(c, feeSig, { tokenIn: c.weth.address, nativeIn: true });
     const tx = c.xswap
       .connect(c.sender)
       .transferWithSwap(c.receiver.address, desc, srcSwaps, [], { value: amountIn.sub(parseUnits('95')) });
@@ -72,10 +72,11 @@ describe('transferWithSwap', () => {
     await c.tokenA.connect(c.sender).approve(c.xswap.address, amountIn);
     const tx = await c.xswap.connect(c.sender).transferWithSwap(c.receiver.address, desc, [], dstSwaps);
     const expectId = utils.computeId(c.sender.address, c.receiver.address, c.chainId, desc.nonce);
+    const expectXferId = utils.computeTransferId(c, { token: c.tokenA.address });
 
     await expect(tx)
       .to.emit(c.xswap, 'RequestSent')
-      .withArgs(expectId, desc.dstChainId, amountIn, c.tokenA.address, c.tokenB.address);
+      .withArgs(expectId, expectXferId, desc.dstChainId, amountIn, c.tokenA.address, c.tokenB.address);
 
     const srcXferId = keccak256(
       ['address', 'address', 'address', 'uint256', 'uint64', 'uint64', 'uint64'],
@@ -103,10 +104,10 @@ describe('transferWithSwap', () => {
     await c.tokenA.connect(c.sender).approve(c.xswap.address, amountIn);
     const tx = await c.xswap.connect(c.sender).transferWithSwap(c.receiver.address, desc, srcSwaps, []);
     const expectId = utils.computeId(c.sender.address, c.receiver.address, c.chainId, desc.nonce);
-
+    const expectXferId = utils.computeTransferId(c, { amount: utils.slip(amountIn, 5) });
     await expect(tx)
       .to.emit(c.xswap, 'RequestSent')
-      .withArgs(expectId, desc.dstChainId, amountIn, c.tokenA.address, c.tokenB.address);
+      .withArgs(expectId, expectXferId, desc.dstChainId, amountIn, c.tokenA.address, c.tokenB.address);
 
     const expectedSendAmt = utils.slip(amountIn, 5);
     const srcXferId = keccak256(
@@ -144,7 +145,11 @@ describe('transferWithSwap', () => {
     const amountIn = parseUnits('1');
     const srcSwaps = utils.buildUniV2Swaps(c, amountIn, { tokenIn: c.weth.address });
     const feeSig = await utils.signFee(c, { amountIn, tokenIn: c.weth.address });
-    const desc = await utils.buildTransferDesc(c, feeSig, { tokenIn: c.weth.address, dstChainId: c.chainId });
+    const desc = await utils.buildTransferDesc(c, feeSig, {
+      tokenIn: c.weth.address,
+      dstChainId: c.chainId,
+      nativeIn: true
+    });
 
     const tx = await c.xswap
       .connect(c.sender)

@@ -47,6 +47,27 @@ export function computeId(sender: string, receiver: string, srcChainId: number, 
   return keccak256(['address', 'address', 'uint64', 'uint64'], [sender, receiver, srcChainId, nonce]);
 }
 
+export interface ComputeTranferIdOverride {
+  token?: string;
+  amount?: BigNumber;
+  dstChainId?: number;
+  srcChainId?: number;
+}
+
+export function computeTransferId(c: TestContext, o?: ComputeTranferIdOverride) {
+  const xswap = c.xswap.address;
+  const receiver = c.receiver.address;
+  const token = o?.token ?? c.tokenB.address;
+  const amount = o?.amount ?? parseUnits('100');
+  const dstChainId = o?.dstChainId ?? c.chainId + 1;
+  const nonce = 1;
+  const srcChainid = o?.srcChainId ?? c.chainId;
+  return keccak256(
+    ['address', 'address', 'address', 'uint256', 'uint64', 'uint64', 'uint64'],
+    [xswap, receiver, token, amount, dstChainId, nonce, srcChainid]
+  );
+}
+
 export interface FeeSigOverride {
   srcChainId?: number;
   dstChainId?: number;
@@ -114,6 +135,7 @@ export interface TransferDescOpts {
   feeSig?: string;
   amountIn?: BigNumber;
   tokenIn?: string;
+  nativeIn?: boolean;
   nativeOut?: boolean;
   allowPartialFill?: boolean;
 }
@@ -130,6 +152,7 @@ export function buildTransferDesc(c: TestContext, feeSig: string, opts?: Transfe
     nonce: 1,
     receiver: c.receiver.address,
 
+    nativeIn: opts?.nativeIn ?? false,
     nativeOut: opts?.nativeOut ?? false,
     dstChainId: dstChainId,
     fee: fee,
