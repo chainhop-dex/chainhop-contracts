@@ -5,6 +5,10 @@ pragma solidity >=0.8.12;
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
+/**
+ * @title Allows owner to set signer, and verifies signatures
+ * @author Padoriku
+ */
 contract SigVerifier is Ownable {
     using ECDSA for bytes32;
 

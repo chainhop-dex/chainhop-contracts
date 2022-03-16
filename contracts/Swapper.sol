@@ -9,6 +9,10 @@ import "./Codecs.sol";
 import "./interfaces/ICodec.sol";
 import "./interfaces/IWETH.sol";
 
+/**
+ * @title Loads codecs for the swaps and performs swap actions
+ * @author Padoriku
+ */
 abstract contract Swapper is Codecs {
     using SafeERC20 for IERC20;
 
@@ -104,6 +108,7 @@ abstract contract Swapper is Codecs {
         require(sumAmtOut > 0, "all swaps failed");
     }
 
+    /// @notice distributes the _amountInOverride to the swaps base on how much each original amountIns weight
     function _redistributeAmountIn(
         ICodec.SwapDescription[] memory _swaps,
         uint256 _amountInOverride,

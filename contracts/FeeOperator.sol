@@ -5,6 +5,10 @@ pragma solidity >=0.8.12;
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
+/**
+ * @title Allows the owner to set fee collector and allows fee collectors to collect fees
+ * @author Padoriku
+ */
 abstract contract FeeOperator is Ownable {
     address public feeCollector;
 

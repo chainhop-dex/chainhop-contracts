@@ -5,6 +5,10 @@ pragma solidity >=0.8.12;
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "./interfaces/ICodec.sol";
 
+/**
+ * @title A codec registry that maps swap function selectors to corresponding codec addresses
+ * @author Padoriku
+ */
 abstract contract Codecs is Ownable {
     // Initially supported swap functions
     // 0x3df02124 exchange(int128,int128,uint256,uint256)
@@ -16,7 +20,7 @@ abstract contract Codecs is Ownable {
     address[] public codecs;
 
     constructor(string[] memory _funcSigs, address[] memory _codecs) {
-        require(_funcSigs.length == _codecs.length, "length mismatch");
+        require(_funcSigs.length == _codecs.length, "len mm");
         for (uint256 i = 0; i < _funcSigs.length; i++) {
             _setCodec(_funcSigs[i], _codecs[i]);
         }
@@ -37,7 +41,7 @@ abstract contract Codecs is Ownable {
         for (uint256 i = 0; i < _swaps.length; i++) {
             bytes4 selector = bytes4(_swaps[i].data);
             _codecs[i] = selector2codec[selector];
-            require(address(_codecs[i]) != address(0), "codec not found");
+            require(address(_codecs[i]) != address(0), "cdc no found");
         }
         return (_codecs);
     }
