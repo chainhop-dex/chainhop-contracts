@@ -293,6 +293,24 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         return true;
     }
 
+    /**
+     * @notice Used to trigger refund when bridging fails due to large slippage
+     * @dev only messagebus can call this function, this requries the user to get sigs of the message from sgn
+     * @param _token the token received by this contract
+     * @param _amount the amount of token received by this contract
+     * @return ok whether the processing is successful
+     */
+    function executeMessageWithTransferRefund(
+        address _token,
+        uint256 _amount,
+        bytes calldata _message
+    ) external payable override onlyMessageBus returns (bool) {
+        Request memory m = abi.decode((_message), (Request));
+        _sendToken(_token, _amount, m.receiver, false);
+        emit RequestDone(m.id, 0, _amount, _token, m.fee, RequestStatus.Fallback);
+        return true;
+    }
+
     /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
      * Misc
      * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
