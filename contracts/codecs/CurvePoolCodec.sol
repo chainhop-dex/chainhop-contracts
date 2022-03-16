@@ -33,11 +33,11 @@ contract CurvePoolCodec is ICodec {
         return abi.decode((_res), (uint256));
     }
 
-    function encodeCalldataWithOverride(bytes calldata _data, uint256 _amountInOverride)
-        external
-        pure
-        returns (bytes memory swapCalldata)
-    {
+    function encodeCalldataWithOverride(
+        bytes calldata _data,
+        uint256 _amountInOverride,
+        address // receiverOverride
+    ) external pure returns (bytes memory swapCalldata) {
         bytes4 selector = bytes4(_data);
         SwapCalldata memory data = abi.decode((_data[4:]), (SwapCalldata));
         data.dx = _amountInOverride;

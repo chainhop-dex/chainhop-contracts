@@ -66,9 +66,10 @@ abstract contract Swapper is Codecs {
     ) internal returns (bool ok, uint256 sumAmtOut) {
         for (uint256 i = 0; i < _swaps.length; i++) {
             (uint256 amountIn, address tokenIn, ) = _codecs[i].decodeCalldata(_swaps[i]);
+            bytes memory data = _codecs[i].encodeCalldataWithOverride(_swaps[i].data, amountIn, address(this));
             IERC20(tokenIn).safeIncreaseAllowance(_swaps[i].dex, amountIn);
             bytes memory res;
-            (ok, res) = _swaps[i].dex.call(_swaps[i].data);
+            (ok, res) = _swaps[i].dex.call(data);
             if (!ok) {
                 return (false, 0);
             }
@@ -137,7 +138,7 @@ abstract contract Swapper is Codecs {
         address _tokenIn,
         uint256 _amountInOverride
     ) private returns (bool, uint256 amountOut) {
-        bytes memory swapCalldata = _codec.encodeCalldataWithOverride(_swap.data, _amountInOverride);
+        bytes memory swapCalldata = _codec.encodeCalldataWithOverride(_swap.data, _amountInOverride, address(this));
         IERC20(_tokenIn).safeIncreaseAllowance(_swap.dex, _amountInOverride);
         (bool ok, bytes memory res) = _swap.dex.call(swapCalldata);
         if (ok) {

@@ -19,8 +19,9 @@ interface ICodec {
 
     function decodeReturnData(bytes calldata res) external pure returns (uint256 amountOut);
 
-    function encodeCalldataWithOverride(bytes calldata data, uint256 amountInOverride)
-        external
-        pure
-        returns (bytes memory swapCalldata);
+    function encodeCalldataWithOverride(
+        bytes calldata data,
+        uint256 amountInOverride,
+        address receiverOverride
+    ) external pure returns (bytes memory swapCalldata);
 }
