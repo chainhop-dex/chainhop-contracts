@@ -213,7 +213,7 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
             requestMessage,
             _desc.bridgeType,
             messageBus,
-            IMessageBus(messageBus).calcFee(requestMessage)
+            msg.value
         );
     }
 
