@@ -2,8 +2,8 @@
 # Goerli
 ###############################################################################################
 
-TransferSwapper 0x15cD06a93b4Eef6E170AA0aE542692B972280E5E
-UniswapV2SwapExactTokensForTokensCodec 0xEa6367A7f9742F6c6E91F1eB46234eCe449ab951
+TransferSwapper 0xFaBB31d1c1571221b35D2BDE9dD6e6F1740dAe05
+UniswapV2SwapExactTokensForTokensCodec 0x48750A66d5dc8DdCb5304584eeb7613F97A686cC
 Multicall2 0x9c1e3ACe5B7F8B5B6816F7e346F5a53b0F1f8060
 
 WETH 0xB4FBF271143F4FBf7B91A5ded31805e42b2208d6
@@ -14,8 +14,8 @@ CELR 0x5D3c0F4cA5EE99f8E8F59Ff9A5fAb04F6a7e007f
 # BSC Testnet
 ###############################################################################################
 
-TransferSwapper 0xEB2b9Df7f65e4DF775699Be067d95ff5117d5909
-UniswapV2SwapExactTokensForTokensCodec 0x19982ad7EA4b29F56eb0D012558731dd7dFe8DF2
+TransferSwapper 0x4A79C2D229351e001D60C74C2a4AD9587f4CCC45
+UniswapV2SwapExactTokensForTokensCodec 0x139A3702d94bfFdE7063e64B66A056785Ec053EF
 Multicall2 0xeEbb6638D27086123aA5DBe0ef06CEeB17ee0D02
 
 WBNB 0x094616F0BdFB0b526bD735Bf66Eca0Ad254ca81F
