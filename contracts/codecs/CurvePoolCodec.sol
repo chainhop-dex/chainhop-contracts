@@ -29,10 +29,6 @@ contract CurvePoolCodec is ICodec {
         tokenOut = ICurvePool(_swap.dex).coins(uint256(int256(data.j)));
     }
 
-    function decodeReturnData(bytes calldata _res) external pure returns (uint256 amountOut) {
-        return abi.decode((_res), (uint256));
-    }
-
     function encodeCalldataWithOverride(
         bytes calldata _data,
         uint256 _amountInOverride,

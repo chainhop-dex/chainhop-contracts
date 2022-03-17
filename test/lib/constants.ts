@@ -1,39 +1,7 @@
 import { parseUnits } from '@ethersproject/units';
 
-export const PROPOSAL_DEPOSIT = 100;
-export const VOTING_PERIOD = 20;
-export const UNBONDING_PERIOD = 50;
-export const MAX_VALIDATOR_NUM = 7;
-export const MIN_VALIDATOR_TOKENS = parseUnits('4');
-export const ADVANCE_NOTICE_PERIOD = 10;
-export const VALIDATOR_BOND_INTERVAL = 0;
-export const MAX_SLASH_FACTOR = 1e5; // 10%
-
-export const MIN_SELF_DELEGATION = parseUnits('2');
-export const VALIDATOR_STAKE = parseUnits('1'); // smaller than MIN_VALIDATOR_TOKENS for testing purpose
-export const DELEGATOR_STAKE = parseUnits('6');
-
-export const COMMISSION_RATE = 100;
-export const SLASH_FACTOR = 50000; // 5%
-
-export const STATUS_UNBONDED = 1;
-export const STATUS_UNBONDING = 2;
-export const STATUS_BONDED = 3;
-
-export const ENUM_PROPOSAL_DEPOSIT = 0;
-export const ENUM_VOTING_PERIOD = 1;
-export const ENUM_UNBONDING_PERIOD = 2;
-export const ENUM_MAX_VALIDATOR_NUM = 3;
-export const ENUM_MIN_VALIDATOR_TOKENS = 4;
-export const ENUM_MIN_SELF_DELEGATION = 5;
-export const ENUM_ADVANCE_NOTICE_PERIOD = 6;
-
-export const ENUM_VOTE_OPTION_UNVOTED = 0;
-export const ENUM_VOTE_OPTION_YES = 1;
-export const ENUM_VOTE_OPTION_ABSTAIN = 2;
-export const ENUM_VOTE_OPTION_NO = 3;
-
-export const SUB_FEE = parseUnits('100000000', 'wei');
+export const UNISWAP_V2_SLIPPAGE = 5; // 5%
+export const CURVE_SLIPPAGE = 1; // 1%
 
 export const ZERO_ADDR = '0x0000000000000000000000000000000000000000';
 

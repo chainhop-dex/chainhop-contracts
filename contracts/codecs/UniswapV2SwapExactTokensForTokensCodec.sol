@@ -21,11 +21,6 @@ contract UniswapV2SwapExactTokensForTokensCodec is ICodec {
         return (_amountIn, path[0], path[path.length - 1]);
     }
 
-    function decodeReturnData(bytes calldata _res) external pure returns (uint256 amountOut) {
-        uint256[] memory amounts = abi.decode((_res), (uint256[]));
-        return amounts[amounts.length - 1];
-    }
-
     function encodeCalldataWithOverride(
         bytes calldata _data,
         uint256 _amountInOverride,

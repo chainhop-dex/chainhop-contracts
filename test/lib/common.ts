@@ -8,7 +8,7 @@ import {
   CurvePoolCodec__factory,
   MessageBus,
   MessageBus__factory,
-  MockUniswapV2,
+  MockCurvePool__factory,
   MockUniswapV2__factory,
   TestERC20,
   TestERC20__factory,
@@ -19,6 +19,8 @@ import {
   WETH
 } from '../../typechain';
 import { WETH__factory } from './../../typechain/factories/WETH__factory';
+import { MockCurvePool } from './../../typechain/MockCurvePool';
+import { MockUniswapV2 } from './../../typechain/MockUniswapV2';
 import * as consts from './constants';
 
 // Workaround for https://github.com/nomiclabs/hardhat/issues/849
@@ -35,13 +37,17 @@ export interface BridgeContracts {
 
 export interface ChainHopContracts {
   xswap: TransferSwapper;
-  mockV2: MockUniswapV2;
 }
 
 export interface TokenContracts {
   tokenA: TestERC20;
   tokenB: TestERC20;
   weth: WETH;
+}
+
+export interface MockDexContracts {
+  mockV2: MockUniswapV2;
+  mockCurve: MockCurvePool;
 }
 
 export async function deployBridgeContracts(admin: Wallet): Promise<BridgeContracts> {
@@ -72,10 +78,6 @@ export async function deployChainhopContracts(
   feeCollector: string,
   messageBus: string
 ): Promise<ChainHopContracts> {
-  const mockV2Factory = (await ethers.getContractFactory('MockUniswapV2')) as MockUniswapV2__factory;
-  const mockV2 = await mockV2Factory.connect(admin).deploy(parseUnits('5')); // 5% fixed fake slippage
-  await mockV2.deployed();
-
   const v2CodecFactory = (await ethers.getContractFactory(
     'UniswapV2SwapExactTokensForTokensCodec'
   )) as UniswapV2SwapExactTokensForTokensCodec__factory;
@@ -109,7 +111,7 @@ export async function deployChainhopContracts(
     );
   await xswap.deployed();
 
-  return { xswap, mockV2 };
+  return { xswap };
 }
 
 export async function deployTokenContracts(admin: Wallet): Promise<TokenContracts> {
@@ -123,6 +125,24 @@ export async function deployTokenContracts(admin: Wallet): Promise<TokenContract
   const tokenB = await testERC20Factory.connect(admin).deploy();
   await tokenB.deployed();
   return { weth, tokenA, tokenB };
+}
+
+export async function deployMockDexContracts(admin: Wallet, tokens: TokenContracts): Promise<MockDexContracts> {
+  const mockV2Factory = (await ethers.getContractFactory('MockUniswapV2')) as MockUniswapV2__factory;
+  const mockV2 = await mockV2Factory.connect(admin).deploy(parseUnits(consts.UNISWAP_V2_SLIPPAGE.toString(), 4)); // 5% fixed fake slippage
+  await mockV2.deployed();
+
+  const mockCurveFactory = (await ethers.getContractFactory('MockCurvePool')) as MockCurvePool__factory;
+  const mockCurve = await mockCurveFactory
+    .connect(admin)
+    .deploy(
+      [tokens.tokenA.address, tokens.tokenB.address, tokens.weth.address],
+      [18, 18, 18],
+      parseUnits(consts.CURVE_SLIPPAGE.toString(), 4)
+    ); // 1% fixed fake slippage
+  await mockCurve.deployed();
+
+  return { mockV2, mockCurve };
 }
 
 export async function getAccounts(admin: Wallet, assets: TestERC20[], num: number): Promise<Wallet[]> {

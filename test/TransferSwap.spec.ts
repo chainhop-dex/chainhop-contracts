@@ -95,7 +95,7 @@ describe('transferWithSwap', () => {
         desc.maxBridgeSlippage
       );
   });
-  it('should swap and transfer', async function () {
+  it('should swap and transfer with Uniswap V2', async function () {
     const amountIn = parseUnits('100');
     const srcSwaps = utils.buildUniV2Swaps(c, amountIn);
     const feeSig = await utils.signFee(c);
@@ -104,12 +104,44 @@ describe('transferWithSwap', () => {
     await c.tokenA.connect(c.sender).approve(c.xswap.address, amountIn);
     const tx = await c.xswap.connect(c.sender).transferWithSwap(c.receiver.address, desc, srcSwaps, []);
     const expectId = utils.computeId(c.sender.address, c.receiver.address, c.chainId, desc.nonce);
-    const expectXferId = utils.computeTransferId(c, { amount: utils.slip(amountIn, 5) });
+    const expectXferId = utils.computeTransferId(c, { amount: utils.slipUniV2(amountIn) });
     await expect(tx)
       .to.emit(c.xswap, 'RequestSent')
       .withArgs(expectId, expectXferId, desc.dstChainId, amountIn, c.tokenA.address, c.tokenB.address);
 
-    const expectedSendAmt = utils.slip(amountIn, 5);
+    const expectedSendAmt = utils.slipUniV2(amountIn);
+    const srcXferId = keccak256(
+      ['address', 'address', 'address', 'uint256', 'uint64', 'uint64', 'uint64'],
+      [c.xswap.address, c.receiver.address, c.tokenB.address, expectedSendAmt, desc.dstChainId, desc.nonce, c.chainId]
+    );
+    await expect(tx)
+      .to.emit(c.bridge, 'Send')
+      .withArgs(
+        srcXferId,
+        c.xswap.address,
+        c.receiver.address,
+        c.tokenB.address,
+        expectedSendAmt,
+        desc.dstChainId,
+        desc.nonce,
+        desc.maxBridgeSlippage
+      );
+  });
+  it('should swap and transfer with Curve Pool', async function () {
+    const amountIn = parseUnits('100');
+    const srcSwaps = utils.buildCurveSwaps(c, amountIn);
+    const feeSig = await utils.signFee(c);
+    const desc = await utils.buildTransferDesc(c, feeSig);
+
+    await c.tokenA.connect(c.sender).approve(c.xswap.address, amountIn);
+    const tx = await c.xswap.connect(c.sender).transferWithSwap(c.receiver.address, desc, srcSwaps, []);
+    const expectId = utils.computeId(c.sender.address, c.receiver.address, c.chainId, desc.nonce);
+    const expectedSendAmt = utils.slipCurve(amountIn);
+    const expectXferId = utils.computeTransferId(c, { amount: expectedSendAmt });
+    await expect(tx)
+      .to.emit(c.xswap, 'RequestSent')
+      .withArgs(expectId, expectXferId, desc.dstChainId, amountIn, c.tokenA.address, c.tokenB.address);
+
     const srcXferId = keccak256(
       ['address', 'address', 'address', 'uint256', 'uint64', 'uint64', 'uint64'],
       [c.xswap.address, c.receiver.address, c.tokenB.address, expectedSendAmt, desc.dstChainId, desc.nonce, c.chainId]
@@ -135,7 +167,7 @@ describe('transferWithSwap', () => {
     await c.tokenA.connect(c.sender).approve(c.xswap.address, amountIn);
     const tx = await c.xswap.connect(c.sender).transferWithSwap(c.receiver.address, desc, srcSwaps, []);
     const expectId = utils.computeId(c.sender.address, c.receiver.address, c.chainId, desc.nonce);
-    const expectAmountOut = utils.slip(amountIn, 5);
+    const expectAmountOut = utils.slipUniV2(amountIn);
     await expect(tx)
       .to.emit(c.xswap, 'DirectSwap')
       .withArgs(expectId, amountIn, c.tokenA.address, expectAmountOut, c.tokenB.address);
@@ -155,7 +187,7 @@ describe('transferWithSwap', () => {
       .connect(c.sender)
       .transferWithSwap(c.receiver.address, desc, srcSwaps, [], { value: amountIn });
     const expectId = utils.computeId(c.sender.address, c.receiver.address, c.chainId, desc.nonce);
-    const expectAmountOut = utils.slip(amountIn, 5);
+    const expectAmountOut = utils.slipUniV2(amountIn);
     await expect(tx)
       .to.emit(c.xswap, 'DirectSwap')
       .withArgs(expectId, amountIn, c.weth.address, expectAmountOut, c.tokenB.address);
@@ -196,13 +228,13 @@ describe('executeMessageWithTransfer', function () {
     const id = utils.computeId(c.sender.address, c.receiver.address, 1, 1);
     const fee = parseUnits('1');
     const swaps = utils.buildUniV2Swaps(c, adulteratedAmountIn, {
-      amountOutMin: utils.slip(bridgeOutAmount.sub(fee), 5)
+      amountOutMin: utils.slipUniV2(bridgeOutAmount.sub(fee))
     });
     const msg = utils.encodeMessage(id, swaps, c.receiver.address, false, fee);
 
     await c.tokenA.transfer(c.xswap.address, bridgeOutAmount);
     const tx = await c.xswap.executeMessageWithTransfer(ZERO_ADDR, c.tokenA.address, bridgeOutAmount, 0, msg);
-    const expectAmountOut = utils.slip(bridgeOutAmount.sub(fee), 5);
+    const expectAmountOut = utils.slipUniV2(bridgeOutAmount.sub(fee));
     await expect(tx).to.emit(c.xswap, 'RequestDone').withArgs(id, expectAmountOut, 0, c.tokenA.address, fee, 1);
   });
   it('should swap and send native', async function () {
@@ -211,7 +243,7 @@ describe('executeMessageWithTransfer', function () {
     const fee = parseUnits('0.1');
     const swaps = utils.buildUniV2Swaps(c, amountIn, {
       tokenOut: c.weth.address,
-      amountOutMin: utils.slip(amountIn.sub(fee), 5)
+      amountOutMin: utils.slipUniV2(amountIn.sub(fee))
     });
     const msg = utils.encodeMessage(id, swaps, c.receiver.address, true, fee);
 
@@ -219,7 +251,7 @@ describe('executeMessageWithTransfer', function () {
     const balBefore = await c.receiver.getBalance();
     const tx = await c.xswap.executeMessageWithTransfer(ZERO_ADDR, c.tokenA.address, amountIn, 0, msg);
     const balAfter = await c.receiver.getBalance();
-    const expectAmountOut = utils.slip(amountIn.sub(fee), 5);
+    const expectAmountOut = utils.slipUniV2(amountIn.sub(fee));
     await expect(tx).to.emit(c.xswap, 'RequestDone').withArgs(id, expectAmountOut, 0, c.tokenA.address, fee, 1);
     await expect(balAfter.sub(balBefore)).to.equal(expectAmountOut);
   });
@@ -245,7 +277,8 @@ describe('executeMessageWithTransfer multi route', function () {
   it('should revert if all swaps fail', async function () {
     const amountIn = parseUnits('100');
     const failSwap = utils.buildUniV2Swaps(c, amountIn.div(2), { amountOutMin: amountIn }); // amt min too large
-    const swaps = [...failSwap, ...failSwap];
+    const failSwap2 = utils.buildCurveSwaps(c, amountIn.div(2), { amountOutMin: amountIn });
+    const swaps = [...failSwap, ...failSwap2];
     const id = utils.computeId(c.sender.address, c.receiver.address, 1, 1);
     const fee = parseUnits('1');
     const msg = utils.encodeMessage(id, swaps, c.receiver.address, false, fee, true);
@@ -257,7 +290,7 @@ describe('executeMessageWithTransfer multi route', function () {
   it('should revert if partial fill is off and some swaps fail', async function () {
     const amountIn = parseUnits('100');
     const successSwap = utils.buildUniV2Swaps(c, amountIn.div(2), { amountOutMin: ZERO_AMOUNT });
-    const failSwap = utils.buildUniV2Swaps(c, amountIn.div(2), { amountOutMin: amountIn }); // amt min too large
+    const failSwap = utils.buildCurveSwaps(c, amountIn.div(2), { amountOutMin: amountIn }); // amt min too large
     const swaps = [...successSwap, ...failSwap];
     const id = utils.computeId(c.sender.address, c.receiver.address, 1, 1);
     const fee = parseUnits('1');
@@ -270,7 +303,7 @@ describe('executeMessageWithTransfer multi route', function () {
   it('should partially fill', async function () {
     const amountIn = parseUnits('100');
     const successSwap = utils.buildUniV2Swaps(c, amountIn.div(2), { amountOutMin: ZERO_AMOUNT });
-    const failSwap = utils.buildUniV2Swaps(c, amountIn.div(2), { amountOutMin: amountIn }); // amt min too large
+    const failSwap = utils.buildCurveSwaps(c, amountIn.div(2), { amountOutMin: amountIn }); // amt min too large
     const swaps = [...successSwap, ...failSwap];
     const id = utils.computeId(c.sender.address, c.receiver.address, 1, 1);
     const fee = parseUnits('1');
@@ -278,11 +311,28 @@ describe('executeMessageWithTransfer multi route', function () {
 
     await c.tokenA.transfer(c.xswap.address, amountIn);
     const tx = c.xswap.executeMessageWithTransfer(ZERO_ADDR, c.tokenA.address, amountIn, 0, msg);
-    const expectAmountOut = utils.slip(amountIn.sub(fee).div(2), 5);
+    const expectAmountOut = utils.slipUniV2(amountIn.sub(fee).div(2));
     const expectRefundAmt = amountIn.sub(fee).div(2);
     await expect(tx)
       .to.emit(c.xswap, 'RequestDone')
       .withArgs(id, expectAmountOut, expectRefundAmt, c.tokenA.address, fee, 1);
+  });
+  it('should execute all swaps', async function () {
+    const amountIn = parseUnits('100');
+    const swap = utils.buildUniV2Swaps(c, amountIn.div(2), { amountOutMin: ZERO_AMOUNT });
+    const swap2 = utils.buildCurveSwaps(c, amountIn.div(2), { amountOutMin: ZERO_AMOUNT }); // amt min too large
+    const swaps = [...swap, ...swap2];
+    const id = utils.computeId(c.sender.address, c.receiver.address, 1, 1);
+    const fee = parseUnits('1');
+    const msg = utils.encodeMessage(id, swaps, c.receiver.address, false, fee, true);
+
+    await c.tokenA.transfer(c.xswap.address, amountIn);
+    const tx = c.xswap.executeMessageWithTransfer(ZERO_ADDR, c.tokenA.address, amountIn, 0, msg);
+    const expectAmountOut = utils.slipUniV2(amountIn.sub(fee).div(2));
+    const expectAmountOut2 = utils.slipCurve(amountIn.sub(fee).div(2));
+    await expect(tx)
+      .to.emit(c.xswap, 'RequestDone')
+      .withArgs(id, expectAmountOut.add(expectAmountOut2), 0, c.tokenA.address, fee, 1);
   });
 });
 

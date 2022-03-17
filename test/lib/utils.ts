@@ -5,12 +5,20 @@ import { ethers } from 'hardhat';
 import { TransferSwapper } from '../../typechain';
 import { BridgeType } from '../types';
 import { ICodec } from './../../typechain/ICodec';
-import { UINT64_MAX } from './constants';
+import { CURVE_SLIPPAGE, UINT64_MAX, UNISWAP_V2_SLIPPAGE } from './constants';
 import { TestContext } from './fixtures';
 
 export function slip(amount: BigNumber, perc: number): BigNumber {
   const percent = 100 - perc;
   return amount.mul(parseUnits(percent.toString(), 4)).div(parseUnits('100', 4));
+}
+
+export function slipUniV2(amount: BigNumber) {
+  return slip(amount, UNISWAP_V2_SLIPPAGE);
+}
+
+export function slipCurve(amount: BigNumber) {
+  return slip(amount, CURVE_SLIPPAGE);
 }
 
 export function hex2Bytes(hexString: string): number[] {
@@ -121,11 +129,44 @@ export interface UniV2SwapsOverride {
 }
 
 export function buildUniV2Swaps(c: TestContext, amountIn: BigNumber, opts?: UniV2SwapsOverride) {
-  const amountOutMin = opts?.amountOutMin ?? slip(amountIn, 5);
+  const amountOutMin = opts?.amountOutMin ?? slipUniV2(amountIn);
   const tokenIn = opts?.tokenIn ?? c.tokenA.address;
   const tokenOut = opts?.tokenOut ?? c.tokenB.address;
   const to = opts?.to ?? c.xswap.address;
   return [buildUniV2Swap(c.mockV2.address, amountIn, amountOutMin, tokenIn, tokenOut, to)];
+}
+
+export function buildCurveSwap(
+  dex: string,
+  amountIn: BigNumber,
+  amountOutMin: BigNumber,
+  i: number,
+  j: number
+): ICodec.SwapDescriptionStruct {
+  let data = ethers.utils.defaultAbiCoder.encode(
+    ['uint128', 'uint128', 'uint256', 'uint256'],
+    [i, j, amountIn, amountOutMin]
+  );
+  data = data.slice(2); // strip 0x
+  data = '0x3df02124' + data; // prepend selector
+  return { dex, data };
+}
+export interface CurveSwapsOverride {
+  amountOutMin?: BigNumber;
+  tokenIn?: string;
+  tokenOut?: string;
+}
+
+export function buildCurveSwaps(c: TestContext, amountIn: BigNumber, o?: CurveSwapsOverride) {
+  const tokenIndices = {
+    [c.tokenA.address]: 0,
+    [c.tokenB.address]: 1,
+    [c.weth.address]: 2
+  };
+  const amountOutMin = o?.amountOutMin ?? slipCurve(amountIn);
+  const tokenIn = o?.tokenIn ?? c.tokenA.address;
+  const tokenOut = o?.tokenOut ?? c.tokenB.address;
+  return [buildCurveSwap(c.mockCurve.address, amountIn, amountOutMin, tokenIndices[tokenIn], tokenIndices[tokenOut])];
 }
 
 export interface TransferDescOpts {
