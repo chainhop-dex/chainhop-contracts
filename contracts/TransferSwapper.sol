@@ -293,6 +293,31 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         return true;
     }
 
+    /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+     * Refund handler functions
+     * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+    /**
+     * @notice aggregates two calls into one to save user transaction fees
+     * @dev caller must get the required input params to each call first
+     * @dev this internally calls messagebus and the bus in turn calls executeMessageWithTransferRefund in this contract
+     * @param _wd call params to Bridge.withdraw(). Acquired via calling InitWithdraw at SGN Gateway
+     * @param _refund call params to MessageBus.executeMessageWithTransferRefund(). Acquired via querying SGN for refundable messages
+     */
+    function refundViaLiquidityBridge(IBridge.WithdrawParams calldata _wd, IMessageBus.RefundParams memory _refund)
+        external
+    {
+        address bridge = IMessageBus(messageBus).liquidityBridge();
+        IBridge(bridge).withdraw(_wd.wdmsg, _wd.sigs, _wd.signers, _wd.powers);
+        IMessageBus(messageBus).executeMessageWithTransferRefund(
+            _refund.message,
+            _refund.transfer,
+            _refund.sigs,
+            _refund.signers,
+            _refund.powers
+        );
+    }
+
     /**
      * @notice Used to trigger refund when bridging fails due to large slippage
      * @dev only messagebus can call this function, this requries the user to get sigs of the message from sgn
