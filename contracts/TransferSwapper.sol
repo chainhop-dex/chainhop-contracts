@@ -54,7 +54,7 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
     }
 
     /**
-     * @notice Denotates the status of a cross-chain transfer/swap request
+     * @notice Denotes the status of a cross-chain transfer/swap request
      * @dev Partially filled requests are considered 'Succeeded'. There is no 'Failed' state as
      * it's only possible if everything reverts and there is no successful transaction
      * @param Null An empty status that should never be reached
@@ -127,8 +127,8 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         address _signer,
         address _feeCollector,
         string[] memory _funcSigs,
-        address[] memory _codex
-    ) Codecs(_funcSigs, _codex) FeeOperator(_feeCollector) SigVerifier(_signer) {
+        address[] memory _codecs
+    ) Codecs(_funcSigs, _codecs) FeeOperator(_feeCollector) SigVerifier(_signer) {
         messageBus = _messageBus;
         nativeWrap = _nativeWrap;
     }
@@ -300,7 +300,7 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
     /**
      * @notice aggregates two calls into one to save user transaction fees
      * @dev caller must get the required input params to each call first
-     * @dev this internally calls messagebus and the bus in turn calls executeMessageWithTransferRefund in this contract
+     * @dev this internally calls MessageBus and the bus in turn calls executeMessageWithTransferRefund in this contract
      * @param _wd call params to Bridge.withdraw(). Acquired via calling InitWithdraw at SGN Gateway
      * @param _refund call params to MessageBus.executeMessageWithTransferRefund(). Acquired via querying SGN for refundable messages
      */
@@ -320,7 +320,7 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
 
     /**
      * @notice Used to trigger refund when bridging fails due to large slippage
-     * @dev only messagebus can call this function, this requries the user to get sigs of the message from sgn
+     * @dev only MessageBus can call this function, this requires the user to get sigs of the message from SGN
      * @param _token the token received by this contract
      * @param _amount the amount of token received by this contract
      * @return ok whether the processing is successful

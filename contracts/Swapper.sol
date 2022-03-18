@@ -9,8 +9,6 @@ import "./Codecs.sol";
 import "./interfaces/ICodec.sol";
 import "./interfaces/IWETH.sol";
 
-import "hardhat/console.sol";
-
 /**
  * @title Loads codecs for the swaps and performs swap actions
  * @author Padoriku
