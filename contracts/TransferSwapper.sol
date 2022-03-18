@@ -7,6 +7,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "./lib/MessageSenderLib.sol";
 import "./lib/MessageReceiverApp.sol";
+import "./lib/PbPool.sol";
 import "./FeeOperator.sol";
 import "./SigVerifier.sol";
 import "./Swapper.sol";
@@ -308,7 +309,12 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         external
     {
         address bridge = IMessageBus(messageBus).liquidityBridge();
-        IBridge(bridge).withdraw(_wd.wdmsg, _wd.sigs, _wd.signers, _wd.powers);
+        PbPool.WithdrawMsg memory wd = PbPool.decWithdrawMsg(_wd);
+        bytes32 wdid = keccak256(abi.encodePacked(wd.chainid, wd.seqnum, wd.receiver, wd.token, wd.amount));
+        if (!IBridge(bridge).withdraws(wdid)) {
+            // only withdraw if withdraw doesn't exist
+            IBridge(bridge).withdraw(_wd.wdmsg, _wd.sigs, _wd.signers, _wd.powers);
+        }
         IMessageBus(messageBus).executeMessageWithTransferRefund(
             _refund.message,
             _refund.transfer,
