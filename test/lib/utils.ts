@@ -178,6 +178,7 @@ export interface TransferDescOpts {
   tokenIn?: string;
   nativeIn?: boolean;
   nativeOut?: boolean;
+  dstTokenOut?: string;
   allowPartialFill?: boolean;
 }
 
@@ -195,6 +196,7 @@ export function buildTransferDesc(c: TestContext, feeSig: string, opts?: Transfe
 
     nativeIn: opts?.nativeIn ?? false,
     nativeOut: opts?.nativeOut ?? false,
+    dstTokenOut: opts?.dstTokenOut ?? c.tokenB.address,
     dstChainId: dstChainId,
     fee: fee,
     feeDeadline: feeDeadline,

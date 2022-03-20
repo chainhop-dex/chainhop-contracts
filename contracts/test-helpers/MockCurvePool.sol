@@ -36,22 +36,16 @@ contract MockCurvePool is ICurvePool {
         address coini = coins[uint256(int256(_i))];
         address coinj = coins[uint256(int256(_j))];
 
-        console.log("1");
-
         uint8 decimali = decimals[uint256(int256(_i))];
         uint8 decimalj = decimals[uint256(int256(_j))];
-        console.log("2");
 
         require(coini != address(0), "coin i not found");
         require(coinj != address(0), "coin j not found");
-        console.log("3");
 
         IERC20(coini).safeTransferFrom(msg.sender, address(this), _dx);
-        console.log("4");
 
         uint256 amountOut = (((_dx * decimali) / decimalj) * (HUNDRED_PERC - fakeSlippage)) / HUNDRED_PERC;
         require(amountOut >= _min_dy, "slippage too large");
-        console.log("5");
 
         IERC20(coinj).safeTransfer(msg.sender, amountOut);
     }

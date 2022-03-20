@@ -40,6 +40,7 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         // these two fields are only meant for the scenario where no swaps are needed on src chain
         uint256 amountIn;
         address tokenIn;
+        address dstTokenOut; // the final output token, emitted in event for display purpose only
         // in case of multi route swaps, whether to allow the successful swaps to go through
         // and sending the amountIn of the failed swaps back to user
         bool allowPartialFill;
@@ -168,30 +169,7 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         } else {
             IERC20(tokenIn).safeTransferFrom(msg.sender, address(this), amountIn);
         }
-        // swap if needed
-        uint256 amountOut = amountIn;
-        if (_srcSwaps.length != 0) {
-            bool ok;
-            (ok, amountOut) = executeSwaps(_srcSwaps, codecs);
-            require(ok, "swap fail");
-        }
-
-        bytes32 id = _computeId(_desc.receiver, _desc.nonce);
-        // direct send if needed
-        if (_desc.dstChainId == uint64(block.chainid)) {
-            emit DirectSwap(id, amountIn, tokenIn, amountOut, tokenOut);
-            _sendToken(tokenOut, amountOut, _desc.receiver, _desc.nativeOut);
-            return;
-        }
-
-        address dstTokenOut = tokenOut;
-        if (_dstSwaps.length != 0) {
-            (, , dstTokenOut, ) = sanitizeSwaps(_dstSwaps);
-        }
-        _verifyFee(_desc, amountIn, tokenIn);
-        // transfer through bridge
-        bytes32 transferId = _transfer(id, _dstTransferSwapper, _desc, _dstSwaps, amountOut, tokenOut);
-        emit RequestSent(id, transferId, _desc.dstChainId, amountIn, tokenIn, dstTokenOut);
+        _swapAndSend(_dstTransferSwapper, amountIn, tokenIn, tokenOut, _srcSwaps, _dstSwaps, _desc, codecs);
     }
 
     // for stack too deep
@@ -216,6 +194,39 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
             messageBus,
             msg.value
         );
+    }
+
+    // for stack too deep
+    function _swapAndSend(
+        address _dstTransferSwapper,
+        uint256 _amountIn,
+        address _tokenIn,
+        address _tokenOut,
+        ICodec.SwapDescription[] memory _srcSwaps,
+        ICodec.SwapDescription[] memory _dstSwaps,
+        TransferDescription memory _desc,
+        ICodec[] memory _codecs
+    ) private {
+        // swap if needed
+        uint256 amountOut = _amountIn;
+        if (_srcSwaps.length != 0) {
+            bool ok;
+            (ok, amountOut) = executeSwaps(_srcSwaps, _codecs);
+            require(ok, "swap fail");
+        }
+
+        bytes32 id = _computeId(_desc.receiver, _desc.nonce);
+        // direct send if needed
+        if (_desc.dstChainId == uint64(block.chainid)) {
+            emit DirectSwap(id, _amountIn, _tokenIn, amountOut, _tokenOut);
+            _sendToken(_tokenOut, amountOut, _desc.receiver, _desc.nativeOut);
+            return;
+        }
+
+        _verifyFee(_desc, _amountIn, _tokenIn);
+        // transfer through bridge
+        bytes32 transferId = _transfer(id, _dstTransferSwapper, _desc, _dstSwaps, amountOut, _tokenOut);
+        emit RequestSent(id, transferId, _desc.dstChainId, _amountIn, _tokenIn, _desc.dstTokenOut);
     }
 
     /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
@@ -305,11 +316,11 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
      * @param _wd call params to Bridge.withdraw(). Acquired via calling InitWithdraw at SGN Gateway
      * @param _refund call params to MessageBus.executeMessageWithTransferRefund(). Acquired via querying SGN for refundable messages
      */
-    function refundViaLiquidityBridge(IBridge.WithdrawParams calldata _wd, IMessageBus.RefundParams memory _refund)
+    function refundViaLiquidityBridge(IBridge.WithdrawParams calldata _wd, IMessageBus.RefundParams calldata _refund)
         external
     {
         address bridge = IMessageBus(messageBus).liquidityBridge();
-        PbPool.WithdrawMsg memory wd = PbPool.decWithdrawMsg(_wd);
+        PbPool.WithdrawMsg memory wd = PbPool.decWithdrawMsg(_wd.wdmsg);
         bytes32 wdid = keccak256(abi.encodePacked(wd.chainid, wd.seqnum, wd.receiver, wd.token, wd.amount));
         if (!IBridge(bridge).withdraws(wdid)) {
             // only withdraw if withdraw doesn't exist

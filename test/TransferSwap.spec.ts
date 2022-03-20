@@ -67,9 +67,10 @@ describe('transferWithSwap', () => {
     const amountIn = parseUnits('100');
     const dstSwaps = utils.buildUniV2Swaps(c, amountIn);
     const feeSig = await utils.signFee(c);
-    const desc = await utils.buildTransferDesc(c, feeSig, { amountIn, tokenIn: c.tokenA.address });
+    const desc = await utils.buildTransferDesc(c, feeSig, { amountIn });
 
     await c.tokenA.connect(c.sender).approve(c.xswap.address, amountIn);
+    const senderBal = await c.tokenA.balanceOf(c.sender.address);
     const tx = await c.xswap.connect(c.sender).transferWithSwap(c.receiver.address, desc, [], dstSwaps);
     const expectId = utils.computeId(c.sender.address, c.receiver.address, c.chainId, desc.nonce);
     const expectXferId = utils.computeTransferId(c, { token: c.tokenA.address });
@@ -77,6 +78,10 @@ describe('transferWithSwap', () => {
     await expect(tx)
       .to.emit(c.xswap, 'RequestSent')
       .withArgs(expectId, expectXferId, desc.dstChainId, amountIn, c.tokenA.address, c.tokenB.address);
+
+    const senderBalAfter = await c.tokenA.balanceOf(c.sender.address);
+    const senderBalDiff = senderBal.sub(senderBalAfter);
+    await expect(senderBalDiff).to.equal(amountIn);
 
     const srcXferId = keccak256(
       ['address', 'address', 'address', 'uint256', 'uint64', 'uint64', 'uint64'],
