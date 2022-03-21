@@ -59,6 +59,6 @@ contract MockCurvePool is ICurvePool {
         address coinj = coins[uint256(int256(_j))];
         require(coini != address(0), "coin i not found");
         require(coinj != address(0), "coin j not found");
-        return _dx * (HUNDRED_PERC - fakeSlippage);
+        return (_dx * (HUNDRED_PERC - fakeSlippage)) / HUNDRED_PERC;
     }
 }
