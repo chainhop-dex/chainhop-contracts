@@ -181,6 +181,10 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         uint256 _amount,
         address _token
     ) private returns (bytes32 transferId) {
+        uint256 msgFee = msg.value;
+        if (_desc.nativeIn) {
+            msgFee = msg.value - _desc.amountIn;
+        }
         bytes memory requestMessage = _encodeRequestMessage(_id, _desc, _dstSwaps);
         transferId = MessageSenderLib.sendMessageWithTransfer(
             _dstTransferSwapper,
@@ -192,7 +196,7 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
             requestMessage,
             _desc.bridgeType,
             messageBus,
-            msg.value
+            msgFee
         );
     }
 
