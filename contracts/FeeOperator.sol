@@ -3,6 +3,7 @@
 pragma solidity >=0.8.12;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 /**
@@ -10,6 +11,8 @@ import "@openzeppelin/contracts/access/Ownable.sol";
  * @author Padoriku
  */
 abstract contract FeeOperator is Ownable {
+    using SafeERC20 for IERC20;
+
     address public feeCollector;
 
     modifier onlyFeeCollector() {
@@ -24,7 +27,7 @@ abstract contract FeeOperator is Ownable {
     function collectFee(address[] calldata _tokens, address _to) external onlyFeeCollector {
         for (uint256 i = 0; i < _tokens.length; i++) {
             uint256 balance = IERC20(_tokens[i]).balanceOf(address(this));
-            IERC20(_tokens[i]).transfer(_to, balance);
+            IERC20(_tokens[i]).safeTransfer(_to, balance);
         }
     }
 
