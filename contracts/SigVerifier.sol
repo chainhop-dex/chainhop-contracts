@@ -14,12 +14,16 @@ contract SigVerifier is Ownable {
 
     address public signer;
 
+    event SignerUpdated(address from, address to);
+
     constructor(address _signer) {
         signer = _signer;
     }
 
     function setSigner(address _signer) public onlyOwner {
+        address oldSigner = signer;
         signer = _signer;
+        emit SignerUpdated(oldSigner, _signer);
     }
 
     function verifySig(bytes32 _hash, bytes memory _feeSig) internal view {

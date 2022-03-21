@@ -15,6 +15,8 @@ abstract contract FeeOperator is Ownable {
 
     address public feeCollector;
 
+    event FeeCollectorUpdated(address from, address to);
+
     modifier onlyFeeCollector() {
         require(msg.sender == feeCollector, "not fee collector");
         _;
@@ -32,6 +34,8 @@ abstract contract FeeOperator is Ownable {
     }
 
     function setFeeCollector(address _feeCollector) external onlyOwner {
+        address oldFeeCollector = feeCollector;
         feeCollector = _feeCollector;
+        emit FeeCollectorUpdated(oldFeeCollector, _feeCollector);
     }
 }

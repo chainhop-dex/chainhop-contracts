@@ -19,20 +19,24 @@ abstract contract Codecs is Ownable {
     // not used programmatically, but added for contract transparency
     address[] public codecs;
 
+    event CodecAdded(bytes4 selector, address codec);
+
     constructor(string[] memory _funcSigs, address[] memory _codecs) {
         require(_funcSigs.length == _codecs.length, "len mm");
         for (uint256 i = 0; i < _funcSigs.length; i++) {
-            _setCodec(_funcSigs[i], _codecs[i]);
+            bytes4 selector = bytes4(keccak256(bytes(_funcSigs[i])));
+            _setCodec(selector, _codecs[i]);
         }
     }
 
     function setCodec(string calldata _funcSig, address _codec) public onlyOwner {
-        _setCodec(_funcSig, _codec);
+        bytes4 selector = bytes4(keccak256(bytes(_funcSig)));
+        _setCodec(selector, _codec);
+        emit CodecAdded(selector, _codec);
     }
 
-    function _setCodec(string memory _funcSig, address _codec) private {
-        bytes4 selector = bytes4(keccak256(bytes(_funcSig)));
-        selector2codec[selector] = ICodec(_codec);
+    function _setCodec(bytes4 _selector, address _codec) private {
+        selector2codec[_selector] = ICodec(_codec);
         codecs.push(_codec);
     }
 
