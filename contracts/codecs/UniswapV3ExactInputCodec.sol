@@ -5,7 +5,7 @@ pragma solidity >=0.8.12;
 import "../interfaces/ICodec.sol";
 import "../interfaces/ISwapRouter.sol";
 
-contract UniswapV3ExactInputSingleCodec is ICodec {
+contract UniswapV3ExactInputCodec is ICodec {
     function decodeCalldata(ICodec.SwapDescription calldata _swap)
         external
         pure
@@ -28,7 +28,7 @@ contract UniswapV3ExactInputSingleCodec is ICodec {
         address _receiverOverride
     ) external pure returns (bytes memory swapCalldata) {
         bytes4 selector = bytes4(_data);
-        ISwapRouter.ExactInputSingleParams memory data = abi.decode((_data[4:]), (ISwapRouter.ExactInputSingleParams));
+        ISwapRouter.ExactInputParams memory data = abi.decode((_data[4:]), (ISwapRouter.ExactInputParams));
         data.amountIn = _amountInOverride;
         data.recipient = _receiverOverride;
         return abi.encodeWithSelector(selector, data);

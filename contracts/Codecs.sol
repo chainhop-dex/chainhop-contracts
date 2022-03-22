@@ -13,7 +13,7 @@ abstract contract Codecs is Ownable {
     // Initially supported swap functions
     // 0x3df02124 exchange(int128,int128,uint256,uint256)
     // 0x38ed1739 swapExactTokensForTokens(uint256,uint256,address[],address,uint256)
-    // 0x41060ae0 exactInputSingle(address,address,uint24,address,uint256,uint256,uint256,uint160)
+    // c04b8d59 exactInput((bytes,address,uint256,uint256,uint256))
     mapping(bytes4 => ICodec) public selector2codec;
 
     // not used programmatically, but added for contract transparency
