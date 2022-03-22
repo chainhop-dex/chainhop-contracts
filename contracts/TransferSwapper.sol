@@ -164,6 +164,7 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
             require(tokenIn == _desc.tokenIn, "tkin mm");
         }
         if (_desc.nativeIn) {
+            require(tokenIn == nativeWrap, "tkin no nativeWrap");
             require(msg.value >= amountIn, "insfcnt amt"); // insufficient amount
             IWETH(nativeWrap).deposit{value: msg.value}();
         } else {

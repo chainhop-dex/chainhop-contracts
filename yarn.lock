@@ -4714,7 +4714,7 @@ hardhat-deploy@^0.10.5:
 
 hardhat-gas-reporter@^1.0.8:
   version "1.0.8"
-  resolved "https://registry.npmjs.org/hardhat-gas-reporter/-/hardhat-gas-reporter-1.0.8.tgz"
+  resolved "https://registry.yarnpkg.com/hardhat-gas-reporter/-/hardhat-gas-reporter-1.0.8.tgz#93ce271358cd748d9c4185dbb9d1d5525ec145e0"
   integrity sha512-1G5thPnnhcwLHsFnl759f2tgElvuwdkzxlI65fC9PwxYMEe9cmjkVAAWTf3/3y8uP6ZSPiUiOW8PgZnykmZe0g==
   dependencies:
     array-uniq "1.0.3"

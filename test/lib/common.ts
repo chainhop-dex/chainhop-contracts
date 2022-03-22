@@ -15,7 +15,7 @@ import {
   TransferSwapper,
   TransferSwapper__factory,
   UniswapV2SwapExactTokensForTokensCodec__factory,
-  UniswapV3ExactInputSingleCodec__factory,
+  UniswapV3ExactInputCodec__factory,
   WETH
 } from '../../typechain';
 import { WETH__factory } from './../../typechain/factories/WETH__factory';
@@ -85,8 +85,8 @@ export async function deployChainhopContracts(
   await v2Codec.deployed();
 
   const v3CodecFactory = (await ethers.getContractFactory(
-    'UniswapV3ExactInputSingleCodec'
-  )) as UniswapV3ExactInputSingleCodec__factory;
+    'UniswapV3ExactInputCodec'
+  )) as UniswapV3ExactInputCodec__factory;
   const v3Codec = await v3CodecFactory.connect(admin).deploy();
   await v3Codec.deployed();
 
