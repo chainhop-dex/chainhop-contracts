@@ -3,10 +3,18 @@ import { BigNumber, BigNumberish } from 'ethers';
 import { parseUnits } from 'ethers/lib/utils';
 import { ethers } from 'hardhat';
 import { TransferSwapper } from '../../typechain';
-import { BridgeType } from '../types';
 import { ICodec } from './../../typechain/ICodec';
 import { CURVE_SLIPPAGE, UINT64_MAX, UNISWAP_V2_SLIPPAGE } from './constants';
 import { BaseFixture, TestContext } from './fixtures';
+
+export enum BridgeType {
+  Null,
+  Liquidity,
+  PegDeposit,
+  PegBurn,
+  PegDepositV2,
+  PegBurnV2
+}
 
 export function slip(amount: BigNumber, perc: number): BigNumber {
   const percent = 100 - perc;
