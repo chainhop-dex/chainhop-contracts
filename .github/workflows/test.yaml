@@ -19,4 +19,4 @@ jobs:
       - name: Installing dependencies
         run: yarn install --frozen-lockfile
       - name: Running tests
-        run: yarn test
+        run: yarn compile && yarn test
