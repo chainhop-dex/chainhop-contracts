@@ -111,10 +111,10 @@ export async function deployChainhopContracts(
       feeCollector,
       [
         'swapExactTokensForTokens(uint256,uint256,address[],address,uint256)',
-        'exactInputSingle(address,address,uint24,address,uint256,uint256,uint256,uint160)',
-        'exchange(int128,int128,uint256,uint256)'
+        'exchange(int128,int128,uint256,uint256)',
+        'exactInput((bytes,address,uint256,uint256,uint256))'
       ],
-      [v2Codec.address, v3Codec.address, curveCodec.address],
+      [v2Codec.address, curveCodec.address, v3Codec.address],
       supportedDexList
     );
   await xswap.deployed();

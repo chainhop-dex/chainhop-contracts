@@ -27,10 +27,10 @@ const deployFunc: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
     process.env.FEE_COLLECTOR,
     [
       'swapExactTokensForTokens(uint256,uint256,address[],address,uint256)',
-      'exactInput((bytes,address,uint256,uint256,uint256))',
-      'exchange(int128,int128,uint256,uint256)'
+      'exchange(int128,int128,uint256,uint256)',
+      'exactInput((bytes,address,uint256,uint256,uint256))'
     ],
-    [v2Codec.address, v3Codec.address, curveCodec.address],
+    [v2Codec.address, curveCodec.address, v3Codec.address],
     supportedDexList
   ];
 

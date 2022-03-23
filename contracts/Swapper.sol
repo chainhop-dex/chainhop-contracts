@@ -17,11 +17,15 @@ import "./DexRegistry.sol";
 contract Swapper is CodecRegistry, DexRegistry {
     using SafeERC20 for IERC20;
 
+    /**
+     * @dev initially supports 1 func per dex.
+     * _funcSigs positions correspond to the dex positions in _supportedDexList
+     */
     constructor(
         string[] memory _funcSigs,
         address[] memory _codecs,
         address[] memory _supportedDexList
-    ) DexRegistry(_supportedDexList) CodecRegistry(_funcSigs, _codecs) {}
+    ) DexRegistry(_supportedDexList, _funcSigs) CodecRegistry(_funcSigs, _codecs) {}
 
     /**
      * @dev Checks the input swaps for that tokenIn and tokenOut for every swap should be the same
@@ -46,7 +50,7 @@ contract Swapper is CodecRegistry, DexRegistry {
         codecs = loadCodecs(_swaps);
 
         for (uint256 i = 0; i < _swaps.length; i++) {
-            require(dexRegistry[_swaps[i].dex], "unsupported dex");
+            require(dexRegistry[_swaps[i].dex][bytes4(_swaps[i].data)], "unsupported dex");
             (uint256 _amountIn, address _tokenIn, address _tokenOut) = codecs[i].decodeCalldata(_swaps[i]);
             require(prevTokenIn == address(0) || prevTokenIn == _tokenIn, "tkin mismatch");
             prevTokenIn = _tokenIn;
