@@ -5,9 +5,9 @@ pragma solidity >=0.8.12;
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "./lib/MessageSenderLib.sol";
 import "./lib/MessageReceiverApp.sol";
-import "./lib/PbPool.sol";
 import "./FeeOperator.sol";
 import "./SigVerifier.sol";
 import "./Swapper.sol";
@@ -19,7 +19,7 @@ import "./interfaces/ICodec.sol";
  * @title An app that enables swapping on a chain, transferring to another chain and swapping
  * another time on the destination chain before sending the result tokens to a user
  */
-contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperator {
+contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperator, ReentrancyGuard {
     using SafeERC20 for IERC20;
     using ECDSA for bytes32;
 
@@ -129,8 +129,9 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         address _signer,
         address _feeCollector,
         string[] memory _funcSigs,
-        address[] memory _codecs
-    ) Codecs(_funcSigs, _codecs) FeeOperator(_feeCollector) SigVerifier(_signer) {
+        address[] memory _codecs,
+        address[] memory _supportedDexList
+    ) Swapper(_funcSigs, _codecs, _supportedDexList) FeeOperator(_feeCollector) SigVerifier(_signer) {
         messageBus = _messageBus;
         nativeWrap = _nativeWrap;
     }
@@ -149,7 +150,7 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         TransferDescription calldata _desc,
         ICodec.SwapDescription[] calldata _srcSwaps,
         ICodec.SwapDescription[] calldata _dstSwaps
-    ) external payable {
+    ) external payable nonReentrant {
         // a request needs to incur a swap, a transfer, or both. otherwise it's a nop and we revert early to save gas
         require(_srcSwaps.length != 0 || _desc.dstChainId != uint64(block.chainid), "nop");
         require(_srcSwaps.length != 0 || (_desc.amountIn != 0 && _desc.tokenIn != address(0)), "nop");
@@ -166,42 +167,13 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         if (_desc.nativeIn) {
             require(tokenIn == nativeWrap, "tkin no nativeWrap");
             require(msg.value >= amountIn, "insfcnt amt"); // insufficient amount
-            IWETH(nativeWrap).deposit{value: msg.value}();
+            IWETH(nativeWrap).deposit{value: amountIn}();
         } else {
             IERC20(tokenIn).safeTransferFrom(msg.sender, address(this), amountIn);
         }
         _swapAndSend(_dstTransferSwapper, amountIn, tokenIn, tokenOut, _srcSwaps, _dstSwaps, _desc, codecs);
     }
 
-    // for stack too deep
-    function _transfer(
-        bytes32 _id,
-        address _dstTransferSwapper,
-        TransferDescription memory _desc,
-        ICodec.SwapDescription[] memory _dstSwaps,
-        uint256 _amount,
-        address _token
-    ) private returns (bytes32 transferId) {
-        uint256 msgFee = msg.value;
-        if (_desc.nativeIn) {
-            msgFee = msg.value - _desc.amountIn;
-        }
-        bytes memory requestMessage = _encodeRequestMessage(_id, _desc, _dstSwaps);
-        transferId = MessageSenderLib.sendMessageWithTransfer(
-            _dstTransferSwapper,
-            _token,
-            _amount,
-            _desc.dstChainId,
-            _desc.nonce,
-            _desc.maxBridgeSlippage,
-            requestMessage,
-            _desc.bridgeType,
-            messageBus,
-            msgFee
-        );
-    }
-
-    // for stack too deep
     function _swapAndSend(
         address _dstTransferSwapper,
         uint256 _amountIn,
@@ -229,9 +201,37 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         }
 
         _verifyFee(_desc, _amountIn, _tokenIn);
+        uint256 msgFee = msg.value;
+        if (_desc.nativeIn) {
+            msgFee = msg.value - _amountIn;
+        }
         // transfer through bridge
-        bytes32 transferId = _transfer(id, _dstTransferSwapper, _desc, _dstSwaps, amountOut, _tokenOut);
+        bytes32 transferId = _transfer(id, _dstTransferSwapper, _desc, _dstSwaps, amountOut, _tokenOut, msgFee);
         emit RequestSent(id, transferId, _desc.dstChainId, _amountIn, _tokenIn, _desc.dstTokenOut);
+    }
+
+    function _transfer(
+        bytes32 _id,
+        address _dstTransferSwapper,
+        TransferDescription memory _desc,
+        ICodec.SwapDescription[] memory _dstSwaps,
+        uint256 _amount,
+        address _token,
+        uint256 _msgFee
+    ) private returns (bytes32 transferId) {
+        bytes memory requestMessage = _encodeRequestMessage(_id, _desc, _dstSwaps);
+        transferId = MessageSenderLib.sendMessageWithTransfer(
+            _dstTransferSwapper,
+            _token,
+            _amount,
+            _desc.dstChainId,
+            _desc.nonce,
+            _desc.maxBridgeSlippage,
+            requestMessage,
+            _desc.bridgeType,
+            messageBus,
+            _msgFee
+        );
     }
 
     /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
@@ -252,7 +252,7 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         uint256 _amount,
         uint64, // _srcChainId
         bytes memory _message
-    ) external payable override onlyMessageBus returns (bool ok) {
+    ) external payable override onlyMessageBus nonReentrant returns (bool ok) {
         Request memory m = abi.decode((_message), (Request));
 
         // handle the case where amount received is not enough to pay fee
@@ -308,36 +308,6 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
 
         emit RequestDone(m.id, 0, refundAmount, _token, m.fee, RequestStatus.Fallback);
         return true;
-    }
-
-    /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
-     * Refund handler functions
-     * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
-
-    /**
-     * @notice aggregates two calls into one to save user transaction fees
-     * @dev caller must get the required input params to each call first
-     * @dev this internally calls MessageBus and the bus in turn calls executeMessageWithTransferRefund in this contract
-     * @param _wd call params to Bridge.withdraw(). Acquired via calling InitWithdraw at SGN Gateway
-     * @param _refund call params to MessageBus.executeMessageWithTransferRefund(). Acquired via querying SGN for refundable messages
-     */
-    function refundViaLiquidityBridge(IBridge.WithdrawParams calldata _wd, IMessageBus.RefundParams calldata _refund)
-        external
-    {
-        address bridge = IMessageBus(messageBus).liquidityBridge();
-        PbPool.WithdrawMsg memory wd = PbPool.decWithdrawMsg(_wd.wdmsg);
-        bytes32 wdid = keccak256(abi.encodePacked(wd.chainid, wd.seqnum, wd.receiver, wd.token, wd.amount));
-        if (!IBridge(bridge).withdraws(wdid)) {
-            // only withdraw if withdraw doesn't exist
-            IBridge(bridge).withdraw(_wd.wdmsg, _wd.sigs, _wd.signers, _wd.powers);
-        }
-        IMessageBus(messageBus).executeMessageWithTransferRefund(
-            _refund.message,
-            _refund.transfer,
-            _refund.sigs,
-            _refund.signers,
-            _refund.powers
-        );
     }
 
     /**

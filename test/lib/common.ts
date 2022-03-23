@@ -74,6 +74,9 @@ export async function deployBridgeContracts(admin: Wallet): Promise<BridgeContra
     );
   await messageBus.deployed();
 
+  await messageBus.setFeeBase(1);
+  await messageBus.setFeePerByte(1);
+
   return { bridge, messageBus };
 }
 
@@ -82,7 +85,8 @@ export async function deployChainhopContracts(
   weth: string,
   signer: string,
   feeCollector: string,
-  messageBus: string
+  messageBus: string,
+  supportedDexList: string[]
 ): Promise<ChainHopContracts> {
   const v2CodecFactory = (await ethers.getContractFactory(
     'UniswapV2SwapExactTokensForTokensCodec'
@@ -110,10 +114,11 @@ export async function deployChainhopContracts(
       feeCollector,
       [
         'swapExactTokensForTokens(uint256,uint256,address[],address,uint256)',
-        'exactInputSingle(address,address,uint24,address,uint256,uint256,uint256,uint160)',
-        'exchange(int128,int128,uint256,uint256)'
+        'exchange(int128,int128,uint256,uint256)',
+        'exactInput((bytes,address,uint256,uint256,uint256))'
       ],
-      [v2Codec.address, v3Codec.address, curveCodec.address]
+      [v2Codec.address, curveCodec.address, v3Codec.address],
+      supportedDexList
     );
   await xswap.deployed();
 
