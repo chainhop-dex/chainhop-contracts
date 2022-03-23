@@ -18,7 +18,9 @@ import {
   UniswapV3ExactInputCodec__factory,
   WETH
 } from '../../typechain';
+import { MinimalUniswapV2__factory } from '../../typechain/factories/MinimalUniswapV2__factory';
 import { WETH__factory } from './../../typechain/factories/WETH__factory';
+import { MinimalUniswapV2 } from './../../typechain/MinimalUniswapV2';
 import { MockCurvePool } from './../../typechain/MockCurvePool';
 import { MockUniswapV2 } from './../../typechain/MockUniswapV2';
 import * as consts from './constants';
@@ -48,6 +50,10 @@ export interface TokenContracts {
 export interface MockDexContracts {
   mockV2: MockUniswapV2;
   mockCurve: MockCurvePool;
+}
+
+export interface MinimalDexContracts {
+  mockV2: MinimalUniswapV2;
 }
 
 export async function deployBridgeContracts(admin: Wallet): Promise<BridgeContracts> {
@@ -143,6 +149,14 @@ export async function deployMockDexContracts(admin: Wallet, tokens: TokenContrac
   await mockCurve.deployed();
 
   return { mockV2, mockCurve };
+}
+
+export async function deployMinimalDexContracts(admin: Wallet): Promise<MinimalDexContracts> {
+  const mockV2Factory = (await ethers.getContractFactory('MinimalUniswapV2')) as MinimalUniswapV2__factory;
+  const mockV2 = await mockV2Factory.connect(admin).deploy();
+  await mockV2.deployed();
+
+  return { mockV2 };
 }
 
 export async function getAccounts(admin: Wallet, assets: TestERC20[], num: number): Promise<Wallet[]> {

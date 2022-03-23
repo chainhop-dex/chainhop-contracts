@@ -6,7 +6,7 @@ import { TransferSwapper } from '../../typechain';
 import { BridgeType } from '../types';
 import { ICodec } from './../../typechain/ICodec';
 import { CURVE_SLIPPAGE, UINT64_MAX, UNISWAP_V2_SLIPPAGE } from './constants';
-import { TestContext } from './fixtures';
+import { BaseFixture, TestContext } from './fixtures';
 
 export function slip(amount: BigNumber, perc: number): BigNumber {
   const percent = 100 - perc;
@@ -126,14 +126,33 @@ export interface UniV2SwapsOverride {
   tokenIn?: string;
   tokenOut?: string;
   to?: string;
+  num?: number;
 }
 
-export function buildUniV2Swaps(c: TestContext, amountIn: BigNumber, opts?: UniV2SwapsOverride) {
+interface MockV2Address {
+  mockV2: {
+    address: string;
+  };
+}
+
+interface MockCurveAddress {
+  mockCurve: {
+    address: string;
+  };
+}
+
+export function buildUniV2Swaps(c: BaseFixture & MockV2Address, amountIn: BigNumber, opts?: UniV2SwapsOverride) {
   const amountOutMin = opts?.amountOutMin ?? slipUniV2(amountIn);
   const tokenIn = opts?.tokenIn ?? c.tokenA.address;
   const tokenOut = opts?.tokenOut ?? c.tokenB.address;
   const to = opts?.to ?? c.xswap.address;
-  return [buildUniV2Swap(c.mockV2.address, amountIn, amountOutMin, tokenIn, tokenOut, to)];
+  const num = opts?.num ?? 1;
+  const swaps: ICodec.SwapDescriptionStruct[] = [];
+  const swap = buildUniV2Swap(c.mockV2.address, amountIn, amountOutMin, tokenIn, tokenOut, to);
+  for (let i = 0; i < num; i++) {
+    swaps.push(swap);
+  }
+  return swaps;
 }
 
 export function buildCurveSwap(
@@ -157,7 +176,7 @@ export interface CurveSwapsOverride {
   tokenOut?: string;
 }
 
-export function buildCurveSwaps(c: TestContext, amountIn: BigNumber, o?: CurveSwapsOverride) {
+export function buildCurveSwaps(c: BaseFixture & MockCurveAddress, amountIn: BigNumber, o?: CurveSwapsOverride) {
   const tokenIndices = {
     [c.tokenA.address]: 0,
     [c.tokenB.address]: 1,

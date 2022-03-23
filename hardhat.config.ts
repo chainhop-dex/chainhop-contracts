@@ -282,7 +282,7 @@ const config: HardhatUserConfig = {
     settings: {
       optimizer: {
         enabled: true,
-        runs: 400
+        runs: 1000
       }
     }
   },
@@ -292,9 +292,12 @@ const config: HardhatUserConfig = {
     disambiguatePaths: false
   },
   gasReporter: {
-    enabled: process.env.REPORT_GAS === 'true' ? true : false,
+    enabled: !!process.env.REPORT_GAS,
     noColors: true,
-    outputFile: 'reports/gas_usage/summary.txt'
+    currency: 'USD',
+    outputFile: process.env.BENCHMARK
+      ? `reports/gas_usage/benchmark-${process.env.BENCHMARK}.txt`
+      : 'reports/gas_usage/summary.txt'
   },
   typechain: {
     outDir: 'typechain',
