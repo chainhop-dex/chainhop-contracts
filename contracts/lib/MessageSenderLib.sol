@@ -12,6 +12,8 @@ import "../interfaces/IPeggedTokenBridge.sol";
 import "../interfaces/IPeggedTokenBridgeV2.sol";
 import "../interfaces/IMessageBus.sol";
 
+import "hardhat/console.sol";
+
 library MessageSenderLib {
     using SafeERC20 for IERC20;
 

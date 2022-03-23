@@ -74,6 +74,9 @@ export async function deployBridgeContracts(admin: Wallet): Promise<BridgeContra
     );
   await messageBus.deployed();
 
+  await messageBus.setFeeBase(1);
+  await messageBus.setFeePerByte(1);
+
   return { bridge, messageBus };
 }
 

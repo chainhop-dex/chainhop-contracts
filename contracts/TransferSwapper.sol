@@ -8,7 +8,6 @@ import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "./lib/MessageSenderLib.sol";
 import "./lib/MessageReceiverApp.sol";
-import "./lib/PbPool.sol";
 import "./FeeOperator.sol";
 import "./SigVerifier.sol";
 import "./Swapper.sol";
@@ -168,7 +167,7 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         if (_desc.nativeIn) {
             require(tokenIn == nativeWrap, "tkin no nativeWrap");
             require(msg.value >= amountIn, "insfcnt amt"); // insufficient amount
-            IWETH(nativeWrap).deposit{value: msg.value}();
+            IWETH(nativeWrap).deposit{value: amountIn}();
         } else {
             IERC20(tokenIn).safeTransferFrom(msg.sender, address(this), amountIn);
         }
@@ -202,8 +201,12 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         }
 
         _verifyFee(_desc, _amountIn, _tokenIn);
+        uint256 msgFee = msg.value;
+        if (_desc.nativeIn) {
+            msgFee = msg.value - _amountIn;
+        }
         // transfer through bridge
-        bytes32 transferId = _transfer(id, _dstTransferSwapper, _desc, _dstSwaps, amountOut, _tokenOut);
+        bytes32 transferId = _transfer(id, _dstTransferSwapper, _desc, _dstSwaps, amountOut, _tokenOut, msgFee);
         emit RequestSent(id, transferId, _desc.dstChainId, _amountIn, _tokenIn, _desc.dstTokenOut);
     }
 
@@ -213,12 +216,9 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         TransferDescription memory _desc,
         ICodec.SwapDescription[] memory _dstSwaps,
         uint256 _amount,
-        address _token
+        address _token,
+        uint256 _msgFee
     ) private returns (bytes32 transferId) {
-        uint256 msgFee = msg.value;
-        if (_desc.nativeIn) {
-            msgFee = msg.value - _desc.amountIn;
-        }
         bytes memory requestMessage = _encodeRequestMessage(_id, _desc, _dstSwaps);
         transferId = MessageSenderLib.sendMessageWithTransfer(
             _dstTransferSwapper,
@@ -230,7 +230,7 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
             requestMessage,
             _desc.bridgeType,
             messageBus,
-            msgFee
+            _msgFee
         );
     }
 
