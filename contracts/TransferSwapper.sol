@@ -175,35 +175,6 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         _swapAndSend(_dstTransferSwapper, amountIn, tokenIn, tokenOut, _srcSwaps, _dstSwaps, _desc, codecs);
     }
 
-    // for stack too deep
-    function _transfer(
-        bytes32 _id,
-        address _dstTransferSwapper,
-        TransferDescription memory _desc,
-        ICodec.SwapDescription[] memory _dstSwaps,
-        uint256 _amount,
-        address _token
-    ) private returns (bytes32 transferId) {
-        uint256 msgFee = msg.value;
-        if (_desc.nativeIn) {
-            msgFee = msg.value - _desc.amountIn;
-        }
-        bytes memory requestMessage = _encodeRequestMessage(_id, _desc, _dstSwaps);
-        transferId = MessageSenderLib.sendMessageWithTransfer(
-            _dstTransferSwapper,
-            _token,
-            _amount,
-            _desc.dstChainId,
-            _desc.nonce,
-            _desc.maxBridgeSlippage,
-            requestMessage,
-            _desc.bridgeType,
-            messageBus,
-            msgFee
-        );
-    }
-
-    // for stack too deep
     function _swapAndSend(
         address _dstTransferSwapper,
         uint256 _amountIn,
@@ -234,6 +205,33 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         // transfer through bridge
         bytes32 transferId = _transfer(id, _dstTransferSwapper, _desc, _dstSwaps, amountOut, _tokenOut);
         emit RequestSent(id, transferId, _desc.dstChainId, _amountIn, _tokenIn, _desc.dstTokenOut);
+    }
+
+    function _transfer(
+        bytes32 _id,
+        address _dstTransferSwapper,
+        TransferDescription memory _desc,
+        ICodec.SwapDescription[] memory _dstSwaps,
+        uint256 _amount,
+        address _token
+    ) private returns (bytes32 transferId) {
+        uint256 msgFee = msg.value;
+        if (_desc.nativeIn) {
+            msgFee = msg.value - _desc.amountIn;
+        }
+        bytes memory requestMessage = _encodeRequestMessage(_id, _desc, _dstSwaps);
+        transferId = MessageSenderLib.sendMessageWithTransfer(
+            _dstTransferSwapper,
+            _token,
+            _amount,
+            _desc.dstChainId,
+            _desc.nonce,
+            _desc.maxBridgeSlippage,
+            requestMessage,
+            _desc.bridgeType,
+            messageBus,
+            msgFee
+        );
     }
 
     /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *

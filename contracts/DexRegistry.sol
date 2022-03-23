@@ -9,7 +9,7 @@ pragma solidity >=0.8.12;
 abstract contract DexRegistry {
     event SupportedDexUpdated(address dex, bool enabled);
 
-    mapping(address => bool) public registry;
+    mapping(address => bool) public dexRegistry;
 
     constructor(address[] memory _supportedDexList) {
         for (uint256 i = 0; i < _supportedDexList.length; i++) {
@@ -23,8 +23,8 @@ abstract contract DexRegistry {
     }
 
     function _setSupportedDex(address _dex, bool _enabled) private {
-        bool enabled = registry[_dex];
+        bool enabled = dexRegistry[_dex];
         require(enabled != _enabled, "nop");
-        registry[_dex] = _enabled;
+        dexRegistry[_dex] = _enabled;
     }
 }

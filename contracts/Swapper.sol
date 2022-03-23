@@ -46,6 +46,7 @@ contract Swapper is CodecRegistry, DexRegistry {
         codecs = loadCodecs(_swaps);
 
         for (uint256 i = 0; i < _swaps.length; i++) {
+            require(dexRegistry[_swaps[i].dex], "unsupported dex");
             (uint256 _amountIn, address _tokenIn, address _tokenOut) = codecs[i].decodeCalldata(_swaps[i]);
             require(prevTokenIn == address(0) || prevTokenIn == _tokenIn, "tkin mismatch");
             prevTokenIn = _tokenIn;
