@@ -12,11 +12,13 @@ const deployFunc: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   await deploy('UniswapV2SwapExactTokensForTokensCodec', { from: deployer, log: true });
   const v2Codec = await deployments.get('UniswapV2SwapExactTokensForTokensCodec');
 
-  await deploy('UniswapV3ExactInputSingleCodec', { from: deployer, log: true });
-  const v3Codec = await deployments.get('UniswapV3ExactInputSingleCodec');
+  await deploy('UniswapV3ExactInputCodec', { from: deployer, log: true });
+  const v3Codec = await deployments.get('UniswapV3ExactInputCodec');
 
   await deploy('CurvePoolCodec', { from: deployer, log: true });
   const curveCodec = await deployments.get('CurvePoolCodec');
+
+  const supportedDexList = process.env.SUPPORTED_DEX?.split(',').map((dex) => dex.trim());
 
   const args = [
     process.env.MESSAGE_BUS,
@@ -28,7 +30,8 @@ const deployFunc: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
       'exactInput((bytes,address,uint256,uint256,uint256))',
       'exchange(int128,int128,uint256,uint256)'
     ],
-    [v2Codec.address, v3Codec.address, curveCodec.address]
+    [v2Codec.address, v3Codec.address, curveCodec.address],
+    supportedDexList
   ];
 
   await deploy('TransferSwapper', { from: deployer, log: true, args });

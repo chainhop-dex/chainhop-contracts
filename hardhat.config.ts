@@ -282,7 +282,10 @@ const config: HardhatUserConfig = {
     settings: {
       optimizer: {
         enabled: true,
-        runs: 1000
+        runs: 800,
+        details: {
+          yul: false // workaround compile-time "stack too deep"
+        }
       }
     }
   },

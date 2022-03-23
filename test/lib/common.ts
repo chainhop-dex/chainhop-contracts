@@ -82,7 +82,8 @@ export async function deployChainhopContracts(
   weth: string,
   signer: string,
   feeCollector: string,
-  messageBus: string
+  messageBus: string,
+  supportedDexList: string[]
 ): Promise<ChainHopContracts> {
   const v2CodecFactory = (await ethers.getContractFactory(
     'UniswapV2SwapExactTokensForTokensCodec'
@@ -113,7 +114,8 @@ export async function deployChainhopContracts(
         'exactInputSingle(address,address,uint24,address,uint256,uint256,uint256,uint160)',
         'exchange(int128,int128,uint256,uint256)'
       ],
-      [v2Codec.address, v3Codec.address, curveCodec.address]
+      [v2Codec.address, v3Codec.address, curveCodec.address],
+      supportedDexList
     );
   await xswap.deployed();
 

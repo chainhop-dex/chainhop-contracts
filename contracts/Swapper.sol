@@ -5,16 +5,23 @@ pragma solidity >=0.8.12;
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "./Codecs.sol";
+import "./CodecRegistry.sol";
 import "./interfaces/ICodec.sol";
 import "./interfaces/IWETH.sol";
+import "./DexRegistry.sol";
 
 /**
  * @title Loads codecs for the swaps and performs swap actions
  * @author Padoriku
  */
-abstract contract Swapper is Codecs {
+contract Swapper is CodecRegistry, DexRegistry {
     using SafeERC20 for IERC20;
+
+    constructor(
+        string[] memory _funcSigs,
+        address[] memory _codecs,
+        address[] memory _supportedDexList
+    ) DexRegistry(_supportedDexList) CodecRegistry(_funcSigs, _codecs) {}
 
     /**
      * @dev Checks the input swaps for that tokenIn and tokenOut for every swap should be the same

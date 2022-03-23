@@ -56,7 +56,8 @@ export const chainhopFixture = async ([admin]: Wallet[]): Promise<ChainhopFixtur
     tokens.weth.address,
     signer.address,
     feeCollector.address,
-    bridge.messageBus.address
+    bridge.messageBus.address,
+    [dex.mockV2.address, dex.mockCurve.address]
   );
   await fundTokens(tokens, dex.mockCurve.address);
   await fundTokens(tokens, dex.mockV2.address);
@@ -79,7 +80,8 @@ export const benchmarkFixture = async ([admin]: Wallet[]): Promise<BenchmarkFixt
     tokens.weth.address,
     signer.address,
     feeCollector.address,
-    bridge.messageBus.address
+    bridge.messageBus.address,
+    [dex.mockV2.address]
   );
   await fundTokens(tokens, dex.mockV2.address);
   await tokens.weth.deposit({ value: parseUnits('20') });

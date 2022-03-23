@@ -9,7 +9,7 @@ import "./interfaces/ICodec.sol";
  * @title A codec registry that maps swap function selectors to corresponding codec addresses
  * @author Padoriku
  */
-abstract contract Codecs is Ownable {
+abstract contract CodecRegistry is Ownable {
     // Initially supported swap functions
     // 0x3df02124 exchange(int128,int128,uint256,uint256)
     // 0x38ed1739 swapExactTokensForTokens(uint256,uint256,address[],address,uint256)
@@ -19,7 +19,7 @@ abstract contract Codecs is Ownable {
     // not used programmatically, but added for contract transparency
     address[] public codecs;
 
-    event CodecAdded(bytes4 selector, address codec);
+    event CodecUpdated(bytes4 selector, address codec);
 
     constructor(string[] memory _funcSigs, address[] memory _codecs) {
         require(_funcSigs.length == _codecs.length, "len mm");
@@ -32,7 +32,7 @@ abstract contract Codecs is Ownable {
     function setCodec(string calldata _funcSig, address _codec) public onlyOwner {
         bytes4 selector = bytes4(keccak256(bytes(_funcSig)));
         _setCodec(selector, _codec);
-        emit CodecAdded(selector, _codec);
+        emit CodecUpdated(selector, _codec);
     }
 
     function _setCodec(bytes4 _selector, address _codec) private {

@@ -130,8 +130,9 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         address _signer,
         address _feeCollector,
         string[] memory _funcSigs,
-        address[] memory _codecs
-    ) Codecs(_funcSigs, _codecs) FeeOperator(_feeCollector) SigVerifier(_signer) {
+        address[] memory _codecs,
+        address[] memory _supportedDexList
+    ) Swapper(_funcSigs, _codecs, _supportedDexList) FeeOperator(_feeCollector) SigVerifier(_signer) {
         messageBus = _messageBus;
         nativeWrap = _nativeWrap;
     }
