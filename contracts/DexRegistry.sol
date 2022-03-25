@@ -2,11 +2,13 @@
 
 pragma solidity >=0.8.12;
 
+import "@openzeppelin/contracts/access/Ownable.sol";
+
 /**
  * @title Manages a list supported dex
  * @author Padoriku
  */
-abstract contract DexRegistry {
+abstract contract DexRegistry is Ownable {
     event SupportedDexUpdated(address dex, bytes4 selector, bool enabled);
 
     mapping(address => mapping(bytes4 => bool)) public dexRegistry;
@@ -22,7 +24,7 @@ abstract contract DexRegistry {
         address _dex,
         bytes4 _selector,
         bool _enabled
-    ) public {
+    ) external onlyOwner {
         _setSupportedDex(_dex, _selector, _enabled);
         emit SupportedDexUpdated(_dex, _selector, _enabled);
     }
