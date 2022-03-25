@@ -300,7 +300,7 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         uint256 _amount,
         uint64, // _srcChainId
         bytes memory _message
-    ) external payable override onlyMessageBus returns (bool) {
+    ) external payable override onlyMessageBus nonReentrant returns (bool) {
         Request memory m = abi.decode((_message), (Request));
 
         uint256 refundAmount = _amount - m.fee; // no need to check amount >= fee as it's already checked before
@@ -321,7 +321,7 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         address _token,
         uint256 _amount,
         bytes calldata _message
-    ) external payable override onlyMessageBus returns (bool) {
+    ) external payable override onlyMessageBus nonReentrant returns (bool) {
         Request memory m = abi.decode((_message), (Request));
         _sendToken(_token, _amount, m.receiver, false);
         emit RequestDone(m.id, 0, _amount, _token, m.fee, RequestStatus.Fallback);
