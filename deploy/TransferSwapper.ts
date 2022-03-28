@@ -9,13 +9,16 @@ const deployFunc: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   const { deploy } = deployments;
   const { deployer } = await getNamedAccounts();
 
-  await deploy('UniswapV2SwapExactTokensForTokensCodec', { from: deployer, log: true });
+  let res = await deploy('UniswapV2SwapExactTokensForTokensCodec', { from: deployer, log: true });
+  const newUniV2 = res.newlyDeployed;
   const v2Codec = await deployments.get('UniswapV2SwapExactTokensForTokensCodec');
 
-  await deploy('UniswapV3ExactInputCodec', { from: deployer, log: true });
+  res = await deploy('UniswapV3ExactInputCodec', { from: deployer, log: true });
+  const newUniV3 = res.newlyDeployed;
   const v3Codec = await deployments.get('UniswapV3ExactInputCodec');
 
-  await deploy('CurvePoolCodec', { from: deployer, log: true });
+  res = await deploy('CurvePoolCodec', { from: deployer, log: true });
+  const newCurve = res.newlyDeployed;
   const curveCodec = await deployments.get('CurvePoolCodec');
 
   const supportedDexList = process.env.SUPPORTED_DEX?.split(',').map((dex) => dex.trim());
@@ -33,13 +36,19 @@ const deployFunc: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
     [v2Codec.address, curveCodec.address, v3Codec.address],
     supportedDexList
   ];
-
+  console.log(args);
   await deploy('TransferSwapper', { from: deployer, log: true, args });
   const xswap = await deployments.get('TransferSwapper');
 
-  await hre.run('verify:verify', { address: v2Codec.address });
-  await hre.run('verify:verify', { address: v3Codec.address });
-  await hre.run('verify:verify', { address: curveCodec.address });
+  if (newUniV2) {
+    await hre.run('verify:verify', { address: v2Codec.address });
+  }
+  if (newUniV3) {
+    await hre.run('verify:verify', { address: v3Codec.address });
+  }
+  if (newCurve) {
+    await hre.run('verify:verify', { address: curveCodec.address });
+  }
 
   await hre.run('verify:verify', {
     address: xswap.address,
