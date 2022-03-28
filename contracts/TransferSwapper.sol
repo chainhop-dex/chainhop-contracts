@@ -8,6 +8,7 @@ import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "./lib/MessageSenderLib.sol";
 import "./lib/MessageReceiverApp.sol";
+import "./lib/MsgDataTypes.sol";
 import "./FeeOperator.sol";
 import "./SigVerifier.sol";
 import "./Swapper.sol";
@@ -27,7 +28,7 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         address receiver; // the receiving party (the user) of the final output token
         uint64 dstChainId; // destination chain id
         uint32 maxBridgeSlippage; // user defined maximum allowed slippage (pip) at bridge
-        MessageSenderLib.BridgeType bridgeType; // type of the bridge to use
+        MsgDataTypes.BridgeSendType bridgeType; // type of the bridge to use
         uint64 nonce; // nonce is needed for de-dup tx at this contract and bridge
         bool nativeIn; // whether to check msg.value and wrap token before swapping/sending
         bool nativeOut; // whether to unwrap before sending the final token to user
@@ -251,15 +252,16 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         address _token,
         uint256 _amount,
         uint64, // _srcChainId
-        bytes memory _message
-    ) external payable override onlyMessageBus nonReentrant returns (bool ok) {
+        bytes memory _message,
+        address // _executor
+    ) external payable override onlyMessageBus nonReentrant returns (ExecutionStatus) {
         Request memory m = abi.decode((_message), (Request));
 
         // handle the case where amount received is not enough to pay fee
         if (_amount < m.fee) {
             m.fee = _amount;
             emit RequestDone(m.id, 0, 0, _token, m.fee, RequestStatus.Succeeded);
-            return true;
+            return ExecutionStatus.Success;
         } else {
             _amount = _amount - m.fee;
         }
@@ -284,7 +286,7 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         _sendToken(tokenOut, sumAmtOut, m.receiver, nativeOut);
         // status is always success as long as this function call doesn't revert. partial fill is also considered success
         emit RequestDone(m.id, sumAmtOut, sumAmtFailed, _token, m.fee, RequestStatus.Succeeded);
-        return true;
+        return ExecutionStatus.Success;
     }
 
     /**
@@ -299,15 +301,16 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         address _token,
         uint256 _amount,
         uint64, // _srcChainId
-        bytes memory _message
-    ) external payable override onlyMessageBus nonReentrant returns (bool) {
+        bytes memory _message,
+        address // _executor
+    ) external payable override onlyMessageBus nonReentrant returns (ExecutionStatus) {
         Request memory m = abi.decode((_message), (Request));
 
         uint256 refundAmount = _amount - m.fee; // no need to check amount >= fee as it's already checked before
         _sendToken(_token, refundAmount, m.receiver, false);
 
         emit RequestDone(m.id, 0, refundAmount, _token, m.fee, RequestStatus.Fallback);
-        return true;
+        return ExecutionStatus.Success;
     }
 
     /**
@@ -320,12 +323,13 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
     function executeMessageWithTransferRefund(
         address _token,
         uint256 _amount,
-        bytes calldata _message
-    ) external payable override onlyMessageBus nonReentrant returns (bool) {
+        bytes calldata _message,
+        address // _executor
+    ) external payable override onlyMessageBus nonReentrant returns (ExecutionStatus) {
         Request memory m = abi.decode((_message), (Request));
         _sendToken(_token, _amount, m.receiver, false);
         emit RequestDone(m.id, 0, _amount, _token, m.fee, RequestStatus.Fallback);
-        return true;
+        return ExecutionStatus.Success;
     }
 
     /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *

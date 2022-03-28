@@ -3,17 +3,6 @@
 pragma solidity >=0.8.0;
 
 interface IBridge {
-    struct WithdrawParams {
-        bytes wdmsg;
-        bytes[] sigs;
-        address[] signers;
-        uint256[] powers;
-    }
-
-    function transfers(bytes32 transferId) external view returns (bool);
-
-    function withdraws(bytes32 withdrawId) external view returns (bool);
-
     function send(
         address _receiver,
         address _token,
@@ -29,6 +18,10 @@ interface IBridge {
         address[] calldata _signers,
         uint256[] calldata _powers
     ) external;
+
+    function transfers(bytes32 transferId) external view returns (bool);
+
+    function withdraws(bytes32 withdrawId) external view returns (bool);
 
     function withdraw(
         bytes calldata _wdmsg,
