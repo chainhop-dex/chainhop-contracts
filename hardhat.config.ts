@@ -11,7 +11,8 @@ import { HardhatUserConfig } from 'hardhat/types';
 dotenv.config();
 
 const DEFAULT_ENDPOINT = 'http://localhost:8545';
-const DEFAULT_PRIVATE_KEY = 'ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff';
+const DEFAULT_PRIVATE_KEY =
+  process.env.DEFAULT_PRIVATE_KEY || 'ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff';
 
 // Testnets
 const kovanEndpoint = process.env.KOVAN_ENDPOINT || DEFAULT_ENDPOINT;
@@ -308,8 +309,19 @@ const config: HardhatUserConfig = {
   },
   etherscan: {
     apiKey: {
-      goerli: process.env.GOERLI_ETHERSCAN_API_KEY,
-      bscTestnet: process.env.BSC_TEST_ETHERSCAN_API_KEY
+      goerli: process.env.ETHERSCAN_API_KEY,
+      avalancheFujiTestnet: process.env.SNOWTRACE_API_KEY,
+      bscTestnet: process.env.BSCSCAN_API_KEY,
+      arbitrumTestnet: process.env.ARBISCAN_API_KEY,
+      ftmTestnet: process.env.FTMSCAN_API_KEY,
+      polygonMumbai: process.env.POLYGONSCAN_API_KEY,
+
+      mainnet: process.env.ETHERSCAN_API_KEY,
+      avalanche: process.env.SNOWTRACE_API_KEY,
+      bsc: process.env.BSCSCAN_API_KEY,
+      arbitrumOne: process.env.ARBISCAN_API_KEY,
+      opera: process.env.FTMSCAN_API_KEY,
+      polygon: process.env.POLYGONSCAN_API_KEY
     }
   }
 };

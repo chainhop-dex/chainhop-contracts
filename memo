@@ -27,3 +27,53 @@ Multicall2 0xeEbb6638D27086123aA5DBe0ef06CEeB17ee0D02
 WBNB 0xfCbB818c2C13775515C5088D12FD249F2Dd19966
 USDT 0x7d43AABC515C356145049227CeE54B608342c0ad
 CELR 0x5471ea8f739dd37E9B81Be9c5c77754D8AA953E4
+
+###############################################################################################
+# BSC
+###############################################################################################
+
+TransferSwapper 0xe95E3a9f1a45B5EDa71781448F6047d7B7e31cbF
+UniswapV2SwapExactTokensForTokensCodec 0x43F38D38BF0cBC83bD8a88a0Bd60c8B9d126eE9d
+UniswapV3ExactInputCodec 0x4a97B63b27576d774b6BD288Fa6aAe24F086B84c
+CurvePoolCodec 0xE48151964556381B33f93E05E36381Fd53Ec053E
+Multicall2 0x6CF652A83f55382a98f5dCFf7015eFF034E29FB3
+
+###############################################################################################
+# Fantom
+###############################################################################################
+
+TransferSwapper 0x6cf652a83f55382a98f5dcff7015eff034e29fb3
+UniswapV2SwapExactTokensForTokensCodec 0x716aa16B01afCCCD4434a8295aA2E845a611cd82
+UniswapV3ExactInputCodec 0xd5818d039a702ddccfd11a900a40b3dc6da03cec
+CurvePoolCodec 0xb73F12c14Eb5d573C5356e2e68DD776DfCAA436F
+Multicall2 0x7D0087dd83D50B73A926d83ba08e194ff6c961b6
+
+###############################################################################################
+# Arbitrum
+###############################################################################################
+
+TransferSwapper 0x716aa16B01afCCCD4434a8295aA2E845a611cd82
+UniswapV2SwapExactTokensForTokensCodec 0x42e6Af231bA8eE39f1bf185d452061283bfB324b
+UniswapV3ExactInputCodec 0xb3f5Fbe570C4287ac4EAbD3DcA5ca4E15526C625
+CurvePoolCodec 0xC97aD7d8ABBfACb982173f9b32360ad9288cc783
+Multicall2 0xA8e9020f9a1908b520d1577A7d1292fA9D44a9BA
+
+###############################################################################################
+# Polygon
+###############################################################################################
+
+TransferSwapper 0x716aa16B01afCCCD4434a8295aA2E845a611cd82
+UniswapV2SwapExactTokensForTokensCodec 0xb3f5Fbe570C4287ac4EAbD3DcA5ca4E15526C625
+UniswapV3ExactInputCodec 0xC97aD7d8ABBfACb982173f9b32360ad9288cc783
+CurvePoolCodec 0x7D0087dd83D50B73A926d83ba08e194ff6c961b6
+Multicall2 0x42e6Af231bA8eE39f1bf185d452061283bfB324b
+
+###############################################################################################
+# Avalanche
+###############################################################################################
+
+TransferSwapper 0x716aa16B01afCCCD4434a8295aA2E845a611cd82
+UniswapV2SwapExactTokensForTokensCodec 0xb3f5Fbe570C4287ac4EAbD3DcA5ca4E15526C625
+UniswapV3ExactInputCodec 0xC97aD7d8ABBfACb982173f9b32360ad9288cc783
+CurvePoolCodec 0x7D0087dd83D50B73A926d83ba08e194ff6c961b6
+Multicall2 0x42e6Af231bA8eE39f1bf185d452061283bfB324b
