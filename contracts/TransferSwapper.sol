@@ -70,6 +70,8 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         Fallback
     }
 
+    event NativeWrapUpdated(address nativeWrap);
+
     /**
      * @notice Emitted when requested dstChainId == srcChainId, no bridging
      * @param id see _computeId()
@@ -395,6 +397,7 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
 
     function setNativeWrap(address _nativeWrap) external onlyOwner {
         nativeWrap = _nativeWrap;
+        emit NativeWrapUpdated(_nativeWrap);
     }
 
     // This is needed to receive ETH when calling `IWETH.withdraw`
