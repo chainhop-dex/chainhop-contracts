@@ -8,7 +8,7 @@ import "../interfaces/ICurvePool.sol";
 
 import "hardhat/console.sol";
 
-contract MockCurvePool is ICurvePool {
+contract MockCurvePool {
     using SafeERC20 for IERC20;
 
     address[] public coins;
