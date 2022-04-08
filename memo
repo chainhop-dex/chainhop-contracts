@@ -46,6 +46,7 @@ TransferSwapper 0x6cf652a83f55382a98f5dcff7015eff034e29fb3
 UniswapV2SwapExactTokensForTokensCodec 0x716aa16B01afCCCD4434a8295aA2E845a611cd82
 UniswapV3ExactInputCodec 0xd5818d039a702ddccfd11a900a40b3dc6da03cec
 CurvePoolCodec 0xb73F12c14Eb5d573C5356e2e68DD776DfCAA436F
+CurveMetaPoolCodec 0x4a97B63b27576d774b6BD288Fa6aAe24F086B84c
 Multicall2 0x7D0087dd83D50B73A926d83ba08e194ff6c961b6
 
 ###############################################################################################

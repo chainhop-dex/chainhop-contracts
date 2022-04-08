@@ -2,6 +2,7 @@ import * as dotenv from 'dotenv';
 import { DeployFunction, DeployResult } from 'hardhat-deploy/types';
 import { HardhatRuntimeEnvironment } from 'hardhat/types';
 import { deploymentConfigs } from './configs/config';
+import { verify } from './configs/functions';
 import { ICodecConfig } from './configs/types';
 
 dotenv.config();
@@ -49,18 +50,11 @@ const deployTransferSwapper: DeployFunction = async (hre: HardhatRuntimeEnvironm
   const deployResult = await deploy('TransferSwapper', { from: deployer, log: true, args });
 
   // verify newly deployed TransferSwapper
-  if (deployResult.newlyDeployed) {
-    await hre.run('verify:verify', {
-      address: deployResult.address,
-      constructorArguments: args
-    });
-  }
+  await verify(hre, deployResult, args);
 
   // verify newly deployed codecs
   for (const result of codecDeployResults) {
-    if (result.newlyDeployed) {
-      await hre.run('verify:verify', { address: result.address });
-    }
+    await verify(hre, result);
   }
 };
 
