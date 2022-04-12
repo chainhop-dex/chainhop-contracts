@@ -3,7 +3,6 @@
 pragma solidity >=0.8.12;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "../interfaces/IUniswapV2Router01.sol";
 import "../interfaces/ICodec.sol";
 import "../interfaces/ICurvePool.sol";
 

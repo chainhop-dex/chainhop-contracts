@@ -2,7 +2,6 @@
 
 pragma solidity >=0.8.12;
 
-import "../interfaces/IUniswapV2Router01.sol";
 import "../interfaces/ICodec.sol";
 import "../interfaces/ICurvePool.sol";
 
