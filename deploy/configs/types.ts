@@ -5,16 +5,21 @@ export interface IConfig {
   [chainId: number]: {
     nativeWrap: string;
     messageBus: string;
-    supportedDex: string[];
+    supportedDex: IDexConfig[];
     codecs: ICodecConfig[];
   };
+}
+
+export interface IDexConfig {
+  address: string;
+  func: string;
 }
 
 export type IMetaPoolArgs = [string[], string[][]];
 
 export interface ICodecConfig {
   name: string;
-  swapFunc: string;
+  func: string;
   args?: IMetaPoolArgs;
 }
 
@@ -30,25 +35,25 @@ export interface IPoolConfig {
 
 export const UniswapV2SwapExactTokensForTokensCodec: ICodecConfig = {
   name: 'UniswapV2SwapExactTokensForTokensCodec',
-  swapFunc: 'swapExactTokensForTokens(uint256,uint256,address[],address,uint256)'
+  func: 'swapExactTokensForTokens(uint256,uint256,address[],address,uint256)'
 };
 
 export const UniswapV3ExactInputCodec: ICodecConfig = {
   name: 'UniswapV3ExactInputCodec',
-  swapFunc: 'exactInput((bytes,address,uint256,uint256,uint256))'
+  func: 'exactInput((bytes,address,uint256,uint256,uint256))'
 };
 
 export const CurvePoolCodec: ICodecConfig = {
   name: 'CurvePoolCodec',
-  swapFunc: 'exchange(int128,int128,uint256,uint256)'
+  func: 'exchange(int128,int128,uint256,uint256)'
 };
 
 export const CurveMetaPoolCodecBase: ICodecConfig = {
   name: 'CurveMetaPoolCodec',
-  swapFunc: 'exchange_underlying(int128,int128,uint256,uint256,address)'
+  func: 'exchange_underlying(int128,int128,uint256,uint256,address)'
 };
 
 export const CurveSpecialMetaPoolCodec: ICodecConfig = {
   name: 'CurveSpecialMetaPoolCodec',
-  swapFunc: 'exchange_underlying(int128,int128,uint256,uint256)'
+  func: 'exchange_underlying(int128,int128,uint256,uint256)'
 };

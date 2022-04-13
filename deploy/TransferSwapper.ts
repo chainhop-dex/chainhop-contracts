@@ -35,6 +35,8 @@ const deployTransferSwapper: DeployFunction = async (hre: HardhatRuntimeEnvironm
   const chainId = parseInt(await hre.getChainId(), 10);
   const config = deploymentConfigs[chainId];
 
+  console.log(`deploying chainhop contract suite on chain ${chainId} using deployer ${deployer}`);
+
   const { codecDeployResults, codecConfigs } = await deployCodecs(hre);
 
   const args = [
@@ -42,7 +44,7 @@ const deployTransferSwapper: DeployFunction = async (hre: HardhatRuntimeEnvironm
     config.nativeWrap,
     deploymentConfigs.feeSigner,
     deploymentConfigs.feeCollector,
-    codecConfigs.map((codecConfig) => codecConfig.swapFunc),
+    codecConfigs.map((codecConfig) => codecConfig.func),
     codecDeployResults.map((codecDeployment) => codecDeployment.address),
     config.supportedDex
   ];
