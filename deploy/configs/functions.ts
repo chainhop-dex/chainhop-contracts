@@ -50,22 +50,22 @@ export const getSupportedCurvePools = (chainId: number): IDexConfig[] => {
 };
 
 export const getMetaPoolCodecConfig = (chainId: number): ICodecConfig => {
-  const args = getCurvePools(chainId).reduce<IMetaPoolArgs>(
-    (args, p) => {
-      args[0].push(p.address);
-      args[1].push(p.tokens);
-      return args;
-    },
-    [[], []]
-  );
+  const args = getCurvePools(chainId)
+    .filter((pool) => pool.type === 'meta' || pool.type === 'meta-special')
+    .reduce<IMetaPoolArgs>(
+      (args, p) => {
+        args[0].push(p.address);
+        args[1].push(p.tokens);
+        return args;
+      },
+      [[], []]
+    );
   return { ...CurveMetaPoolCodecBase, args };
 };
 
+export const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
 export const verify = async (hre: HardhatRuntimeEnvironment, deployResult: DeployResult, args?: any) => {
-  if (!deployResult.newlyDeployed) {
-    console.log(`skipping verifying contract ${deployResult.address} because it's not newly deployed`);
-    return;
-  }
   return hre.run('verify:verify', {
     address: deployResult.address,
     constructorArguments: args

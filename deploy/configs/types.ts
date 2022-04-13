@@ -4,7 +4,7 @@ export interface IConfig {
   feeCollector?: string;
   [chainId: number]: {
     nativeWrap: string;
-    messageBus: string;
+    messageBus?: string;
     supportedDex: IDexConfig[];
     codecs: ICodecConfig[];
   };
