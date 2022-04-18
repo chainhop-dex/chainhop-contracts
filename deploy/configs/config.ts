@@ -78,7 +78,7 @@ export const deploymentConfigs: IConfig = {
     nativeWrap: '0x82aF49447D8a07e3bd95BD0d56f35241523fBab1',
     messageBus: process.env.MESSAGE_BUS_42161,
     supportedDex: [
-      { address: '0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506', func: '' }, // Sushiswap: UniswapV2Router02
+      { address: '0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506', func: UniswapV2SwapExactTokensForTokensCodec.func }, // Sushiswap: UniswapV2Router02
       ...getSupportedCurvePools(42161)
     ],
     codecs: [UniswapV2SwapExactTokensForTokensCodec, CurvePoolCodec, getMetaPoolCodecConfig(42161)]
