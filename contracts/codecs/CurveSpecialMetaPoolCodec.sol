@@ -5,20 +5,23 @@ pragma solidity >=0.8.12;
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "../interfaces/ICodec.sol";
 import "../interfaces/ICurvePool.sol";
+import "./CurveTokenAddresses.sol";
 
 /**
- * @title a special codec for a pool that implements exchange_underlying() differently than all others.
- * i.e. the "sUSD" pool on Ethereum
+ * @title a special codec for pools that implement exchange_underlying() slightly differently than others.
+ * e.g. "sUSD" pool on Ethereum and "aave" on Polygon
  * @author padoriku
  * @notice encode/decode calldata
  */
-contract CurveSpecialMetaPoolCodec is ICodec, Ownable {
+contract CurveSpecialMetaPoolCodec is ICodec, CurveTokenAddresses {
     struct SwapCalldata {
         int128 i;
         int128 j;
         uint256 dx;
         uint256 min_dy;
     }
+
+    constructor(address[] memory _pools, address[][] memory _poolTokens) CurveTokenAddresses(_pools, _poolTokens) {}
 
     function decodeCalldata(ICodec.SwapDescription calldata _swap)
         external
@@ -31,8 +34,19 @@ contract CurveSpecialMetaPoolCodec is ICodec, Ownable {
     {
         SwapCalldata memory data = abi.decode((_swap.data[4:]), (SwapCalldata));
         amountIn = data.dx;
-        tokenIn = ICurvePool(_swap.dex).underlying_coins(uint128(data.i));
-        tokenOut = ICurvePool(_swap.dex).underlying_coins(uint128(data.j));
+        uint256 i = uint256(uint128(data.i));
+        uint256 j = uint256(uint128(data.j));
+
+        address[] memory tokens = poolToTokens[_swap.dex];
+        if (tokens.length > 0) {
+            // some pool(sUSD)'s implementation of underlying_coins takes uint128 instead of uint256 as input
+            // register these pool's token addresses manually to workaround this.
+            tokenIn = tokens[i];
+            tokenOut = tokens[j];
+        } else {
+            tokenIn = ICurvePool(_swap.dex).underlying_coins(i);
+            tokenOut = ICurvePool(_swap.dex).underlying_coins(j);
+        }
     }
 
     function encodeCalldataWithOverride(

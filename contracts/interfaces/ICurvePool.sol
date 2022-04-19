@@ -5,8 +5,7 @@ pragma solidity >=0.8.12;
 interface ICurvePool {
     function coins(uint256 i) external view returns (address);
 
-    // specifically for CurveNonStandardMetaPoolCodec, the uint128  not used in other codecs
-    function underlying_coins(uint128 i) external view returns (address);
+    function underlying_coins(uint256 i) external view returns (address);
 
     // plain & meta pool
     function get_dy(
