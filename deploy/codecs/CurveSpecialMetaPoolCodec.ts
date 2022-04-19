@@ -1,7 +1,7 @@
 import * as dotenv from 'dotenv';
 import { DeployFunction } from 'hardhat-deploy/types';
 import { HardhatRuntimeEnvironment } from 'hardhat/types';
-import { verify } from '../configs/functions';
+import { getSpecialMetaPoolCodecConfig, verify } from './../configs/functions';
 
 dotenv.config();
 
@@ -10,9 +10,12 @@ const deployFunc: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   const { deploy } = deployments;
   const { deployer } = await getNamedAccounts();
 
+  const chainId = parseInt(await hre.getChainId());
+
   const result = await deploy('CurveSpecialMetaPoolCodec', {
     from: deployer,
-    log: true
+    log: true,
+    args: getSpecialMetaPoolCodecConfig(chainId).args
   });
   await verify(hre, result);
 };
