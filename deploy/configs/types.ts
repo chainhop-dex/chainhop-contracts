@@ -53,7 +53,7 @@ export const CurveMetaPoolCodecBase: ICodecConfig = {
   func: 'exchange_underlying(int128,int128,uint256,uint256,address)'
 };
 
-export const CurveSpecialMetaPoolCodec: ICodecConfig = {
+export const CurveSpecialMetaPoolCodecBase: ICodecConfig = {
   name: 'CurveSpecialMetaPoolCodec',
   func: 'exchange_underlying(int128,int128,uint256,uint256)'
 };

@@ -6,7 +6,7 @@ import toml from 'toml';
 import {
   CurveMetaPoolCodecBase,
   CurvePoolCodec,
-  CurveSpecialMetaPoolCodec,
+  CurveSpecialMetaPoolCodecBase,
   ICodecConfig,
   IDexConfig,
   IMetaPoolArgs,
@@ -40,7 +40,7 @@ export const getSupportedCurvePools = (chainId: number): IDexConfig[] => {
         dexConfig.func = CurveMetaPoolCodecBase.func;
         break;
       case 'meta-special':
-        dexConfig.func = CurveSpecialMetaPoolCodec.func;
+        dexConfig.func = CurveSpecialMetaPoolCodecBase.func;
         break;
       default:
         throw Error(`malformed pool type (${pool.type})`);
@@ -51,7 +51,7 @@ export const getSupportedCurvePools = (chainId: number): IDexConfig[] => {
 
 export const getMetaPoolCodecConfig = (chainId: number): ICodecConfig => {
   const args = getCurvePools(chainId)
-    .filter((pool) => pool.type === 'meta' || pool.type === 'meta-special')
+    .filter((pool) => pool.type === 'meta')
     .reduce<IMetaPoolArgs>(
       (args, p) => {
         args[0].push(p.address);
@@ -61,6 +61,20 @@ export const getMetaPoolCodecConfig = (chainId: number): ICodecConfig => {
       [[], []]
     );
   return { ...CurveMetaPoolCodecBase, args };
+};
+
+export const getSpecialMetaPoolCodecConfig = (chainId: number): ICodecConfig => {
+  const args = getCurvePools(chainId)
+    .filter((pool) => pool.type === 'meta-special')
+    .reduce<IMetaPoolArgs>(
+      (args, p) => {
+        args[0].push(p.address);
+        args[1].push(p.tokens);
+        return args;
+      },
+      [[], []]
+    );
+  return { ...CurveSpecialMetaPoolCodecBase, args };
 };
 
 export const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));

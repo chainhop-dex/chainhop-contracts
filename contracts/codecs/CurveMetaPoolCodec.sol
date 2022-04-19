@@ -5,8 +5,9 @@ pragma solidity >=0.8.12;
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "../interfaces/ICodec.sol";
 import "../interfaces/ICurvePool.sol";
+import "./CurveTokenAddresses.sol";
 
-contract CurveMetaPoolCodec is ICodec, Ownable {
+contract CurveMetaPoolCodec is ICodec, CurveTokenAddresses {
     struct SwapCalldata {
         int128 i;
         int128 j;
@@ -15,28 +16,7 @@ contract CurveMetaPoolCodec is ICodec, Ownable {
         address _receiver;
     }
 
-    event PoolTokensSet(address[] pools, address[][] poolTokens);
-
-    // Pool address to *underlying* token addresses. position sensitive.
-    // This is needed because some of the metapools fail to implement curve's underlying_coins() spec,
-    // therefore no consistant way to query token addresses by their indices.
-    mapping(address => address[]) public poolToTokens;
-
-    constructor(address[] memory _pools, address[][] memory _poolTokens) {
-        _setPoolTokens(_pools, _poolTokens);
-    }
-
-    function setPoolTokens(address[] calldata _pools, address[][] calldata _poolTokens) external onlyOwner {
-        _setPoolTokens(_pools, _poolTokens);
-    }
-
-    function _setPoolTokens(address[] memory _pools, address[][] memory _poolTokens) private {
-        require(_pools.length == _poolTokens.length, "len mm");
-        for (uint256 i = 0; i < _pools.length; i++) {
-            poolToTokens[_pools[i]] = _poolTokens[i];
-        }
-        emit PoolTokensSet(_pools, _poolTokens);
-    }
+    constructor(address[] memory _pools, address[][] memory _poolTokens) CurveTokenAddresses(_pools, _poolTokens) {}
 
     function decodeCalldata(ICodec.SwapDescription calldata _swap)
         external

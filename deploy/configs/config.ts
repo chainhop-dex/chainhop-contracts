@@ -1,12 +1,6 @@
 import * as dotenv from 'dotenv';
-import { getMetaPoolCodecConfig, getSupportedCurvePools } from './functions';
-import {
-  CurvePoolCodec,
-  CurveSpecialMetaPoolCodec,
-  IConfig,
-  UniswapV2SwapExactTokensForTokensCodec,
-  UniswapV3ExactInputCodec
-} from './types';
+import { getMetaPoolCodecConfig, getSpecialMetaPoolCodecConfig, getSupportedCurvePools } from './functions';
+import { CurvePoolCodec, IConfig, UniswapV2SwapExactTokensForTokensCodec, UniswapV3ExactInputCodec } from './types';
 
 dotenv.config();
 
@@ -22,7 +16,7 @@ export const deploymentConfigs: IConfig = {
       { address: '0xE592427A0AEce92De3Edee1F18E0157C05861564', func: UniswapV3ExactInputCodec.func }, // UniswapV3: SwapRouter
       ...getSupportedCurvePools(1)
     ],
-    codecs: [UniswapV3ExactInputCodec, CurvePoolCodec, CurveSpecialMetaPoolCodec, getMetaPoolCodecConfig(1)]
+    codecs: [UniswapV3ExactInputCodec, CurvePoolCodec, getSpecialMetaPoolCodecConfig(1), getMetaPoolCodecConfig(1)]
   },
 
   // BSC
@@ -43,7 +37,7 @@ export const deploymentConfigs: IConfig = {
       { address: '0xa5E0829CaCEd8fFDD4De3c43696c57F7D7A678ff', func: UniswapV2SwapExactTokensForTokensCodec.func }, // Quickswap: UniswapV2Router02
       ...getSupportedCurvePools(137)
     ],
-    codecs: [UniswapV2SwapExactTokensForTokensCodec, CurveSpecialMetaPoolCodec, getMetaPoolCodecConfig(137)]
+    codecs: [UniswapV2SwapExactTokensForTokensCodec, getSpecialMetaPoolCodecConfig(137), getMetaPoolCodecConfig(137)]
   },
 
   // Fantom
@@ -68,7 +62,7 @@ export const deploymentConfigs: IConfig = {
     codecs: [
       UniswapV2SwapExactTokensForTokensCodec,
       CurvePoolCodec,
-      CurveSpecialMetaPoolCodec,
+      getSpecialMetaPoolCodecConfig(43114),
       getMetaPoolCodecConfig(43114)
     ]
   },
