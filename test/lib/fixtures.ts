@@ -4,8 +4,10 @@ import { ethers } from 'hardhat';
 import {
   BridgeContracts,
   ChainHopContracts,
+  CodecContracts,
   deployBridgeContracts,
   deployChainhopContracts,
+  deployCodecContracts,
   deployMinimalDexContracts,
   deployMockDexContracts,
   deployTokenContracts,
@@ -15,17 +17,16 @@ import {
   TokenContracts
 } from './common';
 
-export interface TestContext extends ChainhopFixture {
+export interface IntegrationTestContext extends IntegrationTestFixture {
   sender: Wallet;
   receiver: Wallet;
 }
-
 export interface BenchmarkContext extends BenchmarkFixture {
   sender: Wallet;
   receiver: Wallet;
 }
 
-export interface BaseFixture extends TokenContracts, BridgeContracts, ChainHopContracts {
+export interface BaseFixture extends TokenContracts {
   admin: Wallet;
   accounts: Wallet[];
   signer: Wallet;
@@ -33,8 +34,9 @@ export interface BaseFixture extends TokenContracts, BridgeContracts, ChainHopCo
   chainId: number;
 }
 
-export interface ChainhopFixture extends BaseFixture, MockDexContracts {}
-export interface BenchmarkFixture extends BaseFixture, MinimalDexContracts {}
+export interface ChainhopFixture extends BaseFixture, BridgeContracts, ChainHopContracts {}
+export interface IntegrationTestFixture extends ChainhopFixture, MockDexContracts {}
+export interface BenchmarkFixture extends ChainhopFixture, MinimalDexContracts {}
 
 const fundTokens = async (tokens: TokenContracts, to: string) => {
   await tokens.tokenA.transfer(to, parseUnits('10000000'));
@@ -42,7 +44,11 @@ const fundTokens = async (tokens: TokenContracts, to: string) => {
   await tokens.weth.transfer(to, parseUnits('10000000'));
 };
 
-export const chainhopFixture = async ([admin]: Wallet[]): Promise<ChainhopFixture> => {
+export const codecFixture = async ([admin]: Wallet[]): Promise<CodecContracts> => {
+  return deployCodecContracts(admin);
+};
+
+export const chainhopFixture = async ([admin]: Wallet[]): Promise<IntegrationTestFixture> => {
   const bridge = await deployBridgeContracts(admin);
   const tokens = await deployTokenContracts(admin);
   const dex = await deployMockDexContracts(admin, tokens);

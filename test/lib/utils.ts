@@ -5,7 +5,7 @@ import { ethers } from 'hardhat';
 import { TransferSwapper } from '../../typechain';
 import { ICodec } from './../../typechain/ICodec';
 import { CURVE_SLIPPAGE, UINT64_MAX, UNISWAP_V2_SLIPPAGE } from './constants';
-import { BaseFixture, TestContext } from './fixtures';
+import { ChainhopFixture, IntegrationTestContext } from './fixtures';
 
 export enum BridgeType {
   Null,
@@ -70,7 +70,7 @@ export interface ComputeTranferIdOverride {
   srcChainId?: number;
 }
 
-export function computeTransferId(c: TestContext, o?: ComputeTranferIdOverride) {
+export function computeTransferId(c: IntegrationTestContext, o?: ComputeTranferIdOverride) {
   const xswap = c.xswap.address;
   const receiver = c.receiver.address;
   const token = o?.token ?? c.tokenB.address;
@@ -93,7 +93,7 @@ export interface FeeSigOverride {
   fee?: BigNumber;
 }
 
-export async function signFee(c: TestContext, opts?: FeeSigOverride) {
+export async function signFee(c: IntegrationTestContext, opts?: FeeSigOverride) {
   const srcChainId = opts?.srcChainId ?? c.chainId;
   const dstChainId = opts?.dstChainId ?? c.chainId + 1;
   const amountIn = opts?.amountIn ?? parseUnits('100');
@@ -149,7 +149,7 @@ interface MockCurveAddress {
   };
 }
 
-export function buildUniV2Swaps(c: BaseFixture & MockV2Address, amountIn: BigNumber, opts?: UniV2SwapsOverride) {
+export function buildUniV2Swaps(c: ChainhopFixture & MockV2Address, amountIn: BigNumber, opts?: UniV2SwapsOverride) {
   const amountOutMin = opts?.amountOutMin ?? slipUniV2(amountIn);
   const tokenIn = opts?.tokenIn ?? c.tokenA.address;
   const tokenOut = opts?.tokenOut ?? c.tokenB.address;
@@ -184,7 +184,7 @@ export interface CurveSwapsOverride {
   tokenOut?: string;
 }
 
-export function buildCurveSwaps(c: BaseFixture & MockCurveAddress, amountIn: BigNumber, o?: CurveSwapsOverride) {
+export function buildCurveSwaps(c: ChainhopFixture & MockCurveAddress, amountIn: BigNumber, o?: CurveSwapsOverride) {
   const tokenIndices = {
     [c.tokenA.address]: 0,
     [c.tokenB.address]: 1,
@@ -209,7 +209,7 @@ export interface TransferDescOpts {
   allowPartialFill?: boolean;
 }
 
-export function buildTransferDesc(c: TestContext, feeSig: string, opts?: TransferDescOpts) {
+export function buildTransferDesc(c: IntegrationTestContext, feeSig: string, opts?: TransferDescOpts) {
   const dstChainId = opts?.dstChainId ?? c.chainId + 1;
 
   const fee = opts?.fee ?? parseUnits('1');

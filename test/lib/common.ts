@@ -5,6 +5,7 @@ import { ethers, waffle } from 'hardhat';
 import {
   Bridge,
   Bridge__factory,
+  CurvePoolCodec,
   CurvePoolCodec__factory,
   MessageBus,
   MessageBus__factory,
@@ -14,7 +15,9 @@ import {
   TestERC20__factory,
   TransferSwapper,
   TransferSwapper__factory,
+  UniswapV2SwapExactTokensForTokensCodec,
   UniswapV2SwapExactTokensForTokensCodec__factory,
+  UniswapV3ExactInputCodec,
   UniswapV3ExactInputCodec__factory,
   WETH
 } from '../../typechain';
@@ -39,6 +42,12 @@ export interface BridgeContracts {
 
 export interface ChainHopContracts {
   xswap: TransferSwapper;
+}
+
+export interface CodecContracts {
+  v2Codec: UniswapV2SwapExactTokensForTokensCodec;
+  v3Codec: UniswapV3ExactInputCodec;
+  curveCodec: CurvePoolCodec;
 }
 
 export interface TokenContracts {
@@ -80,15 +89,7 @@ export async function deployBridgeContracts(admin: Wallet): Promise<BridgeContra
   return { bridge, messageBus };
 }
 
-export async function deployChainhopContracts(
-  admin: Wallet,
-  weth: string,
-  signer: string,
-  feeCollector: string,
-  messageBus: string,
-  supportedDexList: string[],
-  supportedDexFuncs: string[]
-): Promise<ChainHopContracts> {
+export async function deployCodecContracts(admin: Wallet): Promise<CodecContracts> {
   const v2CodecFactory = (await ethers.getContractFactory(
     'UniswapV2SwapExactTokensForTokensCodec'
   )) as UniswapV2SwapExactTokensForTokensCodec__factory;
@@ -105,6 +106,19 @@ export async function deployChainhopContracts(
   const curveCodec = await curveCodecFactory.connect(admin).deploy();
   await curveCodec.deployed();
 
+  return { v2Codec, v3Codec, curveCodec };
+}
+
+export async function deployChainhopContracts(
+  admin: Wallet,
+  weth: string,
+  signer: string,
+  feeCollector: string,
+  messageBus: string,
+  supportedDexList: string[],
+  supportedDexFuncs: string[]
+): Promise<ChainHopContracts> {
+  const { v2Codec, v3Codec, curveCodec } = await deployCodecContracts(admin);
   const transferSwapperFactory = (await ethers.getContractFactory('TransferSwapper')) as TransferSwapper__factory;
   const xswap = await transferSwapperFactory
     .connect(admin)

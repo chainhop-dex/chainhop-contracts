@@ -4,10 +4,10 @@ import { BigNumber } from 'ethers';
 import { parseUnits } from 'ethers/lib/utils';
 import { loadFixture } from './lib/common';
 import { ZERO_ADDR, ZERO_AMOUNT } from './lib/constants';
-import { chainhopFixture, TestContext } from './lib/fixtures';
+import { chainhopFixture, IntegrationTestContext } from './lib/fixtures';
 import * as utils from './lib/utils';
 
-let c: TestContext;
+let c: IntegrationTestContext;
 
 const prepareContext = async () => {
   const fixture = await loadFixture(chainhopFixture);

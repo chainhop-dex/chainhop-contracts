@@ -12,12 +12,15 @@ const deployFunc: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
 
   const chainId = parseInt(await hre.getChainId());
 
+  const args = getSpecialMetaPoolCodecConfig(chainId).args;
+  console.log('args', args);
   const result = await deploy('CurveSpecialMetaPoolCodec', {
     from: deployer,
     log: true,
-    args: getSpecialMetaPoolCodecConfig(chainId).args
+    args
   });
-  await verify(hre, result);
+
+  await verify(hre, result, args);
 };
 
 deployFunc.tags = ['CurveSpecialMetaPoolCodec'];
