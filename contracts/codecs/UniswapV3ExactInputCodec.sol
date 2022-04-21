@@ -8,7 +8,7 @@ import "../interfaces/ISwapRouter.sol";
 contract UniswapV3ExactInputCodec is ICodec {
     function decodeCalldata(ICodec.SwapDescription calldata _swap)
         external
-        view
+        pure
         returns (
             uint256 amountIn,
             address tokenIn,
@@ -20,10 +20,8 @@ contract UniswapV3ExactInputCodec is ICodec {
         require((data.path.length - 20) % 23 == 0, "malformed path");
         // first 20 bytes is tokenIn
         tokenIn = address(bytes20(copySubBytes(data.path, 0, 20)));
-        console.log("tokenIn", tokenIn);
         // last 20 bytes is tokenOut
         tokenOut = address(bytes20(copySubBytes(data.path, data.path.length - 20, data.path.length)));
-        console.log("tokenOut", tokenOut);
         amountIn = data.amountIn;
     }
 

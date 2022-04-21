@@ -9,7 +9,7 @@ const deployFunc: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   const { deploy } = deployments;
   const { deployer } = await getNamedAccounts();
 
-  await deploy('UniswapV3ExactInputSingleCodec', {
+  await deploy('UniswapV3ExactInputCodec', {
     from: deployer,
     log: true
   });
