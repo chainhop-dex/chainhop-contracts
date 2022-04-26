@@ -46,7 +46,8 @@ const deployTransferSwapper: DeployFunction = async (hre: HardhatRuntimeEnvironm
     deploymentConfigs.feeCollector,
     codecConfigs.map((codecConfig) => codecConfig.func),
     codecDeployResults.map((codecDeployment) => codecDeployment.address),
-    config.supportedDex
+    config.supportedDex.map((dex) => dex.address),
+    config.supportedDex.map((dex) => dex.func)
   ];
   console.log(args);
   const deployResult = await deploy('TransferSwapper', { from: deployer, log: true, args });
