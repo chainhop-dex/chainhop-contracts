@@ -63,192 +63,20 @@ library MessageSenderLib {
         address _messageBus,
         uint256 _fee
     ) internal returns (bytes32) {
-        if (_bridgeSendType == MsgDataTypes.BridgeSendType.Liquidity) {
-            return
-                sendMessageWithLiquidityBridgeTransfer(
-                    _receiver,
-                    _token,
-                    _amount,
-                    _dstChainId,
-                    _nonce,
-                    _maxSlippage,
-                    _message,
-                    _messageBus,
-                    _fee
-                );
-        } else if (
-            _bridgeSendType == MsgDataTypes.BridgeSendType.PegDeposit ||
-            _bridgeSendType == MsgDataTypes.BridgeSendType.PegV2Deposit
-        ) {
-            return
-                sendMessageWithPegVaultDeposit(
-                    _bridgeSendType,
-                    _receiver,
-                    _token,
-                    _amount,
-                    _dstChainId,
-                    _nonce,
-                    _message,
-                    _messageBus,
-                    _fee
-                );
-        } else if (
-            _bridgeSendType == MsgDataTypes.BridgeSendType.PegBurn ||
-            _bridgeSendType == MsgDataTypes.BridgeSendType.PegV2Burn
-        ) {
-            return
-                sendMessageWithPegBridgeBurn(
-                    _bridgeSendType,
-                    _receiver,
-                    _token,
-                    _amount,
-                    _dstChainId,
-                    _nonce,
-                    _message,
-                    _messageBus,
-                    _fee
-                );
-        } else {
-            revert("bridge type not supported");
-        }
-    }
-
-    /**
-     * @notice Sends a message to an app on another chain via MessageBus with an associated liquidity bridge transfer.
-     * @param _receiver The address of the destination app contract.
-     * @param _token The address of the token to be sent.
-     * @param _amount The amount of tokens to be sent.
-     * @param _dstChainId The destination chain ID.
-     * @param _nonce A number input to guarantee uniqueness of transferId. Can be timestamp in practice.
-     * @param _maxSlippage The max slippage accepted, given as percentage in point (pip). Eg. 5000 means 0.5%.
-     * Must be greater than minimalMaxSlippage. Receiver is guaranteed to receive at least (100% - max slippage percentage) * amount or the
-     * transfer can be refunded.
-     * @param _message Arbitrary message bytes to be decoded by the destination app contract.
-     * @param _messageBus The address of the MessageBus on this chain.
-     * @param _fee The fee amount to pay to MessageBus.
-     * @return The transfer ID.
-     */
-    function sendMessageWithLiquidityBridgeTransfer(
-        address _receiver,
-        address _token,
-        uint256 _amount,
-        uint64 _dstChainId,
-        uint64 _nonce,
-        uint32 _maxSlippage,
-        bytes memory _message,
-        address _messageBus,
-        uint256 _fee
-    ) internal returns (bytes32) {
-        address bridge = IMessageBus(_messageBus).liquidityBridge();
-        IERC20(_token).safeIncreaseAllowance(bridge, _amount);
-        IBridge(bridge).send(_receiver, _token, _amount, _dstChainId, _nonce, _maxSlippage);
-        bytes32 transferId = keccak256(
-            abi.encodePacked(address(this), _receiver, _token, _amount, _dstChainId, _nonce, uint64(block.chainid))
+        (bytes32 transferId, address bridge) = sendTokenTransfer(
+            _receiver,
+            _token,
+            _amount,
+            _dstChainId,
+            _nonce,
+            _maxSlippage,
+            _bridgeSendType,
+            _messageBus
         );
         IMessageBus(_messageBus).sendMessageWithTransfer{value: _fee}(
             _receiver,
             _dstChainId,
             bridge,
-            transferId,
-            _message
-        );
-        return transferId;
-    }
-
-    /**
-     * @notice Sends a message to an app on another chain via MessageBus with an associated OriginalTokenVault deposit.
-     * @param _receiver The address of the destination app contract.
-     * @param _token The address of the token to be sent.
-     * @param _amount The amount of tokens to be sent.
-     * @param _dstChainId The destination chain ID.
-     * @param _nonce A number input to guarantee uniqueness of transferId. Can be timestamp in practice.
-     * @param _message Arbitrary message bytes to be decoded by the destination app contract.
-     * @param _messageBus The address of the MessageBus on this chain.
-     * @param _fee The fee amount to pay to MessageBus.
-     * @return The transfer ID.
-     */
-    function sendMessageWithPegVaultDeposit(
-        MsgDataTypes.BridgeSendType _bridgeSendType,
-        address _receiver,
-        address _token,
-        uint256 _amount,
-        uint64 _dstChainId,
-        uint64 _nonce,
-        bytes memory _message,
-        address _messageBus,
-        uint256 _fee
-    ) internal returns (bytes32) {
-        address pegVault;
-        if (_bridgeSendType == MsgDataTypes.BridgeSendType.PegDeposit) {
-            pegVault = IMessageBus(_messageBus).pegVault();
-        } else {
-            pegVault = IMessageBus(_messageBus).pegVaultV2();
-        }
-        IERC20(_token).safeIncreaseAllowance(pegVault, _amount);
-        bytes32 transferId;
-        if (_bridgeSendType == MsgDataTypes.BridgeSendType.PegDeposit) {
-            IOriginalTokenVault(pegVault).deposit(_token, _amount, _dstChainId, _receiver, _nonce);
-            transferId = keccak256(
-                abi.encodePacked(address(this), _token, _amount, _dstChainId, _receiver, _nonce, uint64(block.chainid))
-            );
-        } else {
-            transferId = IOriginalTokenVaultV2(pegVault).deposit(_token, _amount, _dstChainId, _receiver, _nonce);
-        }
-        IMessageBus(_messageBus).sendMessageWithTransfer{value: _fee}(
-            _receiver,
-            _dstChainId,
-            pegVault,
-            transferId,
-            _message
-        );
-        return transferId;
-    }
-
-    /**
-     * @notice Sends a message to an app on another chain via MessageBus with an associated PeggedTokenBridge burn.
-     * @param _receiver The address of the destination app contract.
-     * @param _token The address of the token to be sent.
-     * @param _amount The amount of tokens to be sent.
-     * @param _dstChainId The destination chain ID.
-     * @param _nonce A number input to guarantee uniqueness of transferId. Can be timestamp in practice.
-     * @param _message Arbitrary message bytes to be decoded by the destination app contract.
-     * @param _messageBus The address of the MessageBus on this chain.
-     * @param _fee The fee amount to pay to MessageBus.
-     * @return The transfer ID.
-     */
-    function sendMessageWithPegBridgeBurn(
-        MsgDataTypes.BridgeSendType _bridgeSendType,
-        address _receiver,
-        address _token,
-        uint256 _amount,
-        uint64 _dstChainId,
-        uint64 _nonce,
-        bytes memory _message,
-        address _messageBus,
-        uint256 _fee
-    ) internal returns (bytes32) {
-        address pegBridge;
-        if (_bridgeSendType == MsgDataTypes.BridgeSendType.PegBurn) {
-            pegBridge = IMessageBus(_messageBus).pegBridge();
-        } else {
-            pegBridge = IMessageBus(_messageBus).pegBridgeV2();
-        }
-        IERC20(_token).safeIncreaseAllowance(pegBridge, _amount);
-        bytes32 transferId;
-        if (_bridgeSendType == MsgDataTypes.BridgeSendType.PegBurn) {
-            IPeggedTokenBridge(pegBridge).burn(_token, _amount, _receiver, _nonce);
-            transferId = keccak256(
-                abi.encodePacked(address(this), _token, _amount, _receiver, _nonce, uint64(block.chainid))
-            );
-        } else {
-            transferId = IPeggedTokenBridgeV2(pegBridge).burn(_token, _amount, _dstChainId, _receiver, _nonce);
-        }
-        // handle cases where certain tokens do not spend allowance for role-based burn
-        IERC20(_token).safeApprove(pegBridge, 0);
-        IMessageBus(_messageBus).sendMessageWithTransfer{value: _fee}(
-            _receiver,
-            _dstChainId,
-            pegBridge,
             transferId,
             _message
         );
@@ -275,29 +103,103 @@ library MessageSenderLib {
         uint64 _nonce,
         uint32 _maxSlippage,
         MsgDataTypes.BridgeSendType _bridgeSendType,
-        address _bridge
-    ) internal {
-        IERC20(_token).safeIncreaseAllowance(_bridge, _amount);
+        address _messageBus
+    ) internal returns (bytes32 transferId, address bridge) {
         if (_bridgeSendType == MsgDataTypes.BridgeSendType.Liquidity) {
-            IBridge(_bridge).send(_receiver, _token, _amount, _dstChainId, _nonce, _maxSlippage);
+            bridge = IMessageBus(_messageBus).liquidityBridge();
+            IERC20(_token).safeIncreaseAllowance(bridge, _amount);
+            IBridge(bridge).send(_receiver, _token, _amount, _dstChainId, _nonce, _maxSlippage);
+            transferId = computeLiqBridgeTransferId(_receiver, _token, _amount, _dstChainId, _nonce);
         } else if (_bridgeSendType == MsgDataTypes.BridgeSendType.PegDeposit) {
-            IOriginalTokenVault(_bridge).deposit(_token, _amount, _dstChainId, _receiver, _nonce);
+            bridge = IMessageBus(_messageBus).pegVault();
+            IERC20(_token).safeIncreaseAllowance(bridge, _amount);
+            IOriginalTokenVault(bridge).deposit(_token, _amount, _dstChainId, _receiver, _nonce);
+            transferId = computePegV1DepositId(_receiver, _token, _amount, _dstChainId, _nonce);
         } else if (_bridgeSendType == MsgDataTypes.BridgeSendType.PegBurn) {
-            IPeggedTokenBridge(_bridge).burn(_token, _amount, _receiver, _nonce);
+            bridge = IMessageBus(_messageBus).pegBridge();
+            IERC20(_token).safeIncreaseAllowance(bridge, _amount);
+            IPeggedTokenBridge(bridge).burn(_token, _amount, _receiver, _nonce);
             // handle cases where certain tokens do not spend allowance for role-based burn
-            IERC20(_token).safeApprove(_bridge, 0);
+            IERC20(_token).safeApprove(bridge, 0);
+            transferId = computePegV1BurnId(_receiver, _token, _amount, _nonce);
         } else if (_bridgeSendType == MsgDataTypes.BridgeSendType.PegV2Deposit) {
-            IOriginalTokenVaultV2(_bridge).deposit(_token, _amount, _dstChainId, _receiver, _nonce);
+            bridge = IMessageBus(_messageBus).pegVaultV2();
+            IERC20(_token).safeIncreaseAllowance(bridge, _amount);
+            IOriginalTokenVaultV2(bridge).deposit(_token, _amount, _dstChainId, _receiver, _nonce);
+            transferId = computePegV2Id(_receiver, _token, _amount, _dstChainId, _nonce);
         } else if (_bridgeSendType == MsgDataTypes.BridgeSendType.PegV2Burn) {
-            IPeggedTokenBridgeV2(_bridge).burn(_token, _amount, _dstChainId, _receiver, _nonce);
+            bridge = IMessageBus(_messageBus).pegBridgeV2();
+            IERC20(_token).safeIncreaseAllowance(bridge, _amount);
+            IPeggedTokenBridgeV2(bridge).burn(_token, _amount, _dstChainId, _receiver, _nonce);
             // handle cases where certain tokens do not spend allowance for role-based burn
-            IERC20(_token).safeApprove(_bridge, 0);
+            IERC20(_token).safeApprove(bridge, 0);
+            transferId = computePegV2Id(_receiver, _token, _amount, _dstChainId, _nonce);
         } else if (_bridgeSendType == MsgDataTypes.BridgeSendType.PegV2BurnFrom) {
-            IPeggedTokenBridgeV2(_bridge).burnFrom(_token, _amount, _dstChainId, _receiver, _nonce);
+            bridge = IMessageBus(_messageBus).pegBridgeV2();
+            IERC20(_token).safeIncreaseAllowance(bridge, _amount);
+            IPeggedTokenBridgeV2(bridge).burnFrom(_token, _amount, _dstChainId, _receiver, _nonce);
             // handle cases where certain tokens do not spend allowance for role-based burn
-            IERC20(_token).safeApprove(_bridge, 0);
+            IERC20(_token).safeApprove(bridge, 0);
+            transferId = computePegV2Id(_receiver, _token, _amount, _dstChainId, _nonce);
         } else {
             revert("bridge type not supported");
         }
+    }
+
+    function computeLiqBridgeTransferId(
+        address _receiver,
+        address _token,
+        uint256 _amount,
+        uint64 _dstChainId,
+        uint64 _nonce
+    ) internal view returns (bytes32) {
+        return
+            keccak256(
+                abi.encodePacked(address(this), _receiver, _token, _amount, _dstChainId, _nonce, uint64(block.chainid))
+            );
+    }
+
+    function computePegV1DepositId(
+        address _receiver,
+        address _token,
+        uint256 _amount,
+        uint64 _dstChainId,
+        uint64 _nonce
+    ) internal view returns (bytes32) {
+        return
+            keccak256(
+                abi.encodePacked(address(this), _token, _amount, _dstChainId, _receiver, _nonce, uint64(block.chainid))
+            );
+    }
+
+    function computePegV1BurnId(
+        address _receiver,
+        address _token,
+        uint256 _amount,
+        uint64 _nonce
+    ) internal view returns (bytes32) {
+        return keccak256(abi.encodePacked(address(this), _token, _amount, _receiver, _nonce, uint64(block.chainid)));
+    }
+
+    function computePegV2Id(
+        address _receiver,
+        address _token,
+        uint256 _amount,
+        uint64 _dstChainId,
+        uint64 _nonce
+    ) internal view returns (bytes32) {
+        return
+            keccak256(
+                abi.encodePacked(
+                    msg.sender,
+                    _token,
+                    _amount,
+                    _dstChainId,
+                    _receiver,
+                    _nonce,
+                    uint64(block.chainid),
+                    address(this)
+                )
+            );
     }
 }
