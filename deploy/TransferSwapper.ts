@@ -2,7 +2,6 @@ import * as dotenv from 'dotenv';
 import { DeployFunction, DeployResult } from 'hardhat-deploy/types';
 import { HardhatRuntimeEnvironment } from 'hardhat/types';
 import { deploymentConfigs } from './configs/config';
-import { sleep, verify } from './configs/functions';
 import { ICodecConfig } from './configs/types';
 
 dotenv.config();
@@ -51,17 +50,17 @@ const deployTransferSwapper: DeployFunction = async (hre: HardhatRuntimeEnvironm
   ];
   console.log(args);
   const deployResult = await deploy('TransferSwapper', { from: deployer, log: true, args });
+  console.log('addr', deployResult.address);
+  // console.log('sleeping 15 seconds before verifying contract');
+  // await sleep(15000);
 
-  console.log('sleeping 15 seconds before verifying contract');
-  await sleep(15000);
+  // // verify newly deployed TransferSwapper
+  // await verify(hre, deployResult, args);
 
-  // verify newly deployed TransferSwapper
-  await verify(hre, deployResult, args);
-
-  // verify newly deployed codecs
-  for (let i = 0; i < codecDeployResults.length; i++) {
-    await verify(hre, codecDeployResults[i], codecConfigs[i].args);
-  }
+  // // verify newly deployed codecs
+  // for (let i = 0; i < codecDeployResults.length; i++) {
+  //   await verify(hre, codecDeployResults[i], codecConfigs[i].args);
+  // }
 };
 
 deployTransferSwapper.tags = ['TransferSwapper'];
