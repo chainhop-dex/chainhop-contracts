@@ -66,21 +66,22 @@ export function computeId(sender: string, receiver: string, srcChainId: number, 
 export interface ComputeTranferIdOverride {
   token?: string;
   amount?: BigNumber;
+  receiver?: string;
   dstChainId?: number;
   srcChainId?: number;
 }
 
 export function computeTransferId(c: IntegrationTestContext, o?: ComputeTranferIdOverride) {
   const xswap = c.xswap.address;
-  const receiver = c.receiver.address;
+  const receiver = o?.receiver ?? c.receiver.address;
   const token = o?.token ?? c.tokenB.address;
   const amount = o?.amount ?? parseUnits('100');
   const dstChainId = o?.dstChainId ?? c.chainId + 1;
   const nonce = 1;
-  const srcChainid = o?.srcChainId ?? c.chainId;
+  const srcChainId = o?.srcChainId ?? c.chainId;
   return keccak256(
     ['address', 'address', 'address', 'uint256', 'uint64', 'uint64', 'uint64'],
-    [xswap, receiver, token, amount, dstChainId, nonce, srcChainid]
+    [xswap, receiver, token, amount, dstChainId, nonce, srcChainId]
   );
 }
 
@@ -197,6 +198,7 @@ export function buildCurveSwaps(c: ChainhopFixture & MockCurveAddress, amountIn:
 }
 
 export interface TransferDescOpts {
+  receiver?: string;
   dstChainId?: number;
   fee?: BigNumber;
   feeDeadline?: BigNumber;
@@ -219,7 +221,7 @@ export function buildTransferDesc(c: IntegrationTestContext, feeSig: string, opt
     bridgeType: BridgeType.Liquidity,
     maxBridgeSlippage: 1000000,
     nonce: 1,
-    receiver: c.receiver.address,
+    receiver: opts?.receiver ?? c.receiver.address,
 
     nativeIn: opts?.nativeIn ?? false,
     nativeOut: opts?.nativeOut ?? false,

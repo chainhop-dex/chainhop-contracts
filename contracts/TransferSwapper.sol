@@ -151,7 +151,8 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
     /**
      * @notice swaps if needed, then transfer the token to another chain along with an instruction on how to swap
      * on that chain
-     * @param _dstTransferSwapper the address of the TransferSwapper on the destination chain
+     * @param _dstTransferSwapper the address of the receiving party of the bridge token (TransferSwapper) on the destination chain
+     * @dev this field has no effect if the there is no dst swaps as the bridged tokens are sent directly to _desc.receiver
      */
     function transferWithSwap(
         address _dstTransferSwapper,
@@ -228,18 +229,32 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         uint256 _msgFee
     ) private returns (bytes32 transferId) {
         bytes memory requestMessage = _encodeRequestMessage(_id, _desc, _dstSwaps);
-        transferId = MessageSenderLib.sendMessageWithTransfer(
-            _dstTransferSwapper,
-            _token,
-            _amount,
-            _desc.dstChainId,
-            _desc.nonce,
-            _desc.maxBridgeSlippage,
-            requestMessage,
-            _desc.bridgeType,
-            messageBus,
-            _msgFee
-        );
+        if (_dstSwaps.length > 0) {
+            transferId = MessageSenderLib.sendMessageWithTransfer(
+                _dstTransferSwapper,
+                _token,
+                _amount,
+                _desc.dstChainId,
+                _desc.nonce,
+                _desc.maxBridgeSlippage,
+                requestMessage,
+                _desc.bridgeType,
+                messageBus,
+                _msgFee
+            );
+        } else {
+            // bridge tokens to _desc.receiver directly to save a transaction on the dst chain
+            (transferId, ) = MessageSenderLib.sendTokenTransfer(
+                _desc.receiver, // bridge out token is directly sent to the sender defined receiver
+                _token,
+                _amount,
+                _desc.dstChainId,
+                _desc.nonce,
+                _desc.maxBridgeSlippage,
+                _desc.bridgeType,
+                messageBus
+            );
+        }
     }
 
     /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
