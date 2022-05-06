@@ -12,5 +12,6 @@ COPY --from=builder /chainhop-contracts /chainhop-contracts
 ADD scripts /chainhop-contracts/scripts
 ADD deploy /chainhop-contracts/deploy
 ADD configs /chainhop-contracts/configs
+VOLUME /chainhop-contracts/home
 EXPOSE 8545
 ENTRYPOINT ["scripts/fork.sh"]
