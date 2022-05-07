@@ -15,7 +15,9 @@
     "deploy": "hardhat deploy --tags TransferSwapper --network",
     "verify": "hardhat verify",
     "deploy:goerli": "yarn deploy goerli",
-    "deploy:bscTest": "yarn deploy bscTest"
+    "deploy:bscTest": "yarn deploy bscTest",
+    "build-docker": "docker build -t ghcr.io/celer-network/chainhop-mainnet-fork:latest .",
+    "push-docker": "docker push ghcr.io/celer-network/chainhop-mainnet-fork:latest"
   },
   "license": "GPL-3.0",
   "devDependencies": {

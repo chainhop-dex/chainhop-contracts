@@ -1,0 +1,288 @@
+###############################################################################################
+# Ethereum
+###############################################################################################
+
+[[curve_pool]]
+chain_id = 1
+name = "3pool"
+type = "plain"
+address = "0xbEbc44782C7dB0a1A60Cb6fe97d0b483032FF1C7"
+tokens = [
+    "0x6B175474E89094C44Da98b954EedeAC495271d0F", # DAI
+    "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48", # USDC
+    "0xdAC17F958D2ee523a2206206994597C13D831ec7", # USDT
+]
+gas = 220000
+
+[[curve_pool]]
+chain_id = 1
+name = "frax"
+type = "meta"
+address = "0xd632f22692FaC7611d2AA1C0D552930D43CAEd3B"
+base_pool = "0xbEbc44782C7dB0a1A60Cb6fe97d0b483032FF1C7"
+tokens = [
+    "0x853d955aCEf822Db058eb8505911ED77F175b99e", # FRAX
+    "0x6B175474E89094C44Da98b954EedeAC495271d0F", # DAI
+    "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48", # USDC
+    "0xdAC17F958D2ee523a2206206994597C13D831ec7", # USDT
+]
+gas = 400000
+
+[[curve_pool]]
+chain_id = 1
+name = "mim"
+type = "meta"
+address = "0x5a6A4D54456819380173272A5E8E9B9904BdF41B"
+base_pool = "0xbEbc44782C7dB0a1A60Cb6fe97d0b483032FF1C7"
+tokens = [
+    "0x99D8a9C45b2ecA8864373A26D1459e3Dff1e17F3", # MIM
+    "0x6B175474E89094C44Da98b954EedeAC495271d0F", # DAI
+    "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48", # USDC
+    "0xdAC17F958D2ee523a2206206994597C13D831ec7", # USDT
+]
+gas = 480000
+
+[[curve_pool]]
+chain_id = 1
+name = "wormhole v2 UST-3Pool"
+type = "meta"
+address = "0xCEAF7747579696A2F0bb206a14210e3c9e6fB269"
+base_pool = "0xbEbc44782C7dB0a1A60Cb6fe97d0b483032FF1C7"
+tokens = [
+    "0xa693B19d2931d498c5B318dF961919BB4aee87a5", # UST
+    "0x6B175474E89094C44Da98b954EedeAC495271d0F", # DAI
+    "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48", # USDC
+    "0xdAC17F958D2ee523a2206206994597C13D831ec7", # USDT
+]
+gas = 470000
+
+[[curve_pool]]
+chain_id = 1
+name = "sUSD"
+type = "meta-special"
+address = "0xA5407eAE9Ba41422680e2e00537571bcC53efBfD"
+base_pool = "0xbEbc44782C7dB0a1A60Cb6fe97d0b483032FF1C7"
+tokens = [
+    "0x6B175474E89094C44Da98b954EedeAC495271d0F", # DAI
+    "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48", # USDC
+    "0xdAC17F958D2ee523a2206206994597C13D831ec7", # USDT
+    "0x57Ab1ec28D129707052df4dF418D58a2D46d5f51", # sUSD
+]
+gas = 300000
+
+[[curve_pool]]
+chain_id = 1
+name = "lusd"
+type = "meta"
+address = "0xEd279fDD11cA84bEef15AF5D39BB4d4bEE23F0cA"
+base_pool = "0xbEbc44782C7dB0a1A60Cb6fe97d0b483032FF1C7"
+tokens = [
+    "0x5f98805a4e8be255a32880fdec7f6728c6568ba0", # LUSD
+    "0x6B175474E89094C44Da98b954EedeAC495271d0F", # DAI
+    "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48", # USDC
+    "0xdAC17F958D2ee523a2206206994597C13D831ec7", # USDT
+]
+gas = 500000
+
+[[curve_pool]]
+chain_id = 1
+name = "busdv2"
+type = "meta"
+address = "0x4807862AA8b2bF68830e4C8dc86D0e9A998e085a"
+base_pool = "0xbEbc44782C7dB0a1A60Cb6fe97d0b483032FF1C7"
+tokens = [
+    "0x4Fabb145d64652a948d72533023f6E7A623C7C53", # BUSD
+    "0x6B175474E89094C44Da98b954EedeAC495271d0F", # DAI
+    "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48", # USDC
+    "0xdAC17F958D2ee523a2206206994597C13D831ec7", # USDT
+]
+gas = 500000
+
+###############################################################################################
+# Polygon
+###############################################################################################
+
+[[curve_pool]]
+chain_id = 137
+name = "aave"
+type = "meta-special"
+address = "0x445FE580eF8d70FF569aB36e80c647af338db351"
+tokens = [
+    "0x8f3cf7ad23cd3cadbd9735aff958023239c6a063", # DAI
+    "0x2791bca1f2de4661ed88a30c99a7a9449aa84174", # USDC
+    "0xc2132d05d31c914a87c6611c10748aeb04b58e8f", # USDT
+]
+gas = 840000
+
+[[curve_pool]]
+chain_id = 137
+name = "Curve FRAX 3CRV Pool"
+type = "meta"
+address = "0x5e5A23b52Cb48F5E70271Be83079cA5bC9c9e9ac"
+base_pool = "0x445FE580eF8d70FF569aB36e80c647af338db351"
+tokens = [
+    "0x45c32fA6DF82ead1e2EF74d17b76547EDdFaFF89", # FRAX
+    "0x8f3cf7ad23cd3cadbd9735aff958023239c6a063", # DAI
+    "0x2791bca1f2de4661ed88a30c99a7a9449aa84174", # USDC
+    "0xc2132d05d31c914a87c6611c10748aeb04b58e8f", # USDT
+]
+gas = 1300000
+
+[[curve_pool]]
+chain_id = 137
+name = "MAI3Pool"
+type = "meta"
+address = "0x447646e84498552e62eCF097Cc305eaBFFF09308"
+base_pool = "0x445FE580eF8d70FF569aB36e80c647af338db351"
+tokens = [
+    "0xa3Fa99A148fA48D14Ed51d610c367C61876997F1", # miMATIC
+    "0x8f3cf7ad23cd3cadbd9735aff958023239c6a063", # DAI
+    "0x2791bca1f2de4661ed88a30c99a7a9449aa84174", # USDC
+    "0xc2132d05d31c914a87c6611c10748aeb04b58e8f", # USDT
+]
+gas = 1300000
+
+###############################################################################################
+# Avalanche
+###############################################################################################
+
+[[curve_pool]]
+chain_id = 43114
+name = "aave"
+type = "meta-special"
+address = "0x7f90122BF0700F9E7e1F688fe926940E8839F353"
+tokens = [
+    "0xd586e7f844cea2f87f50152665bcbc2c279d8d70", # DAI.e
+    "0xa7d7079b0fead91f3e65f86e8915cb59c1a4c664", # USDC.e
+    "0xc7198437980c041c805a1edcba50c1ce5db95118", # USDT.e
+]
+gas = 890000
+
+[[curve_pool]]
+chain_id = 43114
+name = "USD Coin"
+type = "plain"
+address = "0x3a43A5851A3e3E0e25A3c1089670269786be1577"
+tokens = [
+    "0xA7D7079b0FEaD91F3e65f86E8915Cb59c1a4C664", # USDC.e
+    "0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E", # USDC
+]
+gas = 48000
+
+[[curve_pool]]
+chain_id = 43114
+name = "3poolV2"
+type = "plain"
+address = "0xAEA2E71b631fA93683BCF256A8689dFa0e094fcD"
+tokens = [
+    "0x130966628846BFd36ff31a822705796e8cb8C18D", # MIM
+    "0xc7198437980c041c805A1EDcbA50c1Ce5db95118", # USDT.e
+    "0xA7D7079b0FEaD91F3e65f86E8915Cb59c1a4C664", # USDC.e
+]
+gas = 200000
+
+[[curve_pool]]
+chain_id = 43114
+name = "FRAX"
+type = "meta"
+address = "0xE013593CEA239E445d2271106836b00C9E7356ae"
+base_pool = "0x7f90122BF0700F9E7e1F688fe926940E8839F353"
+tokens = [
+    "0xD24C2Ad096400B6FBcd2ad8B24E7acBc21A1da64", # FRAX
+    "0xd586e7f844cea2f87f50152665bcbc2c279d8d70", # DAI.e
+    "0xa7d7079b0fead91f3e65f86e8915cb59c1a4c664", # USDC.e
+    "0xc7198437980c041c805a1edcba50c1ce5db95118", # USDT.e
+]
+gas = 1400000
+
+###############################################################################################
+# Fantom
+###############################################################################################
+
+[[curve_pool]]
+chain_id = 250
+name = "2pool"
+type = "plain"
+address = "0x27E611FD27b276ACbd5Ffd632E5eAEBEC9761E40"
+tokens = [
+    "0x8d11ec38a3eb5e956b052f67da8bdc9bef8abf3e", # DAI
+    "0x04068da6c83afcfa0e13ba15a6696662335d5b75", # USDC
+]
+gas = 220000
+
+[[curve_pool]]
+chain_id = 250
+name = "3poolV2"
+type = "plain"
+address = "0x2dd7C9371965472E5A5fD28fbE165007c61439E1"
+tokens = [
+    "0x82f0B8B456c1A451378467398982d4834b6829c1", # MIM
+    "0x049d68029688eAbF473097a2fC38ef61633A3C7A", # fUSDT
+    "0x04068DA6C83AFCFA0e13ba15A6696662335D5B75", # USDC
+]
+gas = 213551
+
+[[curve_pool]]
+chain_id = 250
+name = "MAI3Pool"
+type = "plain"
+address = "0xA58F16498c288c357e28EE899873fF2b55D7C437"
+tokens = [
+    "0xfB98B335551a418cD0737375a2ea0ded62Ea213b", # miMATIC
+    "0x049d68029688eAbF473097a2fC38ef61633A3C7A", # fUSDT
+    "0x04068DA6C83AFCFA0e13ba15A6696662335D5B75", # USDC
+]
+gas = 213551
+
+[[curve_pool]]
+chain_id = 250
+name = "fUSDT+USDC+wormhole UST"
+type = "plain"
+address = "0x7c79acC9aEf46E4d55BD05d06C24E79C35183241"
+tokens = [
+    "0x846e4D51d7E2043C1a87E0Ab7490B93FB940357b", # UST
+    "0x04068DA6C83AFCFA0e13ba15A6696662335D5B75", # USDC
+    "0x049d68029688eAbF473097a2fC38ef61633A3C7A", # fUSDT
+]
+gas = 220822
+
+[[curve_pool]]
+chain_id = 250
+name = "FRAX2pool"
+type = "meta"
+address = "0x7a656B342E14F745e2B164890E88017e27AE7320" # based on 2pool
+base_pool = "0x27E611FD27b276ACbd5Ffd632E5eAEBEC9761E40"
+tokens = [
+    "0xdc301622e621166BD8E82f2cA0A26c13Ad0BE355", # FRAX
+    "0x8d11ec38a3eb5e956b052f67da8bdc9bef8abf3e", # DAI
+    "0x04068da6c83afcfa0e13ba15a6696662335d5b75", # USDC
+]
+gas = 544489
+
+###############################################################################################
+# Arbitrum
+###############################################################################################
+
+[[curve_pool]]
+chain_id = 42161
+name = "2pool"
+type = "plain"
+address = "0x7f90122BF0700F9E7e1F688fe926940E8839F353"
+tokens = [
+    "0xff970a61a04b1ca14834a43f5de4533ebddb5cc8", # USDC
+    "0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9", # USDT
+]
+gas = 900000
+
+[[curve_pool]]
+chain_id = 42161
+name = "FRAX+2CRV"
+type = "meta"
+address = "0xf07d553B195080F84F582e88ecdD54bAa122b279" # based on 2pool
+base_pool = "0x7f90122BF0700F9E7e1F688fe926940E8839F353"
+tokens = [
+    "0x17FC002b466eEc40DaE837Fc4bE5c67993ddBd6F", # FRAX
+    "0xff970a61a04b1ca14834a43f5de4533ebddb5cc8", # USDC
+    "0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9", # USDT
+]
+gas = 1100000
