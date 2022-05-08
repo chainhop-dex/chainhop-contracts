@@ -79,7 +79,15 @@ describe('transferWithSwap', () => {
 
     await expect(tx)
       .to.emit(c.xswap, 'RequestSent')
-      .withArgs(expectId, expectXferId, desc.dstChainId, amountIn, c.tokenA.address, c.tokenB.address);
+      .withArgs(
+        expectId,
+        expectXferId,
+        desc.dstChainId,
+        amountIn,
+        c.tokenA.address,
+        c.tokenB.address,
+        c.receiver.address
+      );
 
     const senderBalAfter = await c.tokenA.balanceOf(c.sender.address);
     const senderBalDiff = senderBal.sub(senderBalAfter);
@@ -115,7 +123,15 @@ describe('transferWithSwap', () => {
     const expectXferId = utils.computeTransferId(c, { amount: utils.slipUniV2(amountIn), receiver: c.sender.address });
     await expect(tx)
       .to.emit(c.xswap, 'RequestSent')
-      .withArgs(expectId, expectXferId, desc.dstChainId, amountIn, c.tokenA.address, c.tokenB.address);
+      .withArgs(
+        expectId,
+        expectXferId,
+        desc.dstChainId,
+        amountIn,
+        c.tokenA.address,
+        c.tokenB.address,
+        c.sender.address
+      );
     const expectedSendAmt = utils.slipUniV2(amountIn);
     const srcXferId = keccak256(
       ['address', 'address', 'address', 'uint256', 'uint64', 'uint64', 'uint64'],
@@ -146,7 +162,15 @@ describe('transferWithSwap', () => {
     const expectXferId = utils.computeTransferId(c, { amount: utils.slipUniV2(amountIn) });
     await expect(tx)
       .to.emit(c.xswap, 'RequestSent')
-      .withArgs(expectId, expectXferId, desc.dstChainId, amountIn, c.tokenA.address, c.tokenB.address);
+      .withArgs(
+        expectId,
+        expectXferId,
+        desc.dstChainId,
+        amountIn,
+        c.tokenA.address,
+        c.tokenB.address,
+        c.receiver.address
+      );
 
     const expectedSendAmt = utils.slipUniV2(amountIn);
     const srcXferId = keccak256(
@@ -179,7 +203,15 @@ describe('transferWithSwap', () => {
     const expectXferId = utils.computeTransferId(c, { amount: utils.slipUniV2(amountIn) });
     await expect(tx)
       .to.emit(c.xswap, 'RequestSent')
-      .withArgs(expectId, expectXferId, desc.dstChainId, amountIn, c.weth.address, c.tokenB.address);
+      .withArgs(
+        expectId,
+        expectXferId,
+        desc.dstChainId,
+        amountIn,
+        c.weth.address,
+        c.tokenB.address,
+        c.receiver.address
+      );
 
     const expectedSendAmt = utils.slipUniV2(amountIn);
     const srcXferId = keccak256(
@@ -214,7 +246,15 @@ describe('transferWithSwap', () => {
     const expectXferId = utils.computeTransferId(c, { amount: expectedSendAmt });
     await expect(tx)
       .to.emit(c.xswap, 'RequestSent')
-      .withArgs(expectId, expectXferId, desc.dstChainId, amountIn, c.tokenA.address, c.tokenB.address);
+      .withArgs(
+        expectId,
+        expectXferId,
+        desc.dstChainId,
+        amountIn,
+        c.tokenA.address,
+        c.tokenB.address,
+        c.receiver.address
+      );
 
     const srcXferId = keccak256(
       ['address', 'address', 'address', 'uint256', 'uint64', 'uint64', 'uint64'],

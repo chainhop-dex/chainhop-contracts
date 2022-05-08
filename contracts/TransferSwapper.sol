@@ -90,6 +90,7 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
      * @param srcAmount input amount approved by the sender
      * @param srcToken the input token approved by the sender
      * @param dstToken the final output token (after bridging and swapping) desired by the sender
+     * @param bridgeOutReceiver the receiver (user or dst TransferSwapper) of the bridge token
      */
     event RequestSent(
         bytes32 id,
@@ -97,7 +98,8 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         uint64 dstChainId,
         uint256 srcAmount,
         address srcToken,
-        address dstToken
+        address dstToken,
+        address bridgeOutReceiver
     );
     // emitted when operations on dst chain is done.
     // dstAmount is denominated by dstToken, refundAmount is denominated by bridge out token.
@@ -125,6 +127,10 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
 
     /// @notice erc20 wrap of the gas token of this chain, e.g. WETH
     address public nativeWrap;
+
+    /// @dev saves the sender addresses of direct bridge transfers so that when refund happens, this contract
+    /// knows who to refund the tokens to
+    mapping(bytes32 => address) public directBridgeSenders;
 
     constructor(
         address _messageBus,
@@ -215,13 +221,14 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
             msgFee = msg.value - _amountIn;
         }
         // transfer through bridge
-        bytes32 transferId = _transfer(id, _dstTransferSwapper, _desc, _dstSwaps, amountOut, _tokenOut, msgFee);
-        emit RequestSent(id, transferId, _desc.dstChainId, _amountIn, _tokenIn, _desc.dstTokenOut);
+        address bridgeOutReceiver = _dstSwaps.length > 0 ? _dstTransferSwapper : _desc.receiver;
+        bytes32 transferId = _transfer(id, bridgeOutReceiver, _desc, _dstSwaps, amountOut, _tokenOut, msgFee);
+        emit RequestSent(id, transferId, _desc.dstChainId, _amountIn, _tokenIn, _desc.dstTokenOut, bridgeOutReceiver);
     }
 
     function _transfer(
         bytes32 _id,
-        address _dstTransferSwapper,
+        address _bridgeOutReceiver,
         TransferDescription memory _desc,
         ICodec.SwapDescription[] memory _dstSwaps,
         uint256 _amount,
@@ -229,32 +236,18 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         uint256 _msgFee
     ) private returns (bytes32 transferId) {
         bytes memory requestMessage = _encodeRequestMessage(_id, _desc, _dstSwaps);
-        if (_dstSwaps.length > 0) {
-            transferId = MessageSenderLib.sendMessageWithTransfer(
-                _dstTransferSwapper,
-                _token,
-                _amount,
-                _desc.dstChainId,
-                _desc.nonce,
-                _desc.maxBridgeSlippage,
-                requestMessage,
-                _desc.bridgeType,
-                messageBus,
-                _msgFee
-            );
-        } else {
-            // bridge tokens to _desc.receiver directly to save a transaction on the dst chain
-            (transferId, ) = MessageSenderLib.sendTokenTransfer(
-                _desc.receiver, // bridge out token is directly sent to the sender defined receiver
-                _token,
-                _amount,
-                _desc.dstChainId,
-                _desc.nonce,
-                _desc.maxBridgeSlippage,
-                _desc.bridgeType,
-                messageBus
-            );
-        }
+        transferId = MessageSenderLib.sendMessageWithTransfer(
+            _bridgeOutReceiver,
+            _token,
+            _amount,
+            _desc.dstChainId,
+            _desc.nonce,
+            _desc.maxBridgeSlippage,
+            requestMessage,
+            _desc.bridgeType,
+            messageBus,
+            _msgFee
+        );
     }
 
     /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
