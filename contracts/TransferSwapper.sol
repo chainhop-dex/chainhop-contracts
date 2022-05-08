@@ -222,7 +222,7 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         }
         // transfer through bridge
         address bridgeOutReceiver = _dstSwaps.length > 0 ? _dstTransferSwapper : _desc.receiver;
-        bytes32 transferId = _transfer(id, _dstTransferSwapper, _desc, _dstSwaps, amountOut, _tokenOut, msgFee);
+        bytes32 transferId = _transfer(id, bridgeOutReceiver, _desc, _dstSwaps, amountOut, _tokenOut, msgFee);
         emit RequestSent(id, transferId, _desc.dstChainId, _amountIn, _tokenIn, _desc.dstTokenOut, bridgeOutReceiver);
     }
 
