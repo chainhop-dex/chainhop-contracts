@@ -29,6 +29,16 @@ export const deploymentConfigs: IConfig = {
     codecs: [UniswapV2SwapExactTokensForTokensCodec]
   },
 
+  // Optimism
+  10: {
+    nativeWrap: '0x4200000000000000000000000000000000000006',
+    messageBus: process.env.MESSAGE_BUS_10,
+    supportedDex: [
+      { address: '0xE592427A0AEce92De3Edee1F18E0157C05861564', func: UniswapV3ExactInputCodec.func } // UniswapV3: SwapRouter
+    ],
+    codecs: [UniswapV3ExactInputCodec]
+  },
+
   // Polygon
   137: {
     nativeWrap: '0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270',
