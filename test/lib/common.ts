@@ -11,6 +11,8 @@ import {
   MessageBus__factory,
   MockCurvePool__factory,
   MockUniswapV2__factory,
+  PlatypusRouter01Codec,
+  PlatypusRouter01Codec__factory,
   TestERC20,
   TestERC20__factory,
   TransferSwapper,
@@ -48,6 +50,7 @@ export interface CodecContracts {
   v2Codec: UniswapV2SwapExactTokensForTokensCodec;
   v3Codec: UniswapV3ExactInputCodec;
   curveCodec: CurvePoolCodec;
+  platypusCodec: PlatypusRouter01Codec;
 }
 
 export interface TokenContracts {
@@ -106,7 +109,13 @@ export async function deployCodecContracts(admin: Wallet): Promise<CodecContract
   const curveCodec = await curveCodecFactory.connect(admin).deploy();
   await curveCodec.deployed();
 
-  return { v2Codec, v3Codec, curveCodec };
+  const platypusCodecFactory = (await ethers.getContractFactory(
+    'PlatypusRouter01Codec'
+  )) as PlatypusRouter01Codec__factory;
+  const platypusCodec = await platypusCodecFactory.connect(admin).deploy();
+  await platypusCodec.deployed();
+
+  return { v2Codec, v3Codec, curveCodec, platypusCodec };
 }
 
 export async function deployChainhopContracts(

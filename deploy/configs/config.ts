@@ -1,6 +1,12 @@
 import * as dotenv from 'dotenv';
 import { getMetaPoolCodecConfig, getSpecialMetaPoolCodecConfig, getSupportedCurvePools } from './functions';
-import { CurvePoolCodec, IConfig, UniswapV2SwapExactTokensForTokensCodec, UniswapV3ExactInputCodec } from './types';
+import {
+  CurvePoolCodec,
+  IConfig,
+  PlatypusRouter01Codec,
+  UniswapV2SwapExactTokensForTokensCodec,
+  UniswapV3ExactInputCodec
+} from './types';
 
 dotenv.config();
 
@@ -67,13 +73,15 @@ export const deploymentConfigs: IConfig = {
     messageBus: process.env.MESSAGE_BUS_43114,
     supportedDex: [
       { address: '0x60aE616a2155Ee3d9A68541Ba4544862310933d4', func: UniswapV2SwapExactTokensForTokensCodec.func }, // TraderJoe: JoeRouter02
-      ...getSupportedCurvePools(43114)
+      ...getSupportedCurvePools(43114),
+      { address: '0x73256EC7575D999C360c1EeC118ECbEFd8DA7D12', func: PlatypusRouter01Codec.func } // Platypus: PlatypusRouter01
     ],
     codecs: [
       UniswapV2SwapExactTokensForTokensCodec,
       CurvePoolCodec,
       getSpecialMetaPoolCodecConfig(43114),
-      getMetaPoolCodecConfig(43114)
+      getMetaPoolCodecConfig(43114),
+      PlatypusRouter01Codec
     ]
   },
 

@@ -57,3 +57,8 @@ export const CurveSpecialMetaPoolCodecBase: ICodecConfig = {
   name: 'CurveSpecialMetaPoolCodec',
   func: 'exchange_underlying(int128,int128,uint256,uint256)'
 };
+
+export const PlatypusRouter01Codec: ICodecConfig = {
+  name: 'PlatypusRouter01Codec',
+  func: 'swapTokensForTokens(address[],address[],uint256,uint256,address,uint256)'
+};
