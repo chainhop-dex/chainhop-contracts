@@ -25,5 +25,5 @@ export async function runUniswapV2(c: BenchmarkContext, num: number) {
   const msg = utils.encodeMessage(id, swaps, c.receiver.address, false, fee, true);
 
   await c.tokenA.transfer(c.xswap.address, amountIn);
-  await c.xswap.executeMessageWithTransfer(ZERO_ADDR, c.tokenA.address, amountIn, 0, msg);
+  await c.xswap.executeMessageWithTransfer(ZERO_ADDR, c.tokenA.address, amountIn, 0, msg, ZERO_ADDR);
 }
