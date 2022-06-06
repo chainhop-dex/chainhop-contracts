@@ -68,10 +68,11 @@ export interface MinimalDexContracts {
   mockV2: MinimalUniswapV2;
 }
 
-export async function deployBridgeContracts(admin: Wallet): Promise<BridgeContracts> {
+export async function deployBridgeContracts(admin: Wallet, weth: string): Promise<BridgeContracts> {
   const bridgeFactory = (await ethers.getContractFactory('Bridge')) as Bridge__factory;
   const bridge = await bridgeFactory.connect(admin).deploy();
   await bridge.deployed();
+  await bridge.setWrap(weth);
 
   const messageBusFactory = (await ethers.getContractFactory('MessageBus')) as MessageBus__factory;
   const messageBus = await messageBusFactory
@@ -85,7 +86,6 @@ export async function deployBridgeContracts(admin: Wallet): Promise<BridgeContra
       ethers.constants.AddressZero
     );
   await messageBus.deployed();
-
   await messageBus.setFeeBase(1);
   await messageBus.setFeePerByte(1);
 
@@ -143,7 +143,8 @@ export async function deployChainhopContracts(
       ],
       [v2Codec.address, curveCodec.address, v3Codec.address],
       supportedDexList,
-      supportedDexFuncs
+      supportedDexFuncs,
+      true
     );
   await xswap.deployed();
 

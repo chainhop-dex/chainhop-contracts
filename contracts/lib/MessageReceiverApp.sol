@@ -6,8 +6,15 @@ import "../interfaces/IMessageReceiverApp.sol";
 import "./MessageBusAddress.sol";
 
 abstract contract MessageReceiverApp is IMessageReceiverApp, MessageBusAddress {
+    // testMode is used for the ease of testing functions with the "onlyMessageBus" modifier.
+    // WARNING: when testMode is true, ANYONE can call executeMessageXXX functions
+    // this variable can only be set during contract construction and is always not set on mainnets
+    bool public testMode;
+
     modifier onlyMessageBus() {
-        require(msg.sender == messageBus, "caller is not message bus");
+        if (!testMode) {
+            require(msg.sender == messageBus, "caller is not message bus");
+        }
         _;
     }
 
