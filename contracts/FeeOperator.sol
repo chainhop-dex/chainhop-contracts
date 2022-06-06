@@ -28,8 +28,15 @@ abstract contract FeeOperator is Ownable {
 
     function collectFee(address[] calldata _tokens, address _to) external onlyFeeCollector {
         for (uint256 i = 0; i < _tokens.length; i++) {
-            uint256 balance = IERC20(_tokens[i]).balanceOf(address(this));
-            IERC20(_tokens[i]).safeTransfer(_to, balance);
+            // use zero address to denote native token
+            if (_tokens[i] == address(0)) {
+                uint256 bal = address(this).balance;
+                (bool sent, ) = _to.call{value: bal, gas: 50000}("");
+                require(sent, "send native failed");
+            } else {
+                uint256 balance = IERC20(_tokens[i]).balanceOf(address(this));
+                IERC20(_tokens[i]).safeTransfer(_to, balance);
+            }
         }
     }
 

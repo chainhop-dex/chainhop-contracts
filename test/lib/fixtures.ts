@@ -49,8 +49,8 @@ export const codecFixture = async ([admin]: Wallet[]): Promise<CodecContracts> =
 };
 
 export const chainhopFixture = async ([admin]: Wallet[]): Promise<IntegrationTestFixture> => {
-  const bridge = await deployBridgeContracts(admin);
   const tokens = await deployTokenContracts(admin);
+  const bridge = await deployBridgeContracts(admin, tokens.weth.address);
   const dex = await deployMockDexContracts(admin, tokens);
   const accounts = await getAccounts(admin, [tokens.tokenA, tokens.tokenB], 8);
   const signer = accounts[0];
@@ -74,8 +74,8 @@ export const chainhopFixture = async ([admin]: Wallet[]): Promise<IntegrationTes
 };
 
 export const benchmarkFixture = async ([admin]: Wallet[]): Promise<BenchmarkFixture> => {
-  const bridge = await deployBridgeContracts(admin);
   const tokens = await deployTokenContracts(admin);
+  const bridge = await deployBridgeContracts(admin, tokens.weth.address);
   const dex = await deployMinimalDexContracts(admin);
   const accounts = await getAccounts(admin, [tokens.tokenA, tokens.tokenB], 8);
   const signer = accounts[0];
