@@ -173,18 +173,78 @@ describe('transferWithSwap', () => {
       );
 
     const expectedSendAmt = utils.slipUniV2(amountIn);
-    const srcXferId = keccak256(
-      ['address', 'address', 'address', 'uint256', 'uint64', 'uint64', 'uint64'],
-      [c.xswap.address, c.receiver.address, c.tokenB.address, expectedSendAmt, desc.dstChainId, desc.nonce, c.chainId]
-    );
     await expect(tx)
       .to.emit(c.bridge, 'Send')
       .withArgs(
-        srcXferId,
+        expectXferId,
         c.xswap.address,
         c.receiver.address,
         c.tokenB.address,
         expectedSendAmt,
+        desc.dstChainId,
+        desc.nonce,
+        desc.maxBridgeSlippage
+      );
+  });
+  it('should revert if using wrapped bridge token but tokenOut from dex != canonical', async function () {
+    const amountIn = parseUnits('100');
+    const srcSwaps = utils.buildUniV2Swaps(c, amountIn);
+    const feeSig = await utils.signFee(c);
+    const desc = await utils.buildTransferDesc(c, feeSig, {
+      wrappedBridgeToken: c.wrappedBridgeToken.address
+    });
+    await c.tokenA.connect(c.sender).approve(c.xswap.address, amountIn);
+    const tx = c.xswap
+      .connect(c.sender)
+      .transferWithSwap(c.receiver.address, desc, srcSwaps, srcSwaps, { value: 1000 });
+    await expect(tx).to.be.revertedWith('canonical != _token');
+  });
+  it('should revert if using wrapped bridge token but tokenIn != canonical', async function () {
+    const amountIn = parseUnits('100');
+    const feeSig = await utils.signFee(c, { tokenIn: c.tokenB.address });
+    const desc = await utils.buildTransferDesc(c, feeSig, {
+      wrappedBridgeToken: c.wrappedBridgeToken.address,
+      tokenIn: c.tokenB.address, // wrong token
+      amountIn: amountIn
+    });
+    await c.tokenB.connect(c.sender).approve(c.xswap.address, amountIn);
+    const tx = c.xswap.connect(c.sender).transferWithSwap(c.receiver.address, desc, [], [], { value: 1000 });
+    await expect(tx).to.be.revertedWith('canonical != _token');
+  });
+  it('should bridge using wrapped bridge token', async function () {
+    const amountIn = parseUnits('100');
+    const feeSig = await utils.signFee(c);
+    const desc = await utils.buildTransferDesc(c, feeSig, {
+      amountIn: amountIn,
+      tokenIn: c.tokenA.address,
+      wrappedBridgeToken: c.wrappedBridgeToken.address // wraps tokenA
+    });
+    await c.tokenA.connect(c.sender).approve(c.xswap.address, amountIn);
+    const tx = await c.xswap.connect(c.sender).transferWithSwap(c.receiver.address, desc, [], [], { value: 1000 });
+    const expectId = utils.computeId(c.sender.address, c.receiver.address, c.chainId, desc.nonce);
+    const expectXferId = utils.computeTransferId(c, {
+      amount: amountIn,
+      token: c.wrappedBridgeToken.address
+    });
+    await expect(tx)
+      .to.emit(c.xswap, 'RequestSent')
+      .withArgs(
+        expectId,
+        expectXferId,
+        desc.dstChainId,
+        amountIn,
+        c.tokenA.address,
+        c.tokenB.address,
+        c.receiver.address
+      );
+    await expect(tx)
+      .to.emit(c.bridge, 'Send')
+      .withArgs(
+        expectXferId,
+        c.xswap.address,
+        c.receiver.address,
+        c.wrappedBridgeToken.address,
+        amountIn,
         desc.dstChainId,
         desc.nonce,
         desc.maxBridgeSlippage
