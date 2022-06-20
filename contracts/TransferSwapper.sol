@@ -249,8 +249,8 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
             // non-standard implementation: actual token wrapping is done inside the token contract's
             // transferFrom(). Approving the wrapper token contract to pull the token we intend to
             // send so that when bridge contract calls wrapper.transferFrom() it automatically pulls
-            // the original token from this contract, wraps it, then credit the wrapper token balance
-            // to bridge.
+            // the original token from this contract, wraps it, then transfer the wrapper token from
+            // this contract to bridge.
             IERC20(_token).approve(_desc.wrappedBridgeToken, _amount);
             _token = _desc.wrappedBridgeToken;
         }

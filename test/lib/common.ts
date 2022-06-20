@@ -7,6 +7,7 @@ import {
   Bridge__factory,
   CurvePoolCodec,
   CurvePoolCodec__factory,
+  IntermediaryOriginalToken__factory,
   MessageBus,
   MessageBus__factory,
   MockCurvePool__factory,
@@ -25,6 +26,7 @@ import {
 } from '../../typechain';
 import { MinimalUniswapV2__factory } from '../../typechain/factories/MinimalUniswapV2__factory';
 import { WETH__factory } from './../../typechain/factories/WETH__factory';
+import { IntermediaryOriginalToken } from './../../typechain/IntermediaryOriginalToken';
 import { MinimalUniswapV2 } from './../../typechain/MinimalUniswapV2';
 import { MockCurvePool } from './../../typechain/MockCurvePool';
 import { MockUniswapV2 } from './../../typechain/MockUniswapV2';
@@ -40,6 +42,10 @@ export function loadFixture<T>(fixture: Fixture<T>): Promise<T> {
 export interface BridgeContracts {
   bridge: Bridge;
   messageBus: MessageBus;
+}
+
+export interface WrappedBridgeTokens {
+  wrappedBridgeToken: IntermediaryOriginalToken;
 }
 
 export interface ChainHopContracts {
@@ -90,6 +96,17 @@ export async function deployBridgeContracts(admin: Wallet, weth: string): Promis
   await messageBus.setFeePerByte(1);
 
   return { bridge, messageBus };
+}
+
+export async function deployWrappedBridgeToken(admin: Wallet, canonicalToken: string, bridge: string) {
+  const wrappedBridgeTokenFactory = (await ethers.getContractFactory(
+    'IntermediaryOriginalToken'
+  )) as IntermediaryOriginalToken__factory;
+  const wrappedBridgeToken = await wrappedBridgeTokenFactory
+    .connect(admin)
+    .deploy('TestWrappedBridgeToken', 'TestWrappedBridgeToken', [bridge], canonicalToken);
+  await wrappedBridgeToken.deployed();
+  return { wrappedBridgeToken };
 }
 
 export async function deployCodecContracts(admin: Wallet): Promise<CodecContracts> {
@@ -161,6 +178,7 @@ export async function deployTokenContracts(admin: Wallet): Promise<TokenContract
   await tokenA.deployed();
   const tokenB = await testERC20Factory.connect(admin).deploy();
   await tokenB.deployed();
+
   return { weth, tokenA, tokenB };
 }
 

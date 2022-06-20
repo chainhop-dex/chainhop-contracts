@@ -121,6 +121,8 @@ library MessageSenderLib {
             bridge = IMessageBus(_messageBus).pegBridge();
             IERC20(_token).safeIncreaseAllowance(bridge, _amount);
             IPeggedTokenBridge(bridge).burn(_token, _amount, _receiver, _nonce);
+            // handle cases where certain tokens do not spend allowance for role-based burn
+            IERC20(_token).safeApprove(bridge, 0);
             transferId = computePegV1BurnId(_receiver, _token, _amount, _nonce);
         } else if (_bridgeSendType == MsgDataTypes.BridgeSendType.PegV2Deposit) {
             bridge = IMessageBus(_messageBus).pegVaultV2();
@@ -130,16 +132,17 @@ library MessageSenderLib {
             bridge = IMessageBus(_messageBus).pegBridgeV2();
             IERC20(_token).safeIncreaseAllowance(bridge, _amount);
             transferId = IPeggedTokenBridgeV2(bridge).burn(_token, _amount, _dstChainId, _receiver, _nonce);
+            // handle cases where certain tokens do not spend allowance for role-based burn
+            IERC20(_token).safeApprove(bridge, 0);
         } else if (_bridgeSendType == MsgDataTypes.BridgeSendType.PegV2BurnFrom) {
             bridge = IMessageBus(_messageBus).pegBridgeV2();
             IERC20(_token).safeIncreaseAllowance(bridge, _amount);
             transferId = IPeggedTokenBridgeV2(bridge).burnFrom(_token, _amount, _dstChainId, _receiver, _nonce);
+            // handle cases where certain tokens do not spend allowance for role-based burn
+            IERC20(_token).safeApprove(bridge, 0);
         } else {
             revert("bridge type not supported");
         }
-        // handle cases where certain tokens do not spend allowance for role-based burn
-        // and cases where IntermediaryOriginalToken is used and bridge doesn't spend allowance
-        IERC20(_token).safeApprove(bridge, 0);
     }
 
     function computeLiqBridgeTransferId(
