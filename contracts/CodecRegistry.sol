@@ -24,6 +24,10 @@ abstract contract CodecRegistry is Ownable {
     event CodecUpdated(bytes4 selector, address codec);
 
     constructor(string[] memory _funcSigs, address[] memory _codecs) {
+        initCodecRegistry(_funcSigs, _codecs);
+    }
+
+    function initCodecRegistry(string[] memory _funcSigs, address[] memory _codecs) internal {
         require(_funcSigs.length == _codecs.length, "len mm");
         for (uint256 i = 0; i < _funcSigs.length; i++) {
             bytes4 selector = bytes4(keccak256(bytes(_funcSigs[i])));

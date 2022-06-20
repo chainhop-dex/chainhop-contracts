@@ -23,6 +23,10 @@ abstract contract FeeOperator is Ownable {
     }
 
     constructor(address _feeCollector) {
+        initFeeOperator(_feeCollector);
+    }
+
+    function initFeeOperator(address _feeCollector) internal {
         feeCollector = _feeCollector;
     }
 

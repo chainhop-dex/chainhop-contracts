@@ -14,6 +14,10 @@ abstract contract DexRegistry is Ownable {
     mapping(address => mapping(bytes4 => bool)) public dexRegistry;
 
     constructor(address[] memory _supportedDexList, string[] memory _supportedFuncs) {
+        initDexRegistry(_supportedDexList, _supportedFuncs);
+    }
+
+    function initDexRegistry(address[] memory _supportedDexList, string[] memory _supportedFuncs) internal {
         for (uint256 i = 0; i < _supportedDexList.length; i++) {
             bytes4 selector = bytes4(keccak256(bytes(_supportedFuncs[i])));
             _setSupportedDex(_supportedDexList[i], selector, true);

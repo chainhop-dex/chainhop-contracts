@@ -17,6 +17,10 @@ contract SigVerifier is Ownable {
     event SignerUpdated(address from, address to);
 
     constructor(address _signer) {
+        initSigVerifier(_signer);
+    }
+
+    function initSigVerifier(address _signer) internal {
         signer = _signer;
     }
 

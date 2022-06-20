@@ -2,20 +2,47 @@
 
 pragma solidity 0.8.12;
 
+import "@openzeppelin/contracts/access/Ownable.sol";
 import "../interfaces/IMessageReceiverApp.sol";
-import "./MessageBusAddress.sol";
 
-abstract contract MessageReceiverApp is IMessageReceiverApp, MessageBusAddress {
+abstract contract MessageReceiverApp is IMessageReceiverApp, Ownable {
     // testMode is used for the ease of testing functions with the "onlyMessageBus" modifier.
-    // WARNING: when testMode is true, ANYONE can call executeMessageXXX functions
-    // this variable can only be set during contract construction and is always not set on mainnets
-    bool public testMode;
+    // WARNING: when testMode is set to true, ANYONE can call executeMessageXXX functions
+    // this variable cannot be modified once
+    TestMode public testMode;
+
+    enum TestMode {
+        UNSET,
+        OFF,
+        ON
+    }
 
     modifier onlyMessageBus() {
-        if (!testMode) {
+        require(testMode != TestMode.UNSET, "mode not set");
+        if (testMode == TestMode.OFF) {
             require(msg.sender == messageBus, "caller is not message bus");
         }
         _;
+    }
+
+    event MessageBusUpdated(address messageBus);
+
+    address public messageBus;
+
+    constructor(address _messageBus, TestMode _testMode) {
+        initMessageReceiverApp(_messageBus, _testMode);
+    }
+
+    function initMessageReceiverApp(address _messageBus, TestMode _testMode) internal {
+        // once the testMode is set it can never be modified
+        require(testMode == TestMode.UNSET || testMode == _testMode, "cannot change test mode");
+        testMode = _testMode;
+        messageBus = _messageBus;
+    }
+
+    function setMessageBus(address _messageBus) public onlyOwner {
+        messageBus = _messageBus;
+        emit MessageBusUpdated(messageBus);
     }
 
     /**

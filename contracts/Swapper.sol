@@ -24,6 +24,16 @@ contract Swapper is CodecRegistry, DexRegistry {
         string[] memory _supportedDexFuncs
     ) DexRegistry(_supportedDexList, _supportedDexFuncs) CodecRegistry(_funcSigs, _codecs) {}
 
+    function initSwapper(
+        string[] memory _funcSigs,
+        address[] memory _codecs,
+        address[] memory _supportedDexList,
+        string[] memory _supportedDexFuncs
+    ) internal {
+        initDexRegistry(_supportedDexList, _supportedDexFuncs);
+        initCodecRegistry(_funcSigs, _codecs);
+    }
+
     /**
      * @dev Checks the input swaps for that tokenIn and tokenOut for every swap should be the same
      * @param _swaps the swaps the check

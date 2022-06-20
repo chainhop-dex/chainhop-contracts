@@ -6,6 +6,7 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+
 import "./lib/MessageSenderLib.sol";
 import "./lib/MessageReceiverApp.sol";
 import "./lib/MsgDataTypes.sol";
@@ -146,15 +147,21 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         address[] memory _codecs,
         address[] memory _supportedDexList,
         string[] memory _supportedDexFuncs,
-        bool _testMode
+        TestMode _testMode
     )
+        MessageReceiverApp(_messageBus, _testMode)
         Swapper(_funcSigs, _codecs, _supportedDexList, _supportedDexFuncs)
         FeeOperator(_feeCollector)
         SigVerifier(_signer)
     {
-        messageBus = _messageBus;
         nativeWrap = _nativeWrap;
-        testMode = _testMode;
+    }
+
+    function init() external {
+        // owner can only be set during the initial deployment.
+        // this invariable restricts that any subsequent upgrades can only update code but not storage.
+        require(owner() == address(0), "owner already set");
+        transferOwnership(msg.sender);
     }
 
     /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
