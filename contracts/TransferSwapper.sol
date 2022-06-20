@@ -13,6 +13,7 @@ import "./FeeOperator.sol";
 import "./SigVerifier.sol";
 import "./Swapper.sol";
 import "./interfaces/ICodec.sol";
+import "./interfaces/IIntermediaryOriginalToken.sol";
 
 /**
  * @author Chainhop Dex Team
@@ -41,6 +42,10 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         // these two fields are only meant for the scenario where no swaps are needed on src chain
         uint256 amountIn;
         address tokenIn;
+        // if this field is set, this contract attempts to wrap the input OR src bridge out token
+        // (as specified in the tokenIn field OR the output token in src SwapDescription[]) before
+        // sending to the bridge. This field is determined by the backend when searching for routes
+        address wrappedBridgeToken;
         address dstTokenOut; // the final output token, emitted in event for display purpose only
         // in case of multi route swaps, whether to allow the successful swaps to go through
         // and sending the amountIn of the failed swaps back to user
@@ -238,6 +243,17 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         uint256 _msgFee
     ) private returns (bytes32 transferId) {
         bytes memory requestMessage = _encodeRequestMessage(_id, _desc, _dstSwaps);
+        if (_desc.wrappedBridgeToken != address(0)) {
+            address canonical = IIntermediaryOriginalToken(_desc.wrappedBridgeToken).canonical();
+            require(canonical == _token, "canonical != _token");
+            // non-standard implementation: actual token wrapping is done inside the token contract's
+            // transferFrom(). Approving the wrapper token contract to pull the token we intend to
+            // send so that when bridge contract calls wrapper.transferFrom() it automatically pulls
+            // the original token from this contract, wraps it, then credit the wrapper token balance
+            // to bridge.
+            IERC20(_token).approve(_desc.wrappedBridgeToken, _amount);
+            _token = _desc.wrappedBridgeToken;
+        }
         transferId = MessageSenderLib.sendMessageWithTransfer(
             _bridgeOutReceiver,
             _token,
