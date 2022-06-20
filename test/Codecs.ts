@@ -19,18 +19,18 @@ const prepareContext = async () => {
 describe('UniswapV3ExactInputCodec', () => {
   beforeEach(prepareContext);
   it('should decode calldata', async function () {
-    const fee = 12312;
+    const fee = 10000;
     const path = ethers.utils.solidityPack(['address', 'uint24', 'address'], [tokenA, fee, tokenB]);
-    const amountIn = '321321';
+    const amountIn = '111111';
     const params: ISwapRouter.ExactInputParamsStruct = {
       path,
-      amountIn,
       amountOutMinimum: amountIn,
-      deadline: '1233123',
+      deadline: '33333333',
+      amountIn,
       recipient: user
     };
     let data = ethers.utils.defaultAbiCoder.encode(
-      ['(bytes path, address recipient, uint256 amountOutMinimum, uint256 deadline, uint256 amountIn)'],
+      ['(bytes path, address recipient, uint256 deadline, uint256 amountIn, uint256 amountOutMinimum)'],
       [params]
     );
     data = data.slice(2); // strip 0x
@@ -38,9 +38,9 @@ describe('UniswapV3ExactInputCodec', () => {
     const swap: ICodec.SwapDescriptionStruct = { dex: ZERO_ADDR, data: data };
     const res = await c.v3Codec.decodeCalldata(swap);
 
-    expect(amountIn).equal(amountIn);
-    expect(res[1]).equal(tokenA);
-    expect(res[2]).equal(tokenB);
+    expect(res[0]).equal(amountIn);
+    expect(res.tokenIn).equal(tokenA);
+    expect(res.tokenOut).equal(tokenB);
   });
 
   it('should revert if path is malformed', async function () {
@@ -66,5 +66,53 @@ describe('UniswapV3ExactInputCodec', () => {
     const swap: ICodec.SwapDescriptionStruct = { dex: ZERO_ADDR, data: data };
     const res = c.v3Codec.decodeCalldata(swap);
     await expect(res).to.be.revertedWith('malformed path');
+  });
+});
+
+describe('PlatypusRouter01Codec', () => {
+  beforeEach(prepareContext);
+  it('should decode calldata', async function () {
+    const tokenPath = [tokenA, tokenB];
+    const poolPath = [user];
+    const amountOutMin = '123';
+    const amountIn = '321321';
+    const receiver = ZERO_ADDR;
+    const deadline = '123123123123';
+    let data = ethers.utils.defaultAbiCoder.encode(
+      ['address[]', 'address[]', 'uint256', 'uint256', 'address', 'uint256'],
+      [tokenPath, poolPath, amountIn, amountOutMin, receiver, deadline]
+    );
+    data = data.slice(2); // strip 0x
+    data = '0x12121212' + data;
+    const swap: ICodec.SwapDescriptionStruct = { dex: ZERO_ADDR, data: data };
+    const res = await c.platypusCodec.decodeCalldata(swap);
+    expect(res.amountIn).equal(amountIn);
+    expect(res.tokenIn).equal(tokenA);
+    expect(res.tokenOut).equal(tokenB);
+  });
+
+  it('should encode calldata with override', async function () {
+    const tokenPath = [tokenA, tokenB];
+    const poolPath = [user];
+    const amountOutMin = '123';
+    const amountIn = '321321';
+    const receiver = ZERO_ADDR;
+    const deadline = '123123123123';
+    let data = ethers.utils.defaultAbiCoder.encode(
+      ['address[]', 'address[]', 'uint256', 'uint256', 'address', 'uint256'],
+      [tokenPath, poolPath, amountIn, amountOutMin, receiver, deadline]
+    );
+    data = data.slice(2); // strip 0x
+    data = '0x12121212' + data;
+    const amountInOverride = '123123';
+    const receiverOverride = user;
+    const res = await c.platypusCodec.encodeCalldataWithOverride(data, amountInOverride, receiverOverride);
+    let expectData = ethers.utils.defaultAbiCoder.encode(
+      ['address[]', 'address[]', 'uint256', 'uint256', 'address', 'uint256'],
+      [tokenPath, poolPath, amountInOverride, amountOutMin, receiverOverride, deadline]
+    );
+    expectData = expectData.slice(2); // strip 0x
+    expectData = '0x12121212' + expectData;
+    expect(res).equal(expectData);
   });
 });

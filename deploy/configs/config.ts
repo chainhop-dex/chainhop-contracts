@@ -1,6 +1,12 @@
 import * as dotenv from 'dotenv';
 import { getMetaPoolCodecConfig, getSpecialMetaPoolCodecConfig, getSupportedCurvePools } from './functions';
-import { CurvePoolCodec, IConfig, UniswapV2SwapExactTokensForTokensCodec, UniswapV3ExactInputCodec } from './types';
+import {
+  CurvePoolCodec,
+  IConfig,
+  PlatypusRouter01Codec,
+  UniswapV2SwapExactTokensForTokensCodec,
+  UniswapV3ExactInputCodec
+} from './types';
 
 dotenv.config();
 
@@ -45,9 +51,15 @@ export const deploymentConfigs: IConfig = {
     messageBus: process.env.MESSAGE_BUS_137,
     supportedDex: [
       { address: '0xa5E0829CaCEd8fFDD4De3c43696c57F7D7A678ff', func: UniswapV2SwapExactTokensForTokensCodec.func }, // Quickswap: UniswapV2Router02
-      ...getSupportedCurvePools(137)
+      ...getSupportedCurvePools(137),
+      { address: '0xE592427A0AEce92De3Edee1F18E0157C05861564', func: UniswapV3ExactInputCodec.func } // UniswapV3: SwapRouter
     ],
-    codecs: [UniswapV2SwapExactTokensForTokensCodec, getSpecialMetaPoolCodecConfig(137), getMetaPoolCodecConfig(137)]
+    codecs: [
+      UniswapV2SwapExactTokensForTokensCodec,
+      getSpecialMetaPoolCodecConfig(137),
+      getMetaPoolCodecConfig(137),
+      UniswapV3ExactInputCodec
+    ]
   },
 
   // Fantom
@@ -67,13 +79,15 @@ export const deploymentConfigs: IConfig = {
     messageBus: process.env.MESSAGE_BUS_43114,
     supportedDex: [
       { address: '0x60aE616a2155Ee3d9A68541Ba4544862310933d4', func: UniswapV2SwapExactTokensForTokensCodec.func }, // TraderJoe: JoeRouter02
-      ...getSupportedCurvePools(43114)
+      ...getSupportedCurvePools(43114),
+      { address: '0x73256EC7575D999C360c1EeC118ECbEFd8DA7D12', func: PlatypusRouter01Codec.func } // Platypus: PlatypusRouter01
     ],
     codecs: [
       UniswapV2SwapExactTokensForTokensCodec,
       CurvePoolCodec,
       getSpecialMetaPoolCodecConfig(43114),
-      getMetaPoolCodecConfig(43114)
+      getMetaPoolCodecConfig(43114),
+      PlatypusRouter01Codec
     ]
   },
 
@@ -83,8 +97,14 @@ export const deploymentConfigs: IConfig = {
     messageBus: process.env.MESSAGE_BUS_42161,
     supportedDex: [
       { address: '0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506', func: UniswapV2SwapExactTokensForTokensCodec.func }, // Sushiswap: UniswapV2Router02
-      ...getSupportedCurvePools(42161)
+      ...getSupportedCurvePools(42161),
+      { address: '0xE592427A0AEce92De3Edee1F18E0157C05861564', func: UniswapV3ExactInputCodec.func } // UniswapV3: SwapRouter
     ],
-    codecs: [UniswapV2SwapExactTokensForTokensCodec, CurvePoolCodec, getMetaPoolCodecConfig(42161)]
+    codecs: [
+      UniswapV2SwapExactTokensForTokensCodec,
+      CurvePoolCodec,
+      getMetaPoolCodecConfig(42161),
+      UniswapV3ExactInputCodec
+    ]
   }
 };

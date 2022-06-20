@@ -7,10 +7,13 @@ import {
   Bridge__factory,
   CurvePoolCodec,
   CurvePoolCodec__factory,
+  IntermediaryOriginalToken__factory,
   MessageBus,
   MessageBus__factory,
   MockCurvePool__factory,
   MockUniswapV2__factory,
+  PlatypusRouter01Codec,
+  PlatypusRouter01Codec__factory,
   TestERC20,
   TestERC20__factory,
   TransferSwapper,
@@ -23,6 +26,7 @@ import {
 } from '../../typechain';
 import { MinimalUniswapV2__factory } from '../../typechain/factories/MinimalUniswapV2__factory';
 import { WETH__factory } from './../../typechain/factories/WETH__factory';
+import { IntermediaryOriginalToken } from './../../typechain/IntermediaryOriginalToken';
 import { MinimalUniswapV2 } from './../../typechain/MinimalUniswapV2';
 import { MockCurvePool } from './../../typechain/MockCurvePool';
 import { MockUniswapV2 } from './../../typechain/MockUniswapV2';
@@ -40,6 +44,10 @@ export interface BridgeContracts {
   messageBus: MessageBus;
 }
 
+export interface WrappedBridgeTokens {
+  wrappedBridgeToken: IntermediaryOriginalToken;
+}
+
 export interface ChainHopContracts {
   xswap: TransferSwapper;
 }
@@ -48,6 +56,7 @@ export interface CodecContracts {
   v2Codec: UniswapV2SwapExactTokensForTokensCodec;
   v3Codec: UniswapV3ExactInputCodec;
   curveCodec: CurvePoolCodec;
+  platypusCodec: PlatypusRouter01Codec;
 }
 
 export interface TokenContracts {
@@ -65,10 +74,11 @@ export interface MinimalDexContracts {
   mockV2: MinimalUniswapV2;
 }
 
-export async function deployBridgeContracts(admin: Wallet): Promise<BridgeContracts> {
+export async function deployBridgeContracts(admin: Wallet, weth: string): Promise<BridgeContracts> {
   const bridgeFactory = (await ethers.getContractFactory('Bridge')) as Bridge__factory;
   const bridge = await bridgeFactory.connect(admin).deploy();
   await bridge.deployed();
+  await bridge.setWrap(weth);
 
   const messageBusFactory = (await ethers.getContractFactory('MessageBus')) as MessageBus__factory;
   const messageBus = await messageBusFactory
@@ -82,11 +92,21 @@ export async function deployBridgeContracts(admin: Wallet): Promise<BridgeContra
       ethers.constants.AddressZero
     );
   await messageBus.deployed();
-
   await messageBus.setFeeBase(1);
   await messageBus.setFeePerByte(1);
 
   return { bridge, messageBus };
+}
+
+export async function deployWrappedBridgeToken(admin: Wallet, canonicalToken: string, bridge: string) {
+  const wrappedBridgeTokenFactory = (await ethers.getContractFactory(
+    'IntermediaryOriginalToken'
+  )) as IntermediaryOriginalToken__factory;
+  const wrappedBridgeToken = await wrappedBridgeTokenFactory
+    .connect(admin)
+    .deploy('TestWrappedBridgeToken', 'TestWrappedBridgeToken', [bridge], canonicalToken);
+  await wrappedBridgeToken.deployed();
+  return { wrappedBridgeToken };
 }
 
 export async function deployCodecContracts(admin: Wallet): Promise<CodecContracts> {
@@ -106,7 +126,13 @@ export async function deployCodecContracts(admin: Wallet): Promise<CodecContract
   const curveCodec = await curveCodecFactory.connect(admin).deploy();
   await curveCodec.deployed();
 
-  return { v2Codec, v3Codec, curveCodec };
+  const platypusCodecFactory = (await ethers.getContractFactory(
+    'PlatypusRouter01Codec'
+  )) as PlatypusRouter01Codec__factory;
+  const platypusCodec = await platypusCodecFactory.connect(admin).deploy();
+  await platypusCodec.deployed();
+
+  return { v2Codec, v3Codec, curveCodec, platypusCodec };
 }
 
 export async function deployChainhopContracts(
@@ -134,7 +160,8 @@ export async function deployChainhopContracts(
       ],
       [v2Codec.address, curveCodec.address, v3Codec.address],
       supportedDexList,
-      supportedDexFuncs
+      supportedDexFuncs,
+      true
     );
   await xswap.deployed();
 
@@ -151,6 +178,7 @@ export async function deployTokenContracts(admin: Wallet): Promise<TokenContract
   await tokenA.deployed();
   const tokenB = await testERC20Factory.connect(admin).deploy();
   await tokenB.deployed();
+
   return { weth, tokenA, tokenB };
 }
 

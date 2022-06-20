@@ -4,7 +4,7 @@ import { parseUnits } from 'ethers/lib/utils';
 import { ethers } from 'hardhat';
 import { TransferSwapper } from '../../typechain';
 import { ICodec } from './../../typechain/ICodec';
-import { CURVE_SLIPPAGE, UINT64_MAX, UNISWAP_V2_SLIPPAGE } from './constants';
+import { CURVE_SLIPPAGE, UINT64_MAX, UNISWAP_V2_SLIPPAGE, ZERO_ADDR } from './constants';
 import { ChainhopFixture, IntegrationTestContext } from './fixtures';
 
 export enum BridgeType {
@@ -205,6 +205,7 @@ export interface TransferDescOpts {
   feeSig?: string;
   amountIn?: BigNumber;
   tokenIn?: string;
+  wrappedBridgeToken?: string;
   nativeIn?: boolean;
   nativeOut?: boolean;
   dstTokenOut?: string;
@@ -232,6 +233,7 @@ export function buildTransferDesc(c: IntegrationTestContext, feeSig: string, opt
     feeSig: feeSig,
     amountIn: opts?.amountIn || parseUnits('0'),
     tokenIn: opts?.tokenIn || c.tokenA.address,
+    wrappedBridgeToken: opts?.wrappedBridgeToken || ZERO_ADDR,
     allowPartialFill: false
   };
 

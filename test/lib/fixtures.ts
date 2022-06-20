@@ -11,10 +11,12 @@ import {
   deployMinimalDexContracts,
   deployMockDexContracts,
   deployTokenContracts,
+  deployWrappedBridgeToken,
   getAccounts,
   MinimalDexContracts,
   MockDexContracts,
-  TokenContracts
+  TokenContracts,
+  WrappedBridgeTokens
 } from './common';
 
 export interface IntegrationTestContext extends IntegrationTestFixture {
@@ -35,7 +37,7 @@ export interface BaseFixture extends TokenContracts {
 }
 
 export interface ChainhopFixture extends BaseFixture, BridgeContracts, ChainHopContracts {}
-export interface IntegrationTestFixture extends ChainhopFixture, MockDexContracts {}
+export interface IntegrationTestFixture extends ChainhopFixture, MockDexContracts, WrappedBridgeTokens {}
 export interface BenchmarkFixture extends ChainhopFixture, MinimalDexContracts {}
 
 const fundTokens = async (tokens: TokenContracts, to: string) => {
@@ -49,8 +51,9 @@ export const codecFixture = async ([admin]: Wallet[]): Promise<CodecContracts> =
 };
 
 export const chainhopFixture = async ([admin]: Wallet[]): Promise<IntegrationTestFixture> => {
-  const bridge = await deployBridgeContracts(admin);
   const tokens = await deployTokenContracts(admin);
+  const bridge = await deployBridgeContracts(admin, tokens.weth.address);
+  const wrappedBridgeTokens = await deployWrappedBridgeToken(admin, tokens.tokenA.address, bridge.bridge.address);
   const dex = await deployMockDexContracts(admin, tokens);
   const accounts = await getAccounts(admin, [tokens.tokenA, tokens.tokenB], 8);
   const signer = accounts[0];
@@ -70,12 +73,24 @@ export const chainhopFixture = async ([admin]: Wallet[]): Promise<IntegrationTes
   await fundTokens(tokens, dex.mockV2.address);
   await tokens.weth.deposit({ value: parseUnits('20') });
 
-  return { ...bridge, ...bridge, ...chainhop, ...tokens, ...dex, admin, accounts, signer, feeCollector, chainId };
+  return {
+    ...bridge,
+    ...bridge,
+    ...chainhop,
+    ...tokens,
+    ...wrappedBridgeTokens,
+    ...dex,
+    admin,
+    accounts,
+    signer,
+    feeCollector,
+    chainId
+  };
 };
 
 export const benchmarkFixture = async ([admin]: Wallet[]): Promise<BenchmarkFixture> => {
-  const bridge = await deployBridgeContracts(admin);
   const tokens = await deployTokenContracts(admin);
+  const bridge = await deployBridgeContracts(admin, tokens.weth.address);
   const dex = await deployMinimalDexContracts(admin);
   const accounts = await getAccounts(admin, [tokens.tokenA, tokens.tokenB], 8);
   const signer = accounts[0];
