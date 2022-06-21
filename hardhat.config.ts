@@ -125,11 +125,8 @@ const config: HardhatUserConfig = {
   defaultNetwork: 'hardhat',
   networks: {
     hardhat: {
-      // chainId: 1231412312412412, // placeholder for sed to replace
-      // forking: {
-      //   url: 'networks.hardhat.forking.url', // placeholder for sed to replace
-      //   blockNumber: 927838194710231 // placeholder for sed to replace
-      // }
+      // placeholder for sed to replace in ./scripts/fork.sh
+      // sed_placeholder
     },
     localhost: { timeout: 600000 },
     kovan: {
