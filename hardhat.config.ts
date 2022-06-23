@@ -125,8 +125,7 @@ const config: HardhatUserConfig = {
   defaultNetwork: 'hardhat',
   networks: {
     hardhat: {
-      // placeholder for sed to replace in ./scripts/fork.sh
-      // [sed_placeholder]
+      // sed_placeholder
     },
     localhost: { timeout: 600000 },
     kovan: {
