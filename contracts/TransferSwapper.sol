@@ -6,14 +6,15 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "./lib/Common.sol";
 import "./lib/MessageSenderLib.sol";
 import "./lib/MessageReceiverApp.sol";
-import "./lib/MsgDataTypes.sol";
+import "./BridgeRegistry.sol";
 import "./FeeOperator.sol";
 import "./SigVerifier.sol";
 import "./Swapper.sol";
+import "./interfaces/IBridgeAdapter.sol";
 import "./interfaces/ICodec.sol";
-import "./interfaces/IIntermediaryOriginalToken.sol";
 
 /**
  * @author Chainhop Dex Team
@@ -21,45 +22,9 @@ import "./interfaces/IIntermediaryOriginalToken.sol";
  * @title An app that enables swapping on a chain, transferring to another chain and swapping
  * another time on the destination chain before sending the result tokens to a user
  */
-contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperator, ReentrancyGuard {
+contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperator, ReentrancyGuard, BridgeRegistry {
     using SafeERC20 for IERC20;
     using ECDSA for bytes32;
-
-    struct TransferDescription {
-        address receiver; // the receiving party (the user) of the final output token
-        uint64 dstChainId; // destination chain id
-        uint32 maxBridgeSlippage; // user defined maximum allowed slippage (pip) at bridge
-        MsgDataTypes.BridgeSendType bridgeType; // type of the bridge to use
-        uint64 nonce; // nonce is needed for de-dup tx at this contract and bridge
-        bool nativeIn; // whether to check msg.value and wrap token before swapping/sending
-        bool nativeOut; // whether to unwrap before sending the final token to user
-        uint256 fee; // this fee is only executor fee. it does not include msg bridge fee
-        uint256 feeDeadline; // the unix timestamp before which the fee is valid
-        // sig of sha3("executor fee", srcChainId, dstChainId, amountIn, tokenIn, feeDeadline, fee)
-        // see _verifyFee()
-        bytes feeSig;
-        // IMPORTANT: amountIn and tokenIn are completely ignored if src chain has a swap
-        // these two fields are only meant for the scenario where no swaps are needed on src chain
-        uint256 amountIn;
-        address tokenIn;
-        // if this field is set, this contract attempts to wrap the input OR src bridge out token
-        // (as specified in the tokenIn field OR the output token in src SwapDescription[]) before
-        // sending to the bridge. This field is determined by the backend when searching for routes
-        address wrappedBridgeToken;
-        address dstTokenOut; // the final output token, emitted in event for display purpose only
-        // in case of multi route swaps, whether to allow the successful swaps to go through
-        // and sending the amountIn of the failed swaps back to user
-        bool allowPartialFill;
-    }
-
-    struct Request {
-        bytes32 id; // see _computeId()
-        ICodec.SwapDescription[] swaps; // the swaps need to happen on the destination chain
-        address receiver; // see TransferDescription.receiver
-        bool nativeOut; // see TransferDescription.nativeOut
-        uint256 fee; // see TransferDescription.fee
-        bool allowPartialFill; // see TransferDescription.allowPartialFill
-    }
 
     /**
      * @notice Denotes the status of a cross-chain transfer/swap request
@@ -169,13 +134,18 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
      */
     function transferWithSwap(
         address _dstTransferSwapper,
-        TransferDescription calldata _desc,
+        Common.TransferDescription calldata _desc,
         ICodec.SwapDescription[] calldata _srcSwaps,
-        ICodec.SwapDescription[] calldata _dstSwaps
+        ICodec.SwapDescription[] calldata _dstSwaps,
+        string calldata _bridgeProvider
     ) external payable nonReentrant {
         // a request needs to incur a swap, a transfer, or both. otherwise it's a nop and we revert early to save gas
         require(_srcSwaps.length != 0 || _desc.dstChainId != uint64(block.chainid), "nop");
         require(_srcSwaps.length != 0 || (_desc.amountIn != 0 && _desc.tokenIn != address(0)), "nop");
+        
+        IBridgeAdapter bridge = bridges[keccak256(bytes(_bridgeProvider))];
+        // if not DirectSwap, the bridge provider should be a valid one
+        require(_desc.dstChainId == uint64(block.chainid) || address(bridge) != address(0), "not supported bridge");
 
         uint256 amountIn = _desc.amountIn;
         address tokenIn = _desc.tokenIn;
@@ -193,7 +163,7 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         } else {
             IERC20(tokenIn).safeTransferFrom(msg.sender, address(this), amountIn);
         }
-        _swapAndSend(_dstTransferSwapper, amountIn, tokenIn, tokenOut, _srcSwaps, _dstSwaps, _desc, codecs);
+        _swapAndSend(_dstTransferSwapper, amountIn, tokenIn, tokenOut, _srcSwaps, _dstSwaps, _desc, codecs, bridge);
     }
 
     function _swapAndSend(
@@ -203,8 +173,9 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         address _tokenOut,
         ICodec.SwapDescription[] memory _srcSwaps,
         ICodec.SwapDescription[] memory _dstSwaps,
-        TransferDescription memory _desc,
-        ICodec[] memory _codecs
+        Common.TransferDescription memory _desc,
+        ICodec[] memory _codecs,
+        IBridgeAdapter _bridge
     ) private {
         // swap if needed
         uint256 amountOut = _amountIn;
@@ -229,43 +200,9 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         }
         // transfer through bridge
         address bridgeOutReceiver = _dstSwaps.length > 0 ? _dstTransferSwapper : _desc.receiver;
-        bytes32 transferId = _transfer(id, bridgeOutReceiver, _desc, _dstSwaps, amountOut, _tokenOut, msgFee);
-        emit RequestSent(id, transferId, _desc.dstChainId, _amountIn, _tokenIn, _desc.dstTokenOut, bridgeOutReceiver);
-    }
 
-    function _transfer(
-        bytes32 _id,
-        address _bridgeOutReceiver,
-        TransferDescription memory _desc,
-        ICodec.SwapDescription[] memory _dstSwaps,
-        uint256 _amount,
-        address _token,
-        uint256 _msgFee
-    ) private returns (bytes32 transferId) {
-        bytes memory requestMessage = _encodeRequestMessage(_id, _desc, _dstSwaps);
-        if (_desc.wrappedBridgeToken != address(0)) {
-            address canonical = IIntermediaryOriginalToken(_desc.wrappedBridgeToken).canonical();
-            require(canonical == _token, "canonical != _token");
-            // non-standard implementation: actual token wrapping is done inside the token contract's
-            // transferFrom(). Approving the wrapper token contract to pull the token we intend to
-            // send so that when bridge contract calls wrapper.transferFrom() it automatically pulls
-            // the original token from this contract, wraps it, then transfer the wrapper token from
-            // this contract to bridge.
-            IERC20(_token).approve(_desc.wrappedBridgeToken, _amount);
-            _token = _desc.wrappedBridgeToken;
-        }
-        transferId = MessageSenderLib.sendMessageWithTransfer(
-            _bridgeOutReceiver,
-            _token,
-            _amount,
-            _desc.dstChainId,
-            _desc.nonce,
-            _desc.maxBridgeSlippage,
-            requestMessage,
-            _desc.bridgeType,
-            messageBus,
-            _msgFee
-        );
+        bytes32 transferId = _bridge.bridge(id, bridgeOutReceiver, _desc, _dstSwaps, amountOut, _tokenOut, msgFee);
+        emit RequestSent(id, transferId, _desc.dstChainId, _amountIn, _tokenIn, _desc.dstTokenOut, bridgeOutReceiver);
     }
 
     /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
@@ -289,7 +226,7 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         bytes memory _message,
         address // _executor
     ) external payable override onlyMessageBus nonReentrant returns (ExecutionStatus) {
-        Request memory m = abi.decode((_message), (Request));
+        Common.Request memory m = abi.decode((_message), (Common.Request));
 
         // handle the case where amount received is not enough to pay fee
         if (_amount < m.fee) {
@@ -342,7 +279,7 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         bytes memory _message,
         address // _executor
     ) external payable override onlyMessageBus nonReentrant returns (ExecutionStatus) {
-        Request memory m = abi.decode((_message), (Request));
+        Common.Request memory m = abi.decode((_message), (Common.Request));
         _wrapBridgeOutToken(_token, _amount);
         uint256 refundAmount = _amount - m.fee; // no need to check amount >= fee as it's already checked before
         _sendToken(_token, refundAmount, m.receiver, false);
@@ -365,7 +302,7 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         bytes calldata _message,
         address // _executor
     ) external payable override onlyMessageBus nonReentrant returns (ExecutionStatus) {
-        Request memory m = abi.decode((_message), (Request));
+        Common.Request memory m = abi.decode((_message), (Common.Request));
         _wrapBridgeOutToken(_token, _amount);
         _sendToken(_token, _amount, m.receiver, false);
         emit RequestDone(m.id, 0, _amount, _token, m.fee, RequestStatus.Fallback);
@@ -410,25 +347,8 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         }
     }
 
-    function _encodeRequestMessage(
-        bytes32 _id,
-        TransferDescription memory _desc,
-        ICodec.SwapDescription[] memory _swaps
-    ) private pure returns (bytes memory message) {
-        message = abi.encode(
-            Request({
-                id: _id,
-                swaps: _swaps,
-                receiver: _desc.receiver,
-                nativeOut: _desc.nativeOut,
-                fee: _desc.fee,
-                allowPartialFill: _desc.allowPartialFill
-            })
-        );
-    }
-
     function _verifyFee(
-        TransferDescription memory _desc,
+        Common.TransferDescription memory _desc,
         uint256 _amountIn,
         address _tokenIn
     ) private view {
