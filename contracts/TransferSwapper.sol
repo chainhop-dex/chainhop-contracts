@@ -148,34 +148,35 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         require(_desc.dstChainId == uint64(block.chainid) || address(bridge) != address(0), "not supported bridge");
 
         uint256 amountIn = _desc.amountIn;
-        address tokenIn = _desc.tokenIn;
-        address tokenOut = _desc.tokenIn;
         ICodec[] memory codecs;
+        address[4] memory addrInfos; // using one variable to store related addrs, to avoid "stack too deep" error
+        {
+            address tokenIn = _desc.tokenIn;
+            address tokenOut = _desc.tokenIn;
+            if (_srcSwaps.length != 0) {
+                (amountIn, tokenIn, tokenOut, codecs) = sanitizeSwaps(_srcSwaps);
+                require(tokenIn == _desc.tokenIn, "tkin mm");
+            }
+            if (_desc.nativeIn) {
+                require(tokenIn == nativeWrap, "tkin no nativeWrap");
+                require(msg.value >= amountIn, "insfcnt amt"); // insufficient amount
+                IWETH(nativeWrap).deposit{value: amountIn}();
+            } else {
+                IERC20(tokenIn).safeTransferFrom(msg.sender, address(this), amountIn);
+            }
+            addrInfos = [_dstTransferSwapper, tokenIn, tokenOut, address(bridge)];
+        }
 
-        if (_srcSwaps.length != 0) {
-            (amountIn, tokenIn, tokenOut, codecs) = sanitizeSwaps(_srcSwaps);
-            require(tokenIn == _desc.tokenIn, "tkin mm");
-        }
-        if (_desc.nativeIn) {
-            require(tokenIn == nativeWrap, "tkin no nativeWrap");
-            require(msg.value >= amountIn, "insfcnt amt"); // insufficient amount
-            IWETH(nativeWrap).deposit{value: amountIn}();
-        } else {
-            IERC20(tokenIn).safeTransferFrom(msg.sender, address(this), amountIn);
-        }
-        _swapAndSend(_dstTransferSwapper, amountIn, tokenIn, tokenOut, _srcSwaps, _dstSwaps, _desc, codecs, bridge);
+        _swapAndSend(addrInfos, amountIn, _srcSwaps, _dstSwaps, _desc, codecs);
     }
 
     function _swapAndSend(
-        address _dstTransferSwapper,
+        address[4] memory _addrInfos, // [_dstTransferSwapper, tokenIn, tokenOut, bridge]
         uint256 _amountIn,
-        address _tokenIn,
-        address _tokenOut,
         ICodec.SwapDescription[] memory _srcSwaps,
         ICodec.SwapDescription[] memory _dstSwaps,
         Common.TransferDescription memory _desc,
-        ICodec[] memory _codecs,
-        IBridgeAdapter _bridge
+        ICodec[] memory _codecs
     ) private {
         // swap if needed
         uint256 amountOut = _amountIn;
@@ -188,21 +189,33 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         bytes32 id = _computeId(_desc.receiver, _desc.nonce);
         // direct send if needed
         if (_desc.dstChainId == uint64(block.chainid)) {
-            emit DirectSwap(id, _amountIn, _tokenIn, amountOut, _tokenOut);
-            _sendToken(_tokenOut, amountOut, _desc.receiver, _desc.nativeOut);
+            emit DirectSwap(id, _amountIn, _addrInfos[1], amountOut, _addrInfos[2]);
+            _sendToken(_addrInfos[2], amountOut, _desc.receiver, _desc.nativeOut);
             return;
         }
-
-        _verifyFee(_desc, _amountIn, _tokenIn);
+        _verifyFee(_desc, _amountIn, _addrInfos[1]);
         uint256 msgFee = msg.value;
         if (_desc.nativeIn) {
             msgFee = msg.value - _amountIn;
         }
-        // transfer through bridge
-        address bridgeOutReceiver = _dstSwaps.length > 0 ? _dstTransferSwapper : _desc.receiver;
 
-        bytes32 transferId = _bridge.bridge(id, bridgeOutReceiver, _desc, _dstSwaps, amountOut, _tokenOut, msgFee);
-        emit RequestSent(id, transferId, _desc.dstChainId, _amountIn, _tokenIn, _desc.dstTokenOut, bridgeOutReceiver);
+        _transfer(id, _addrInfos, _desc, _dstSwaps, _amountIn, amountOut, msgFee);
+    }
+
+    function _transfer(
+        bytes32 _id,
+        address[4] memory _addrInfos, // [_dstTransferSwapper, tokenIn, tokenOut, bridge]
+        Common.TransferDescription memory _desc,
+        ICodec.SwapDescription[] memory _dstSwaps,
+        uint256 _amountIn,
+        uint256 _amountOut,
+        uint256 _msgFee
+    ) private {
+        // transfer through bridge
+        address bridgeOutReceiver = _dstSwaps.length > 0 ? _addrInfos[0] : _desc.receiver;
+
+        bytes32 transferId = (IBridgeAdapter(_addrInfos[3])).bridge(_id, bridgeOutReceiver, _desc, _dstSwaps, _amountOut, _addrInfos[2], _msgFee);
+        emit RequestSent(_id, transferId, _desc.dstChainId, _amountIn, _addrInfos[1], _desc.dstTokenOut, bridgeOutReceiver);
     }
 
     /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
