@@ -69,6 +69,8 @@ export const chainhopFixture = async ([admin]: Wallet[]): Promise<IntegrationTes
     [dex.mockV2.address, dex.mockCurve.address],
     ['swapExactTokensForTokens(uint256,uint256,address[],address,uint256)', 'exchange(int128,int128,uint256,uint256)']
   );
+  await bridge.bridgeAdapter.updateMainContract(chainhop.xswap.address);
+  await chainhop.xswap.setSupportedBridges(["cbridge"],[bridge.bridgeAdapter.address]);
   await fundTokens(tokens, dex.mockCurve.address);
   await fundTokens(tokens, dex.mockV2.address);
   await tokens.weth.deposit({ value: parseUnits('20') });
@@ -106,6 +108,8 @@ export const benchmarkFixture = async ([admin]: Wallet[]): Promise<BenchmarkFixt
     [dex.mockV2.address],
     ['swapExactTokensForTokens(uint256,uint256,address[],address,uint256)']
   );
+  await bridge.bridgeAdapter.updateMainContract(chainhop.xswap.address);
+  await chainhop.xswap.setSupportedBridges(["cbridge"],[bridge.bridgeAdapter.address]);
   await fundTokens(tokens, dex.mockV2.address);
   await tokens.weth.deposit({ value: parseUnits('20') });
 

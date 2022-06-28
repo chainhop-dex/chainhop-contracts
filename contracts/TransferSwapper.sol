@@ -214,7 +214,8 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         // transfer through bridge
         address bridgeOutReceiver = _dstSwaps.length > 0 ? _addrInfos[0] : _desc.receiver;
 
-        bytes32 transferId = (IBridgeAdapter(_addrInfos[3])).bridge(_id, bridgeOutReceiver, _desc, _dstSwaps, _amountOut, _addrInfos[2], _msgFee);
+        IERC20(_addrInfos[2]).safeIncreaseAllowance(_addrInfos[3], _amountOut);
+        bytes32 transferId = (IBridgeAdapter(_addrInfos[3])).bridge{value: _msgFee}(_id, bridgeOutReceiver, _desc, _dstSwaps, _amountOut, _addrInfos[2]);
         emit RequestSent(_id, transferId, _desc.dstChainId, _amountIn, _addrInfos[1], _desc.dstTokenOut, bridgeOutReceiver);
     }
 

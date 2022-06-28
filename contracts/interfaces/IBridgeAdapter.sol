@@ -11,7 +11,6 @@ interface IBridgeAdapter {
         Common.TransferDescription memory _desc,
         ICodec.SwapDescription[] memory _dstSwaps,
         uint256 _amount,
-        address _token,
-        uint256 _msgFee
-    ) external returns (bytes32 transferId);
+        address _token
+    ) external payable returns (bytes32 transferId);
 }

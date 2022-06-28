@@ -2,8 +2,8 @@ import { keccak256 } from '@ethersproject/solidity';
 import { BigNumber, BigNumberish } from 'ethers';
 import { parseUnits } from 'ethers/lib/utils';
 import { ethers } from 'hardhat';
-import { TransferSwapper } from '../../typechain';
-import { ICodec } from './../../typechain/ICodec';
+import { Common } from '../../typechain/TransferSwapper';
+import { ICodec } from '../../typechain/ICodec';
 import { CURVE_SLIPPAGE, UINT64_MAX, UNISWAP_V2_SLIPPAGE, ZERO_ADDR } from './constants';
 import { ChainhopFixture, IntegrationTestContext } from './fixtures';
 
@@ -72,7 +72,7 @@ export interface ComputeTranferIdOverride {
 }
 
 export function computeTransferId(c: IntegrationTestContext, o?: ComputeTranferIdOverride) {
-  const xswap = c.xswap.address;
+  const sender = c.bridgeAdapter.address;
   const receiver = o?.receiver ?? c.receiver.address;
   const token = o?.token ?? c.tokenB.address;
   const amount = o?.amount ?? parseUnits('100');
@@ -81,7 +81,7 @@ export function computeTransferId(c: IntegrationTestContext, o?: ComputeTranferI
   const srcChainId = o?.srcChainId ?? c.chainId;
   return keccak256(
     ['address', 'address', 'address', 'uint256', 'uint64', 'uint64', 'uint64'],
-    [xswap, receiver, token, amount, dstChainId, nonce, srcChainId]
+    [sender, receiver, token, amount, dstChainId, nonce, srcChainId]
   );
 }
 
@@ -218,7 +218,7 @@ export function buildTransferDesc(c: IntegrationTestContext, feeSig: string, opt
   const fee = opts?.fee ?? parseUnits('1');
   const feeDeadline = opts?.feeDeadline ?? BigNumber.from(Math.floor(Date.now() / 1000 + 600));
 
-  const desc: TransferSwapper.TransferDescriptionStruct = {
+  const desc: Common.TransferDescriptionStruct = {
     bridgeType: BridgeType.Liquidity,
     maxBridgeSlippage: 1000000,
     nonce: 1,

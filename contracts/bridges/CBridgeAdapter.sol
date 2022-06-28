@@ -21,9 +21,11 @@ contract CBridgeAdapter is MessageBusAddress, IBridgeAdapter {
     }
 
     constructor(
-        address _mainContract
+        address _mainContract,
+        address _messageBus
     ) {
         mainContract = _mainContract;
+        messageBus = _messageBus;
     }
 
     function bridge(
@@ -32,9 +34,9 @@ contract CBridgeAdapter is MessageBusAddress, IBridgeAdapter {
         Common.TransferDescription memory _desc,
         ICodec.SwapDescription[] memory _dstSwaps,
         uint256 _amount,
-        address _token,
-        uint256 _msgFee
-    ) external onlyMainContract returns (bytes32 transferId) {
+        address _token
+    ) external payable onlyMainContract returns (bytes32 transferId) {
+        IERC20(_token).transferFrom(msg.sender, address(this), _amount);
         bytes memory requestMessage = Common.encodeRequestMessage(_id, _desc, _dstSwaps);
         if (_desc.wrappedBridgeToken != address(0)) {
             address canonical = IIntermediaryOriginalToken(_desc.wrappedBridgeToken).canonical();
@@ -57,7 +59,7 @@ contract CBridgeAdapter is MessageBusAddress, IBridgeAdapter {
             requestMessage,
             _desc.bridgeType,
             messageBus,
-            _msgFee
+            msg.value
         );
     }
 
