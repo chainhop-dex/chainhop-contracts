@@ -6,11 +6,17 @@ import "../lib/Common.sol";
 
 interface IBridgeAdapter {
     function bridge(
-        bytes32 _id,
-        address _bridgeOutReceiver,
-        Common.TransferDescription memory _desc,
-        ICodec.SwapDescription[] memory _dstSwaps,
+        uint64 _dstChainId,
+        // the address that the fund is transfered to on the destination chain
+        address _receiver,
         uint256 _amount,
-        address _token
+        address _token,
+        // Bridge transfers quoted and abi encoded by chainhop backend server.
+        // Bridge adapter implementations need to decode this themselves.
+        bytes memory _bridgeParams,
+        // The message to be bridged alongside the transfer.
+        // Note if the bridge adapter doesn't support message passing, the call should revert when
+        // this field is set.
+        bytes memory _requestMessage
     ) external payable returns (bytes32 transferId);
 }

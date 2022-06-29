@@ -20,44 +20,55 @@ contract CBridgeAdapter is MessageBusAddress, IBridgeAdapter {
         _;
     }
 
-    constructor(
-        address _mainContract,
-        address _messageBus
-    ) {
+    constructor(address _mainContract, address _messageBus) {
         mainContract = _mainContract;
         messageBus = _messageBus;
     }
 
+    struct CBridgeParams {
+        // type of the bridge in cBridge to use (i.e. liquidity bridge, pegged token bridge, etc.)
+        MsgDataTypes.BridgeSendType bridgeType;
+        // user defined maximum allowed slippage (pip) at bridge
+        uint32 maxSlippage;
+        // if this field is set, this contract attempts to wrap the input OR src bridge out token
+        // (as specified in the tokenIn field OR the output token in src SwapDescription[]) before
+        // sending to the bridge. This field is determined by the backend when searching for routes
+        address wrappedBridgeToken;
+        // a unique identifier that cBridge uses to dedup transfers
+        // this value is the a timestamp sent from frontend, but in theory can be any unique number
+        uint64 nonce;
+    }
+
     function bridge(
-        bytes32 _id,
-        address _bridgeOutReceiver,
-        Common.TransferDescription memory _desc,
-        ICodec.SwapDescription[] memory _dstSwaps,
+        uint64 _dstChainId,
+        address _receiver,
         uint256 _amount,
-        address _token
+        address _token,
+        bytes memory _bridgeParams,
+        bytes memory _requestMessage
     ) external payable onlyMainContract returns (bytes32 transferId) {
+        CBridgeParams memory params = abi.decode((_bridgeParams), (CBridgeParams));
         IERC20(_token).transferFrom(msg.sender, address(this), _amount);
-        bytes memory requestMessage = Common.encodeRequestMessage(_id, _desc, _dstSwaps);
-        if (_desc.wrappedBridgeToken != address(0)) {
-            address canonical = IIntermediaryOriginalToken(_desc.wrappedBridgeToken).canonical();
+        if (params.wrappedBridgeToken != address(0)) {
+            address canonical = IIntermediaryOriginalToken(params.wrappedBridgeToken).canonical();
             require(canonical == _token, "canonical != _token");
             // non-standard implementation: actual token wrapping is done inside the token contract's
             // transferFrom(). Approving the wrapper token contract to pull the token we intend to
             // send so that when bridge contract calls wrapper.transferFrom() it automatically pulls
             // the original token from this contract, wraps it, then transfer the wrapper token from
             // this contract to bridge.
-            IERC20(_token).approve(_desc.wrappedBridgeToken, _amount);
-            _token = _desc.wrappedBridgeToken;
+            IERC20(_token).approve(params.wrappedBridgeToken, _amount);
+            _token = params.wrappedBridgeToken;
         }
         transferId = MessageSenderLib.sendMessageWithTransfer(
-            _bridgeOutReceiver,
+            _receiver,
             _token,
             _amount,
-            _desc.dstChainId,
-            _desc.nonce,
-            _desc.maxBridgeSlippage,
-            requestMessage,
-            _desc.bridgeType,
+            _dstChainId,
+            params.nonce,
+            params.maxSlippage,
+            _requestMessage,
+            params.bridgeType,
             messageBus,
             msg.value
         );
