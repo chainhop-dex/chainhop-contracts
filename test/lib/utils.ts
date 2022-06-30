@@ -2,7 +2,7 @@ import { keccak256 } from '@ethersproject/solidity';
 import { BigNumber, BigNumberish } from 'ethers';
 import { parseUnits } from 'ethers/lib/utils';
 import { ethers } from 'hardhat';
-import { Common } from '../../typechain/TransferSwapper';
+import { Types } from '../../typechain/TransferSwapper';
 import { ICodec } from '../../typechain/ICodec';
 import { CURVE_SLIPPAGE, UINT64_MAX, UNISWAP_V2_SLIPPAGE, ZERO_ADDR } from './constants';
 import { ChainhopFixture, IntegrationTestContext } from './fixtures';
@@ -200,6 +200,8 @@ export function buildCurveSwaps(c: ChainhopFixture & MockCurveAddress, amountIn:
 export interface TransferDescOpts {
   receiver?: string;
   dstChainId?: number;
+  dstTransferSwapper?: string;
+  bridgeProvider?: string;
   fee?: BigNumber;
   feeDeadline?: BigNumber;
   feeSig?: string;
@@ -210,6 +212,7 @@ export interface TransferDescOpts {
   nativeOut?: boolean;
   dstTokenOut?: string;
   allowPartialFill?: boolean;
+  maxSlippage?: number;
 }
 
 export function buildTransferDesc(c: IntegrationTestContext, feeSig: string, opts?: TransferDescOpts) {
@@ -217,23 +220,27 @@ export function buildTransferDesc(c: IntegrationTestContext, feeSig: string, opt
 
   const fee = opts?.fee ?? parseUnits('1');
   const feeDeadline = opts?.feeDeadline ?? BigNumber.from(Math.floor(Date.now() / 1000 + 600));
+  const nonce = 1;
+  let bridgeParams = ethers.utils.defaultAbiCoder.encode(
+    ['uint256', 'uint32', 'address', 'uint64'],
+    [BridgeType.Liquidity, opts?.maxSlippage ?? 1000000, opts?.wrappedBridgeToken || ZERO_ADDR, nonce]
+  );
 
-  const desc: Common.TransferDescriptionStruct = {
-    bridgeType: BridgeType.Liquidity,
-    maxBridgeSlippage: 1000000,
-    nonce: 1,
+  const desc: Types.TransferDescriptionStruct = {
     receiver: opts?.receiver ?? c.receiver.address,
-
+    dstChainId: dstChainId,
+    dstTransferSwapper: opts?.dstTransferSwapper ?? c.receiver.address,
+    nonce: nonce,
+    bridgeProvider: opts?.bridgeProvider ?? "cbridge",
+    bridgeParams: bridgeParams,
     nativeIn: opts?.nativeIn ?? false,
     nativeOut: opts?.nativeOut ?? false,
-    dstTokenOut: opts?.dstTokenOut ?? c.tokenB.address,
-    dstChainId: dstChainId,
     fee: fee,
     feeDeadline: feeDeadline,
     feeSig: feeSig,
     amountIn: opts?.amountIn || parseUnits('0'),
     tokenIn: opts?.tokenIn || c.tokenA.address,
-    wrappedBridgeToken: opts?.wrappedBridgeToken || ZERO_ADDR,
+    dstTokenOut: opts?.dstTokenOut ?? c.tokenB.address,
     allowPartialFill: false
   };
 

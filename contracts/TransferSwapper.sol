@@ -49,6 +49,12 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         testMode = _testMode;
     }
 
+    struct AddrsInfo {
+        address tokenIn;
+        address tokenOut; 
+        address bridge;
+    }
+
     /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
      * Source chain functions
      * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
@@ -58,7 +64,7 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
      * on that chain
      */
     function transferWithSwap(
-        TransferDescription calldata _desc,
+        Types.TransferDescription calldata _desc,
         ICodec.SwapDescription[] calldata _srcSwaps,
         ICodec.SwapDescription[] calldata _dstSwaps
     ) external payable nonReentrant {
@@ -72,7 +78,7 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
 
         uint256 amountIn = _desc.amountIn;
         ICodec[] memory codecs;
-        address[3] memory addrInfos; // using one variable to store related addrs, to avoid "stack too deep" error
+        AddrsInfo memory addrsInfo; // using one variable to store related addrs, to avoid "stack too deep" error
         {
             address tokenIn = _desc.tokenIn;
             address tokenOut = _desc.tokenIn;
@@ -87,16 +93,16 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
             } else {
                 IERC20(tokenIn).safeTransferFrom(msg.sender, address(this), amountIn);
             }
-            addrInfos = [tokenIn, tokenOut, address(bridge)];
+            addrsInfo = AddrsInfo(tokenIn, tokenOut, address(bridge));
         }
 
-        _swapAndSend(addrInfos, amountIn, _desc, _srcSwaps, _dstSwaps, codecs);
+        _swapAndSend(addrsInfo, amountIn, _desc, _srcSwaps, _dstSwaps, codecs);
     }
 
     function _swapAndSend(
-        address[3] memory _addrInfos, // [tokenIn, tokenOut, bridge]
+        AddrsInfo memory _addrsInfo, // [tokenIn, tokenOut, bridge]
         uint256 _amountIn,
-        TransferDescription memory _desc,
+        Types.TransferDescription memory _desc,
         ICodec.SwapDescription[] memory _srcSwaps,
         ICodec.SwapDescription[] memory _dstSwaps,
         ICodec[] memory _codecs
@@ -112,23 +118,23 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         bytes32 id = _computeId(_desc.receiver, _desc.nonce);
         // direct send if needed
         if (_desc.dstChainId == uint64(block.chainid)) {
-            emit DirectSwap(id, _amountIn, _addrInfos[0], amountOut, _addrInfos[1]);
-            _sendToken(_addrInfos[1], amountOut, _desc.receiver, _desc.nativeOut);
+            emit Types.DirectSwap(id, _amountIn, _addrsInfo.tokenIn, amountOut, _addrsInfo.tokenOut);
+            _sendToken(_addrsInfo.tokenOut, amountOut, _desc.receiver, _desc.nativeOut);
             return;
         }
-        _verifyFee(_desc, _amountIn, _addrInfos[0]);
+        _verifyFee(_desc, _amountIn, _addrsInfo.tokenIn);
         uint256 msgFee = msg.value;
         if (_desc.nativeIn) {
             msgFee = msg.value - _amountIn;
         }
 
-        _transfer(id, _addrInfos, _desc, _dstSwaps, _amountIn, amountOut, msgFee);
+        _transfer(id, _addrsInfo, _desc, _dstSwaps, _amountIn, amountOut, msgFee);
     }
 
     function _transfer(
         bytes32 _id,
-        address[3] memory _addrInfos, // [tokenIn, tokenOut, bridge]
-        TransferDescription memory _desc,
+        AddrsInfo memory _addrsInfo, // [tokenIn, tokenOut, bridge]
+        Types.TransferDescription memory _desc,
         ICodec.SwapDescription[] memory _dstSwaps,
         uint256 _amountIn,
         uint256 _amountOut,
@@ -137,21 +143,22 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         // fund is directly to user if there is no swaps needed on the destination chain
         address bridgeOutReceiver = _dstSwaps.length > 0 ? _desc.dstTransferSwapper : _desc.receiver;
 
-        IERC20(_addrInfos[2]).safeIncreaseAllowance(_addrInfos[2], _amountOut);
-        bytes32 transferId = (IBridgeAdapter(_addrInfos[2])).bridge{value: _msgFee}(
+        IERC20(_addrsInfo.tokenOut).safeIncreaseAllowance(_addrsInfo.bridge, _amountOut);
+        bytes memory requestMessage = _encodeRequestMessage(_id, _desc, _dstSwaps);
+        bytes32 transferId = (IBridgeAdapter(_addrsInfo.bridge)).bridge{value: _msgFee}(
             _desc.dstChainId,
             bridgeOutReceiver,
             _amountOut,
-            _addrInfos[2],
+            _addrsInfo.tokenOut,
             _desc.bridgeParams,
-            encodeRequestMessage(_id, _desc, _dstSwaps)
+            requestMessage
         );
-        emit RequestSent(
+        emit Types.RequestSent(
             _id,
             transferId,
             _desc.dstChainId,
             _amountIn,
-            _addrInfos[0],
+            _addrsInfo.tokenIn,
             _desc.dstTokenOut,
             bridgeOutReceiver
         );
@@ -178,12 +185,12 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         bytes memory _message,
         address // _executor
     ) external payable override onlyMessageBus nonReentrant returns (ExecutionStatus) {
-        Request memory m = abi.decode((_message), (Request));
+        Types.Request memory m = abi.decode((_message), (Types.Request));
 
         // handle the case where amount received is not enough to pay fee
         if (_amount < m.fee) {
             m.fee = _amount;
-            emit RequestDone(m.id, 0, 0, _token, m.fee, RequestStatus.Succeeded);
+            emit Types.RequestDone(m.id, 0, 0, _token, m.fee, Types.RequestStatus.Succeeded);
             return ExecutionStatus.Success;
         } else {
             _amount = _amount - m.fee;
@@ -211,7 +218,7 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
 
         _sendToken(tokenOut, sumAmtOut, m.receiver, nativeOut);
         // status is always success as long as this function call doesn't revert. partial fill is also considered success
-        emit RequestDone(m.id, sumAmtOut, sumAmtFailed, _token, m.fee, RequestStatus.Succeeded);
+        emit Types.RequestDone(m.id, sumAmtOut, sumAmtFailed, _token, m.fee, Types.RequestStatus.Succeeded);
         return ExecutionStatus.Success;
     }
 
@@ -231,12 +238,12 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         bytes memory _message,
         address // _executor
     ) external payable override onlyMessageBus nonReentrant returns (ExecutionStatus) {
-        Request memory m = abi.decode((_message), (Request));
+        Types.Request memory m = abi.decode((_message), (Types.Request));
         _wrapBridgeOutToken(_token, _amount);
         uint256 refundAmount = _amount - m.fee; // no need to check amount >= fee as it's already checked before
         _sendToken(_token, refundAmount, m.receiver, false);
 
-        emit RequestDone(m.id, 0, refundAmount, _token, m.fee, RequestStatus.Fallback);
+        emit Types.RequestDone(m.id, 0, refundAmount, _token, m.fee, Types.RequestStatus.Fallback);
         return ExecutionStatus.Success;
     }
 
@@ -254,10 +261,10 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         bytes calldata _message,
         address // _executor
     ) external payable override onlyMessageBus nonReentrant returns (ExecutionStatus) {
-        Request memory m = abi.decode((_message), (Request));
+        Types.Request memory m = abi.decode((_message), (Types.Request));
         _wrapBridgeOutToken(_token, _amount);
         _sendToken(_token, _amount, m.receiver, false);
-        emit RequestDone(m.id, 0, _amount, _token, m.fee, RequestStatus.Fallback);
+        emit Types.RequestDone(m.id, 0, _amount, _token, m.fee, Types.RequestStatus.Fallback);
         return ExecutionStatus.Success;
     }
 
@@ -270,11 +277,11 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
 
     function _encodeRequestMessage(
         bytes32 _id,
-        TransferDescription memory _desc,
+        Types.TransferDescription memory _desc,
         ICodec.SwapDescription[] memory _swaps
     ) internal pure returns (bytes memory message) {
         message = abi.encode(
-            Request({
+            Types.Request({
                 id: _id,
                 swaps: _swaps,
                 receiver: _desc.receiver,
@@ -317,7 +324,7 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
     }
 
     function _verifyFee(
-        TransferDescription memory _desc,
+        Types.TransferDescription memory _desc,
         uint256 _amountIn,
         address _tokenIn
     ) private view {
@@ -339,7 +346,7 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
 
     function setNativeWrap(address _nativeWrap) external onlyOwner {
         nativeWrap = _nativeWrap;
-        emit NativeWrapUpdated(_nativeWrap);
+        emit Types.NativeWrapUpdated(_nativeWrap);
     }
 
     // This is needed to receive ETH when calling `IWETH.withdraw`

@@ -2,8 +2,6 @@
 
 pragma solidity >=0.8.12;
 
-import "../lib/Common.sol";
-
 interface IBridgeAdapter {
     function bridge(
         uint64 _dstChainId,
