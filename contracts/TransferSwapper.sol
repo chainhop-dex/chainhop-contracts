@@ -55,6 +55,62 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         address bridge;
     }
 
+
+    event NativeWrapUpdated(address nativeWrap);
+
+    /**
+     * @notice Emitted when requested dstChainId == srcChainId, no bridging
+     * @param id see _computeId()
+     * @param amountIn the input amount approved by the sender
+     * @param tokenIn the input token approved by the sender
+     * @param amountOut the output amount gained after swapping using the input tokens
+     * @param tokenOut the output token gained after swapping using the input tokens
+     */
+    event DirectSwap(bytes32 id, uint256 amountIn, address tokenIn, uint256 amountOut, address tokenOut);
+
+    /**
+     * @notice Emitted when operations on src chain is done, the transfer is sent through the bridge
+     * @param id see _computeId()
+     * @param transferId the src transfer id produced by MessageSenderLib.sendMessageWithTransfer()
+     * @param dstChainId destination chain id
+     * @param srcAmount input amount approved by the sender
+     * @param srcToken the input token approved by the sender
+     * @param dstToken the final output token (after bridging and swapping) desired by the sender
+     * @param bridgeOutReceiver the receiver (user or dst TransferSwapper) of the bridge token
+     */
+    event RequestSent(
+        bytes32 id,
+        bytes32 transferId,
+        uint64 dstChainId,
+        uint256 srcAmount,
+        address srcToken,
+        address dstToken,
+        address bridgeOutReceiver
+    );
+    // emitted when operations on dst chain is done.
+    // dstAmount is denominated by dstToken, refundAmount is denominated by bridge out token.
+    // if refundAmount is a non-zero number, it means the "allow partial fill" option is turned on.
+
+    /**
+     * @notice Emitted when operations on dst chain is done.
+     * @param id see _computeId()
+     * @param dstAmount the final output token (after bridging and swapping) desired by the sender
+     * @param refundAmount the amount refunded to the receiver in bridge token
+     * @dev refundAmount may be fill by either a complete refund or when allowPartialFill is on and
+     * some swaps fails in the swap routes
+     * @param refundToken bridge out token
+     * @param feeCollected the fee chainhop deducts from bridge out token
+     * @param status see RequestStatus
+     */
+    event RequestDone(
+        bytes32 id,
+        uint256 dstAmount,
+        uint256 refundAmount,
+        address refundToken,
+        uint256 feeCollected,
+        Types.RequestStatus status
+    );
+
     /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
      * Source chain functions
      * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
@@ -118,7 +174,7 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         bytes32 id = _computeId(_desc.receiver, _desc.nonce);
         // direct send if needed
         if (_desc.dstChainId == uint64(block.chainid)) {
-            emit Types.DirectSwap(id, _amountIn, _addrsInfo.tokenIn, amountOut, _addrsInfo.tokenOut);
+            emit DirectSwap(id, _amountIn, _addrsInfo.tokenIn, amountOut, _addrsInfo.tokenOut);
             _sendToken(_addrsInfo.tokenOut, amountOut, _desc.receiver, _desc.nativeOut);
             return;
         }
@@ -153,7 +209,7 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
             _desc.bridgeParams,
             requestMessage
         );
-        emit Types.RequestSent(
+        emit RequestSent(
             _id,
             transferId,
             _desc.dstChainId,
@@ -190,7 +246,7 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         // handle the case where amount received is not enough to pay fee
         if (_amount < m.fee) {
             m.fee = _amount;
-            emit Types.RequestDone(m.id, 0, 0, _token, m.fee, Types.RequestStatus.Succeeded);
+            emit RequestDone(m.id, 0, 0, _token, m.fee, Types.RequestStatus.Succeeded);
             return ExecutionStatus.Success;
         } else {
             _amount = _amount - m.fee;
@@ -218,7 +274,7 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
 
         _sendToken(tokenOut, sumAmtOut, m.receiver, nativeOut);
         // status is always success as long as this function call doesn't revert. partial fill is also considered success
-        emit Types.RequestDone(m.id, sumAmtOut, sumAmtFailed, _token, m.fee, Types.RequestStatus.Succeeded);
+        emit RequestDone(m.id, sumAmtOut, sumAmtFailed, _token, m.fee, Types.RequestStatus.Succeeded);
         return ExecutionStatus.Success;
     }
 
@@ -243,7 +299,7 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         uint256 refundAmount = _amount - m.fee; // no need to check amount >= fee as it's already checked before
         _sendToken(_token, refundAmount, m.receiver, false);
 
-        emit Types.RequestDone(m.id, 0, refundAmount, _token, m.fee, Types.RequestStatus.Fallback);
+        emit RequestDone(m.id, 0, refundAmount, _token, m.fee, Types.RequestStatus.Fallback);
         return ExecutionStatus.Success;
     }
 
@@ -264,7 +320,7 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         Types.Request memory m = abi.decode((_message), (Types.Request));
         _wrapBridgeOutToken(_token, _amount);
         _sendToken(_token, _amount, m.receiver, false);
-        emit Types.RequestDone(m.id, 0, _amount, _token, m.fee, Types.RequestStatus.Fallback);
+        emit RequestDone(m.id, 0, _amount, _token, m.fee, Types.RequestStatus.Fallback);
         return ExecutionStatus.Success;
     }
 
@@ -346,7 +402,7 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
 
     function setNativeWrap(address _nativeWrap) external onlyOwner {
         nativeWrap = _nativeWrap;
-        emit Types.NativeWrapUpdated(_nativeWrap);
+        emit NativeWrapUpdated(_nativeWrap);
     }
 
     // This is needed to receive ETH when calling `IWETH.withdraw`
