@@ -4,7 +4,7 @@ pragma solidity 0.8.12;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "../interfaces/IBridge.sol";
+import "../interfaces/IBridgeCeler.sol";
 import "../interfaces/IOriginalTokenVault.sol";
 import "../interfaces/IOriginalTokenVaultV2.sol";
 import "../interfaces/IPeggedTokenBridge.sol";
@@ -110,7 +110,7 @@ library MessageSenderLib {
         if (_bridgeSendType == MsgDataTypes.BridgeSendType.Liquidity) {
             bridge = IMessageBus(_messageBus).liquidityBridge();
             IERC20(_token).safeIncreaseAllowance(bridge, _amount);
-            IBridge(bridge).send(_receiver, _token, _amount, _dstChainId, _nonce, _maxSlippage);
+            IBridgeCeler(bridge).send(_receiver, _token, _amount, _dstChainId, _nonce, _maxSlippage);
             transferId = computeLiqBridgeTransferId(_receiver, _token, _amount, _dstChainId, _nonce);
         } else if (_bridgeSendType == MsgDataTypes.BridgeSendType.PegDeposit) {
             bridge = IMessageBus(_messageBus).pegVault();

@@ -357,7 +357,7 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
             address bridge = IMessageBus(messageBus).liquidityBridge();
             // If bridge's nativeWrap is set, then bridge automatically unwraps the token and send it to this contract
             // Otherwise the received token in this contract is ERC20
-            if (IBridge(bridge).nativeWrap() == nativeWrap) {
+            if (IBridgeCeler(bridge).nativeWrap() == nativeWrap) {
                 IWETH(nativeWrap).deposit{value: _amount}();
             }
         }

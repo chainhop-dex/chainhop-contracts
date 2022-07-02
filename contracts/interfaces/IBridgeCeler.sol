@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
-pragma solidity >=0.8.0;
+pragma solidity >=0.8.12;
 
-interface IBridge {
+interface IBridgeCeler {
     function nativeWrap() external view returns (address);
 
     function send(
