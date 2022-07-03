@@ -26,11 +26,11 @@ contract AnyswapAdapter is IBridgeAdapter, Ownable {
     }
 
     struct AnyswapParams {
-        // the wrapped any token of the native
-        address anyToken;
         // a unique identifier that is uses to dedup transfers
         // this value is the a timestamp sent from frontend, but in theory can be any unique number
         uint64 nonce;
+        // the wrapped any token of the native
+        address anyToken;
     }
 
     function bridge(
