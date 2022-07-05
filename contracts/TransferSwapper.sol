@@ -85,7 +85,9 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         uint256 srcAmount,
         address srcToken,
         address dstToken,
-        address bridgeOutReceiver
+        address bridgeOutReceiver,
+        address bridgeToken,
+        uint256 bridgeAmount
     );
     // emitted when operations on dst chain is done.
     // dstAmount is denominated by dstToken, refundAmount is denominated by bridge out token.
@@ -216,7 +218,9 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
             _amountIn,
             _addrsInfo.tokenIn,
             _desc.dstTokenOut,
-            bridgeOutReceiver
+            bridgeOutReceiver,
+            _addrsInfo.tokenOut,
+            _amountOut
         );
     }
 
