@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
-pragma solidity >=0.8.12;
+pragma solidity >=0.8.15;
 
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -200,17 +200,19 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
     ) private {
         // fund is directly to user if there is no swaps needed on the destination chain
         address bridgeOutReceiver = _dstSwaps.length > 0 ? _desc.dstTransferSwapper : _desc.receiver;
-
-        IERC20(_addrsInfo.tokenOut).safeIncreaseAllowance(_addrsInfo.bridge, _amountOut);
-        bytes memory requestMessage = _encodeRequestMessage(_id, _desc, _dstSwaps);
-        bytes32 transferId = (IBridgeAdapter(_addrsInfo.bridge)).bridge{value: _msgFee}(
-            _desc.dstChainId,
-            bridgeOutReceiver,
-            _amountOut,
-            _addrsInfo.tokenOut,
-            _desc.bridgeParams,
-            requestMessage
-        );
+        bytes32 transferId;
+        {
+            IERC20(_addrsInfo.tokenOut).safeIncreaseAllowance(_addrsInfo.bridge, _amountOut);
+            bytes memory requestMessage = _encodeRequestMessage(_id, _desc, _dstSwaps);
+            transferId = (IBridgeAdapter(_addrsInfo.bridge)).bridge{value: _msgFee}(
+                _desc.dstChainId,
+                bridgeOutReceiver,
+                _amountOut,
+                _addrsInfo.tokenOut,
+                _desc.bridgeParams,
+                requestMessage
+            );
+        }
         emit RequestSent(
             _id,
             transferId,

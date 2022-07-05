@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
-pragma solidity >=0.8.12;
+pragma solidity >=0.8.15;
 
 interface ICurvePool {
     function coins(uint256 i) external view returns (address);

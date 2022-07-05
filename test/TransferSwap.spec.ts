@@ -87,7 +87,9 @@ describe('transferWithSwap', () => {
         amountIn,
         c.tokenA.address,
         c.tokenB.address,
-        c.receiver.address
+        c.receiver.address,
+        c.tokenA.address,
+        amountIn
       );
 
     const senderBalAfter = await c.tokenA.balanceOf(c.sender.address);
@@ -132,7 +134,9 @@ describe('transferWithSwap', () => {
         amountIn,
         c.tokenA.address,
         c.tokenB.address,
-        c.sender.address
+        c.sender.address,
+        c.tokenB.address,
+        utils.slipUniV2(amountIn)
       );
     const expectedSendAmt = utils.slipUniV2(amountIn);
     const srcXferId = keccak256(
@@ -172,7 +176,9 @@ describe('transferWithSwap', () => {
         amountIn,
         c.tokenA.address,
         c.tokenB.address,
-        c.receiver.address
+        c.receiver.address,
+        c.tokenB.address,
+        utils.slipUniV2(amountIn)
       );
 
     const expectedSendAmt = utils.slipUniV2(amountIn);
@@ -243,7 +249,9 @@ describe('transferWithSwap', () => {
         amountIn,
         c.tokenA.address,
         c.tokenB.address,
-        c.receiver.address
+        c.receiver.address,
+        c.tokenA.address,
+        amountIn
       );
     await expect(tx)
       .to.emit(c.bridge, 'Send')
@@ -279,7 +287,9 @@ describe('transferWithSwap', () => {
         amountIn,
         c.weth.address,
         c.tokenB.address,
-        c.receiver.address
+        c.receiver.address,
+        c.tokenB.address,
+        utils.slipUniV2(amountIn)
       );
 
     const expectedSendAmt = utils.slipUniV2(amountIn);
@@ -323,7 +333,9 @@ describe('transferWithSwap', () => {
         amountIn,
         c.tokenA.address,
         c.tokenB.address,
-        c.receiver.address
+        c.receiver.address,
+        c.tokenB.address,
+        utils.slipCurve(amountIn)
       );
 
     const srcXferId = keccak256(
