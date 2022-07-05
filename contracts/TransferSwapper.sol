@@ -51,10 +51,9 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
 
     struct AddrsInfo {
         address tokenIn;
-        address tokenOut; 
+        address tokenOut;
         address bridge;
     }
-
 
     event NativeWrapUpdated(address nativeWrap);
 
@@ -129,10 +128,12 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         // a request needs to incur a swap, a transfer, or both. otherwise it's a nop and we revert early to save gas
         require(_srcSwaps.length != 0 || _desc.dstChainId != uint64(block.chainid), "nop");
         require(_srcSwaps.length != 0 || (_desc.amountIn != 0 && _desc.tokenIn != address(0)), "nop");
+        // swapping on the dst chain requires message passing. only integrated with cbridge for now
+        require(_dstSwaps.length == 0 || _desc.bridgeType == "cbridge", "bridge does not support msg");
 
         IBridgeAdapter bridge = bridges[keccak256(bytes(_desc.bridgeProvider))];
         // if not DirectSwap, the bridge provider should be a valid one
-        require(_desc.dstChainId == uint64(block.chainid) || address(bridge) != address(0), "not supported bridge");
+        require(_desc.dstChainId == uint64(block.chainid) || address(bridge) != address(0), "unsupported bridge");
 
         uint256 amountIn = _desc.amountIn;
         ICodec[] memory codecs;
