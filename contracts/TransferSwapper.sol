@@ -53,8 +53,8 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
     }
 
     struct AddrsInfo {
-        address tokenIn;
-        address tokenOut;
+        address srcToken;
+        address bridgeToken; 
         address bridge;
     }
 
@@ -143,20 +143,20 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         ICodec[] memory codecs;
         AddrsInfo memory addrsInfo; // using one variable to store related addrs, to avoid "stack too deep" error
         {
-            address tokenIn = _desc.tokenIn;
-            address tokenOut = _desc.tokenIn;
+            address srcToken = _desc.tokenIn;
+            address bridgeToken = _desc.tokenIn;
             if (_srcSwaps.length != 0) {
-                (amountIn, tokenIn, tokenOut, codecs) = sanitizeSwaps(_srcSwaps);
-                require(tokenIn == _desc.tokenIn, "tkin mm");
+                (amountIn, srcToken, bridgeToken, codecs) = sanitizeSwaps(_srcSwaps);
+                require(srcToken == _desc.tokenIn, "tkin mm");
             }
             if (_desc.nativeIn) {
-                require(tokenIn == nativeWrap, "tkin no nativeWrap");
+                require(srcToken == nativeWrap, "tkin no nativeWrap");
                 require(msg.value >= amountIn, "insfcnt amt"); // insufficient amount
                 IWETH(nativeWrap).deposit{value: amountIn}();
             } else {
-                IERC20(tokenIn).safeTransferFrom(msg.sender, address(this), amountIn);
+                IERC20(srcToken).safeTransferFrom(msg.sender, address(this), amountIn);
             }
-            addrsInfo = AddrsInfo(tokenIn, tokenOut, address(bridge));
+            addrsInfo = AddrsInfo(srcToken, bridgeToken, address(bridge));
         }
 
         _swapAndSend(addrsInfo, amountIn, _desc, _srcSwaps, _dstSwaps, codecs);
@@ -181,11 +181,11 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         bytes32 id = _computeId(_desc.receiver, _desc.nonce);
         // direct send if needed
         if (_desc.dstChainId == uint64(block.chainid)) {
-            emit DirectSwap(id, _amountIn, _addrsInfo.tokenIn, amountOut, _addrsInfo.tokenOut);
-            _sendToken(_addrsInfo.tokenOut, amountOut, _desc.receiver, _desc.nativeOut);
+            emit DirectSwap(id, _amountIn, _addrsInfo.srcToken, amountOut, _addrsInfo.bridgeToken);
+            _sendToken(_addrsInfo.bridgeToken, amountOut, _desc.receiver, _desc.nativeOut);
             return;
         }
-        _verifyFee(_desc, _amountIn, _addrsInfo.tokenIn);
+        _verifyFee(_desc, _amountIn, _addrsInfo.srcToken);
         uint256 msgFee = msg.value;
         if (_desc.nativeIn) {
             msgFee = msg.value - _amountIn;
@@ -207,13 +207,13 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         address bridgeOutReceiver = _dstSwaps.length > 0 ? _desc.dstTransferSwapper : _desc.receiver;
         bytes32 transferId;
         {
-            IERC20(_addrsInfo.tokenOut).safeIncreaseAllowance(_addrsInfo.bridge, _amountOut);
+            IERC20(_addrsInfo.bridgeToken).safeIncreaseAllowance(_addrsInfo.bridge, _amountOut);
             bytes memory requestMessage = _encodeRequestMessage(_id, _desc, _dstSwaps);
             transferId = (IBridgeAdapter(_addrsInfo.bridge)).bridge{value: _msgFee}(
                 _desc.dstChainId,
                 bridgeOutReceiver,
                 _amountOut,
-                _addrsInfo.tokenOut,
+                _addrsInfo.bridgeToken,
                 _desc.bridgeParams,
                 requestMessage
             );
@@ -223,10 +223,10 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
             transferId,
             _desc.dstChainId,
             _amountIn,
-            _addrsInfo.tokenIn,
+            _addrsInfo.srcToken,
             _desc.dstTokenOut,
             bridgeOutReceiver,
-            _addrsInfo.tokenOut,
+            _addrsInfo.bridgeToken,
             _amountOut
         );
     }
