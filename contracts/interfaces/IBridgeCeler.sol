@@ -3,6 +3,12 @@
 pragma solidity >=0.8.15;
 
 interface IBridgeCeler {
+    function delayThresholds(address token) external view returns (uint256);
+
+    function minSend(address token) external view returns (uint256);
+
+    function maxSend(address token) external view returns (uint256);
+
     function nativeWrap() external view returns (address);
 
     function send(
