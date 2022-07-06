@@ -26,6 +26,8 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
     using SafeERC20 for IERC20;
     using ECDSA for bytes32;
 
+    bytes32 public immutable CBRIDGE_PROVIDER_HASH;
+
     /// @notice erc20 wrap of the gas token of this chain, e.g. WETH
     address public nativeWrap;
 
@@ -47,6 +49,7 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         messageBus = _messageBus;
         nativeWrap = _nativeWrap;
         testMode = _testMode;
+        CBRIDGE_PROVIDER_HASH = keccak256(bytes("cbridge"));
     }
 
     struct AddrsInfo {
@@ -129,9 +132,10 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         require(_srcSwaps.length != 0 || _desc.dstChainId != uint64(block.chainid), "nop");
         require(_srcSwaps.length != 0 || (_desc.amountIn != 0 && _desc.tokenIn != address(0)), "nop");
         // swapping on the dst chain requires message passing. only integrated with cbridge for now
-        require(_dstSwaps.length == 0 || _desc.bridgeType == "cbridge", "bridge does not support msg");
+        bytes32 bridgeProviderHash = keccak256(bytes(_desc.bridgeProvider));
+        require(_dstSwaps.length == 0 || bridgeProviderHash == CBRIDGE_PROVIDER_HASH, "bridge does not support msg");
 
-        IBridgeAdapter bridge = bridges[keccak256(bytes(_desc.bridgeProvider))];
+        IBridgeAdapter bridge = bridges[bridgeProviderHash];
         // if not DirectSwap, the bridge provider should be a valid one
         require(_desc.dstChainId == uint64(block.chainid) || address(bridge) != address(0), "unsupported bridge");
 
