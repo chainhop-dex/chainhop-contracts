@@ -49,10 +49,18 @@ contract AnyswapAdapter is IBridgeAdapter, Ownable {
         );
         require(transfers[transferId] == false, "transfer exists");
         transfers[transferId] = true;
-
         IERC20(_token).transferFrom(msg.sender, address(this), _amount);
         IERC20(_token).approve(address(stargateRouter), _amount);
-        IBridgeStargate(stargateRouter).swap(
+        
+        swap(_dstChainId, _receiver, _amount, params);
+    }
+
+    function swap(
+        uint64 _dstChainId,
+        address _receiver,
+        uint256 _amount,
+        StargateParams memory params) private {
+        IBridgeStargate(stargateRouter).swap{value: msg.value}(
             uint16(_dstChainId), 
             params.srcPoolId, 
             params.dstPoolId, 

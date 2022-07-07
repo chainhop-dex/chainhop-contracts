@@ -52,12 +52,6 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         CBRIDGE_PROVIDER_HASH = keccak256(bytes("cbridge"));
     }
 
-    struct AddrsInfo {
-        address srcToken;
-        address bridgeToken; 
-        address bridge;
-    }
-
     event NativeWrapUpdated(address nativeWrap);
 
     /**
@@ -89,7 +83,8 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         address dstToken,
         address bridgeOutReceiver,
         address bridgeToken,
-        uint256 bridgeAmount
+        uint256 bridgeAmount,
+        string bridgeAdapter
     );
     // emitted when operations on dst chain is done.
     // dstAmount is denominated by dstToken, refundAmount is denominated by bridge out token.
@@ -141,29 +136,27 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
 
         uint256 amountIn = _desc.amountIn;
         ICodec[] memory codecs;
-        AddrsInfo memory addrsInfo; // using one variable to store related addrs, to avoid "stack too deep" error
-        {
-            address srcToken = _desc.tokenIn;
-            address bridgeToken = _desc.tokenIn;
-            if (_srcSwaps.length != 0) {
-                (amountIn, srcToken, bridgeToken, codecs) = sanitizeSwaps(_srcSwaps);
-                require(srcToken == _desc.tokenIn, "tkin mm");
-            }
-            if (_desc.nativeIn) {
-                require(srcToken == nativeWrap, "tkin no nativeWrap");
-                require(msg.value >= amountIn, "insfcnt amt"); // insufficient amount
-                IWETH(nativeWrap).deposit{value: amountIn}();
-            } else {
-                IERC20(srcToken).safeTransferFrom(msg.sender, address(this), amountIn);
-            }
-            addrsInfo = AddrsInfo(srcToken, bridgeToken, address(bridge));
+        
+        address srcToken = _desc.tokenIn;
+        address bridgeToken = _desc.tokenIn;
+        if (_srcSwaps.length != 0) {
+            (amountIn, srcToken, bridgeToken, codecs) = sanitizeSwaps(_srcSwaps);
+            require(srcToken == _desc.tokenIn, "tkin mm");
+        }
+        if (_desc.nativeIn) {
+            require(srcToken == nativeWrap, "tkin no nativeWrap");
+            require(msg.value >= amountIn, "insfcnt amt"); // insufficient amount
+            IWETH(nativeWrap).deposit{value: amountIn}();
+        } else {
+            IERC20(srcToken).safeTransferFrom(msg.sender, address(this), amountIn);
         }
 
-        _swapAndSend(addrsInfo, amountIn, _desc, _srcSwaps, _dstSwaps, codecs);
+        _swapAndSend(srcToken, bridgeToken, amountIn, _desc, _srcSwaps, _dstSwaps, codecs);
     }
 
     function _swapAndSend(
-        AddrsInfo memory _addrsInfo, // [tokenIn, tokenOut, bridge]
+        address srcToken, 
+        address bridgeToken,
         uint256 _amountIn,
         Types.TransferDescription memory _desc,
         ICodec.SwapDescription[] memory _srcSwaps,
@@ -181,39 +174,40 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         bytes32 id = _computeId(_desc.receiver, _desc.nonce);
         // direct send if needed
         if (_desc.dstChainId == uint64(block.chainid)) {
-            emit DirectSwap(id, _amountIn, _addrsInfo.srcToken, amountOut, _addrsInfo.bridgeToken);
-            _sendToken(_addrsInfo.bridgeToken, amountOut, _desc.receiver, _desc.nativeOut);
+            emit DirectSwap(id, _amountIn, srcToken, amountOut, bridgeToken);
+            _sendToken(bridgeToken, amountOut, _desc.receiver, _desc.nativeOut);
             return;
         }
-        _verifyFee(_desc, _amountIn, _addrsInfo.srcToken);
-        uint256 msgFee = msg.value;
-        if (_desc.nativeIn) {
-            msgFee = msg.value - _amountIn;
-        }
 
-        _transfer(id, _addrsInfo, _desc, _dstSwaps, _amountIn, amountOut, msgFee);
+        _transfer(id, srcToken, bridgeToken, _desc, _dstSwaps, _amountIn, amountOut);
     }
 
     function _transfer(
         bytes32 _id,
-        AddrsInfo memory _addrsInfo, // [tokenIn, tokenOut, bridge]
+        address srcToken, 
+        address bridgeToken,
         Types.TransferDescription memory _desc,
         ICodec.SwapDescription[] memory _dstSwaps,
         uint256 _amountIn,
-        uint256 _amountOut,
-        uint256 _msgFee
+        uint256 _amountOut
     ) private {
         // fund is directly to user if there is no swaps needed on the destination chain
         address bridgeOutReceiver = _dstSwaps.length > 0 ? _desc.dstTransferSwapper : _desc.receiver;
         bytes32 transferId;
         {
-            IERC20(_addrsInfo.bridgeToken).safeIncreaseAllowance(_addrsInfo.bridge, _amountOut);
+            _verifyFee(_desc, _amountIn, srcToken);
+            uint256 msgFee = msg.value;
+            if (_desc.nativeIn) {
+                msgFee = msg.value - _amountIn;
+            }
+            IBridgeAdapter bridge = bridges[keccak256(bytes(_desc.bridgeProvider))];
+            IERC20(bridgeToken).safeIncreaseAllowance(address(bridge), _amountOut);
             bytes memory requestMessage = _encodeRequestMessage(_id, _desc, _dstSwaps);
-            transferId = (IBridgeAdapter(_addrsInfo.bridge)).bridge{value: _msgFee}(
+            transferId = bridge.bridge{value: msgFee}(
                 _desc.dstChainId,
                 bridgeOutReceiver,
                 _amountOut,
-                _addrsInfo.bridgeToken,
+                bridgeToken,
                 _desc.bridgeParams,
                 requestMessage
             );
@@ -223,11 +217,12 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
             transferId,
             _desc.dstChainId,
             _amountIn,
-            _addrsInfo.srcToken,
+            srcToken,
             _desc.dstTokenOut,
             bridgeOutReceiver,
-            _addrsInfo.bridgeToken,
-            _amountOut
+            bridgeToken,
+            _amountOut,
+            _desc.bridgeProvider
         );
     }
 
