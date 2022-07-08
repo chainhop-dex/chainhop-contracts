@@ -32,6 +32,7 @@ contract AnyswapAdapter is IBridgeAdapter, Ownable {
         uint256 srcPoolId;
         uint256 dstPoolId;
         uint256 minReceivedAmt; // defines the slippage, the min qty you would accept on the destination
+        uint16 stargateDstChainId; // stargate defines chain id in its way
     }
 
     function bridge(
@@ -52,16 +53,15 @@ contract AnyswapAdapter is IBridgeAdapter, Ownable {
         IERC20(_token).transferFrom(msg.sender, address(this), _amount);
         IERC20(_token).approve(address(stargateRouter), _amount);
         
-        swap(_dstChainId, _receiver, _amount, params);
+        swap(_receiver, _amount, params);
     }
 
     function swap(
-        uint64 _dstChainId,
         address _receiver,
         uint256 _amount,
         StargateParams memory params) private {
         IBridgeStargate(stargateRouter).swap{value: msg.value}(
-            uint16(_dstChainId), 
+            params.stargateDstChainId, 
             params.srcPoolId, 
             params.dstPoolId, 
             payable(mainContract), // default to refund to main contract
