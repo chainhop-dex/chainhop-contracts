@@ -73,6 +73,9 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
      * @param srcToken the input token approved by the sender
      * @param dstToken the final output token (after bridging and swapping) desired by the sender
      * @param bridgeOutReceiver the receiver (user or dst TransferSwapper) of the bridge token
+     * @param bridgeToken the token used for bridging
+     * @param bridgeAmount the amount of the bridgeToken to bridge
+     * @param bridgeProvider the bridge provider
      */
     event RequestSent(
         bytes32 id,
@@ -84,7 +87,7 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         address bridgeOutReceiver,
         address bridgeToken,
         uint256 bridgeAmount,
-        string bridgeAdapter
+        string bridgeProvider
     );
     // emitted when operations on dst chain is done.
     // dstAmount is denominated by dstToken, refundAmount is denominated by bridge out token.
