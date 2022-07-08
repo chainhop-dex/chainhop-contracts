@@ -20,4 +20,14 @@ interface IBridgeStargate {
         bytes calldata _to,
         bytes calldata _payload
     ) external payable;
+
+    function bridge() external pure returns (address);
+}
+
+interface IStargateInternalBridge {
+    function layerZeroEndpoint() external pure returns (address);
+}
+
+interface ILayerZeroEndpoint {
+    function getOutboundNonce(uint16 _dstChainId, address _srcAddress) external view returns (uint64);
 }

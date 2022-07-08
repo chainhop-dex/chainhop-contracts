@@ -46,7 +46,7 @@ contract CBridgeAdapter is MessageBusAddress, IBridgeAdapter {
         address _token,
         bytes memory _bridgeParams,
         bytes memory _requestMessage
-    ) external payable onlyMainContract returns (bytes32 transferId) {
+    ) external payable onlyMainContract returns (bytes memory bridgeResp) {
         CBridgeParams memory params = abi.decode((_bridgeParams), (CBridgeParams));
         IERC20(_token).transferFrom(msg.sender, address(this), _amount);
         if (params.wrappedBridgeToken != address(0)) {
@@ -60,7 +60,7 @@ contract CBridgeAdapter is MessageBusAddress, IBridgeAdapter {
             IERC20(_token).approve(params.wrappedBridgeToken, _amount);
             _token = params.wrappedBridgeToken;
         }
-        transferId = MessageSenderLib.sendMessageWithTransfer(
+        bytes32 transferId = MessageSenderLib.sendMessageWithTransfer(
             _receiver,
             _token,
             _amount,
@@ -72,6 +72,7 @@ contract CBridgeAdapter is MessageBusAddress, IBridgeAdapter {
             messageBus,
             msg.value
         );
+        return abi.encodePacked(transferId);
     }
 
     function updateMainContract(address _mainContract) external onlyOwner {

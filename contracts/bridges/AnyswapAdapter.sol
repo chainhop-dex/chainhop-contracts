@@ -40,10 +40,10 @@ contract AnyswapAdapter is IBridgeAdapter, Ownable {
         address _token, // Note, here uses the address of the native
         bytes memory _bridgeParams,
         bytes memory _requestMessage // Not used for now, as Anyswap messaging is not supported in this version
-    ) external payable onlyMainContract returns (bytes32 transferId) {
+    ) external payable onlyMainContract returns (bytes memory bridgeResp) {
         AnyswapParams memory params = abi.decode((_bridgeParams), (AnyswapParams));
         
-        transferId = keccak256(
+        bytes32 transferId = keccak256(
             abi.encodePacked(_receiver, _token, _amount, _dstChainId, params.nonce, uint64(block.chainid))
         );
         require(transfers[transferId] == false, "transfer exists");
@@ -52,6 +52,8 @@ contract AnyswapAdapter is IBridgeAdapter, Ownable {
         IERC20(_token).transferFrom(msg.sender, address(this), _amount);
         IERC20(_token).approve(address(anyswapRouter), _amount);
         IBridgeAnyswap(anyswapRouter).anySwapOutUnderlying(params.anyToken, _receiver, _amount, _dstChainId);
+        
+        return abi.encodePacked(transferId);
     }
 
     function updateMainContract(address _mainContract) external onlyOwner {

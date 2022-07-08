@@ -16,5 +16,5 @@ interface IBridgeAdapter {
         // Note if the bridge adapter doesn't support message passing, the call should revert when
         // this field is set.
         bytes memory _requestMessage
-    ) external payable returns (bytes32 transferId);
+    ) external payable returns (bytes memory bridgeResp);
 }

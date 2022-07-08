@@ -67,7 +67,7 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
     /**
      * @notice Emitted when operations on src chain is done, the transfer is sent through the bridge
      * @param id see _computeId()
-     * @param transferId the src transfer id produced by MessageSenderLib.sendMessageWithTransfer()
+     * @param bridgeResp arbitrary response data returned by bridge
      * @param dstChainId destination chain id
      * @param srcAmount input amount approved by the sender
      * @param srcToken the input token approved by the sender
@@ -76,7 +76,7 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
      */
     event RequestSent(
         bytes32 id,
-        bytes32 transferId,
+        bytes bridgeResp,
         uint64 dstChainId,
         uint256 srcAmount,
         address srcToken,
@@ -193,7 +193,7 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
     ) private {
         // fund is directly to user if there is no swaps needed on the destination chain
         address bridgeOutReceiver = _dstSwaps.length > 0 ? _desc.dstTransferSwapper : _desc.receiver;
-        bytes32 transferId;
+        bytes memory bridgeResp;
         {
             _verifyFee(_desc, _amountIn, srcToken);
             uint256 msgFee = msg.value;
@@ -203,7 +203,7 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
             IBridgeAdapter bridge = bridges[keccak256(bytes(_desc.bridgeProvider))];
             IERC20(bridgeToken).safeIncreaseAllowance(address(bridge), _amountOut);
             bytes memory requestMessage = _encodeRequestMessage(_id, _desc, _dstSwaps);
-            transferId = bridge.bridge{value: msgFee}(
+            bridgeResp = bridge.bridge{value: msgFee}(
                 _desc.dstChainId,
                 bridgeOutReceiver,
                 _amountOut,
@@ -214,7 +214,7 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         }
         emit RequestSent(
             _id,
-            transferId,
+            bridgeResp,
             _desc.dstChainId,
             _amountIn,
             srcToken,
