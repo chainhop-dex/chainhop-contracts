@@ -3,11 +3,23 @@
 pragma solidity >=0.8.15;
 
 interface IBridgeCeler {
+    // common
     function delayThresholds(address token) external view returns (uint256);
 
+    // liquidity bridge
     function minSend(address token) external view returns (uint256);
 
     function maxSend(address token) external view returns (uint256);
+
+    // peg vault v0/v2
+    function minDeposit(address token) external view returns (uint256);
+
+    function maxDeposit(address token) external view returns (uint256);
+
+    // peg bridge v0/v2
+    function minBurn(address token) external view returns (uint256);
+
+    function maxBurn(address token) external view returns (uint256);
 
     function nativeWrap() external view returns (address);
 
