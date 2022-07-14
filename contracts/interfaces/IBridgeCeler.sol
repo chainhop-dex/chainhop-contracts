@@ -6,6 +6,8 @@ interface IBridgeCeler {
     // common
     function delayThresholds(address token) external view returns (uint256);
 
+    function delayPeriod() external view returns (uint256);
+
     // liquidity bridge
     function minSend(address token) external view returns (uint256);
 
