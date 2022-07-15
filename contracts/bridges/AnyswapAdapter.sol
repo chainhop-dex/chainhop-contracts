@@ -10,19 +10,24 @@ import "../interfaces/IBridgeAnyswap.sol";
 
 contract AnyswapAdapter is IBridgeAdapter, Ownable {
     address public mainContract;
-    address public immutable anyswapRouter;
+    mapping(address => bool) public supportedRouters;
     mapping(bytes32 => bool) public transfers;
 
     event MainContractUpdated(address mainContract);
+    event SupportedRouterUpdated(address router, bool enabled);
 
     modifier onlyMainContract() {
         require(msg.sender == mainContract, "caller is not main contract");
         _;
     }
 
-    constructor(address _mainContract, address _anyswapRouter) {
+    constructor(address _mainContract, address[] memory _anyswapRouters) {
         mainContract = _mainContract;
-        anyswapRouter = _anyswapRouter;
+
+        for (uint256 i = 0; i < _anyswapRouters.length; i++) {
+            require(_anyswapRouters[i] != address(0), "nop");
+            supportedRouters[_anyswapRouters[i]] = true;
+        }
     }
 
     struct AnyswapParams {
@@ -31,6 +36,8 @@ contract AnyswapAdapter is IBridgeAdapter, Ownable {
         uint64 nonce;
         // the wrapped any token of the native
         address anyToken;
+        // the target anyswap Router, should be in the <ref>supportedRouters</ref>
+        address router;
     }
 
     function bridge(
@@ -42,6 +49,7 @@ contract AnyswapAdapter is IBridgeAdapter, Ownable {
         bytes memory _requestMessage // Not used for now, as Anyswap messaging is not supported in this version
     ) external payable onlyMainContract returns (bytes memory bridgeResp) {
         AnyswapParams memory params = abi.decode((_bridgeParams), (AnyswapParams));
+        require(supportedRouters[params.router], "illegal router");
         
         bytes32 transferId = keccak256(
             abi.encodePacked(_receiver, _token, _amount, _dstChainId, params.nonce, uint64(block.chainid))
@@ -50,8 +58,8 @@ contract AnyswapAdapter is IBridgeAdapter, Ownable {
         transfers[transferId] = true;
 
         IERC20(_token).transferFrom(msg.sender, address(this), _amount);
-        IERC20(_token).approve(address(anyswapRouter), _amount);
-        IBridgeAnyswap(anyswapRouter).anySwapOutUnderlying(params.anyToken, _receiver, _amount, _dstChainId);
+        IERC20(_token).approve(params.router, _amount);
+        IBridgeAnyswap(params.router).anySwapOutUnderlying(params.anyToken, _receiver, _amount, _dstChainId);
         
         return abi.encodePacked(transferId);
     }
@@ -59,5 +67,12 @@ contract AnyswapAdapter is IBridgeAdapter, Ownable {
     function updateMainContract(address _mainContract) external onlyOwner {
         mainContract = _mainContract;
         emit MainContractUpdated(_mainContract);
+    }
+
+    function setSupportedRouter(address _router, bool _enabled) external onlyOwner {
+        bool enabled = supportedRouters[_router];
+        require(enabled != _enabled, "nop");
+        supportedRouters[_router] = _enabled;
+        emit SupportedRouterUpdated(_router, _enabled);
     }
 }
