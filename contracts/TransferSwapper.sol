@@ -197,10 +197,14 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         address bridgeOutReceiver = _dstSwaps.length > 0 ? _desc.dstTransferSwapper : _desc.receiver;
         bytes memory bridgeResp;
         {
-            _verifyFee(_desc, _amountIn, srcToken);
-            uint256 msgFee = msg.value;
-            if (_desc.nativeIn) {
-                msgFee = msg.value - _amountIn;
+            uint256 msgFee = 0;
+            if (_dstSwaps.length > 0) {
+                _verifyFee(_desc, _amountIn, srcToken);
+                if (_desc.nativeIn) {
+                    msgFee = msg.value - _amountIn;
+                } else {
+                    msgFee = msg.value;
+                }
             }
             IBridgeAdapter bridge = bridges[keccak256(bytes(_desc.bridgeProvider))];
             IERC20(bridgeToken).safeIncreaseAllowance(address(bridge), _amountOut);
