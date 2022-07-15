@@ -49,8 +49,7 @@ library Types {
         // sig of sha3("executor fee", srcChainId, dstChainId, amountIn, tokenIn, feeDeadline, fee)
         // see _verifyFee()
         bytes feeSig;
-        // IMPORTANT: amountIn and tokenIn are completely ignored if src chain has a swap
-        // these two fields are only meant for the scenario where no swaps are needed on src chain
+        // IMPORTANT: amountIn & tokenIn is completely ignored if src chain has a swap
         uint256 amountIn;
         address tokenIn;
         address dstTokenOut; // the final output token, emitted in event for display purpose only

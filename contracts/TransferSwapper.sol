@@ -139,12 +139,11 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
 
         uint256 amountIn = _desc.amountIn;
         ICodec[] memory codecs;
-        
+
         address srcToken = _desc.tokenIn;
         address bridgeToken = _desc.tokenIn;
         if (_srcSwaps.length != 0) {
             (amountIn, srcToken, bridgeToken, codecs) = sanitizeSwaps(_srcSwaps);
-            require(srcToken == _desc.tokenIn, "tkin mm");
         }
         if (_desc.nativeIn) {
             require(srcToken == nativeWrap, "tkin no nativeWrap");
@@ -158,7 +157,7 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
     }
 
     function _swapAndSend(
-        address srcToken, 
+        address srcToken,
         address bridgeToken,
         uint256 _amountIn,
         Types.TransferDescription memory _desc,
@@ -187,7 +186,7 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
 
     function _transfer(
         bytes32 _id,
-        address srcToken, 
+        address srcToken,
         address bridgeToken,
         Types.TransferDescription memory _desc,
         ICodec.SwapDescription[] memory _dstSwaps,
