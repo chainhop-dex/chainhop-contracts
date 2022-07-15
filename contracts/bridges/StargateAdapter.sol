@@ -8,7 +8,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "../interfaces/IBridgeAdapter.sol";
 import "../interfaces/IBridgeStargate.sol";
 
-contract AnyswapAdapter is IBridgeAdapter, Ownable {
+contract StargateAdapter is IBridgeAdapter, Ownable {
     address public mainContract;
     address public immutable stargateRouter;
     mapping(bytes32 => bool) public transfers;
