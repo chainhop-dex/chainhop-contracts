@@ -8,6 +8,10 @@ interface IBridgeCeler {
 
     function delayPeriod() external view returns (uint256);
 
+    function epochVolumes(address token) external view returns (uint256);
+
+    function epochVolumeCaps(address token) external view returns (uint256);
+
     // liquidity bridge
     function minSend(address token) external view returns (uint256);
 
