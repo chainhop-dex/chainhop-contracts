@@ -6,11 +6,12 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 import "../lib/MessageSenderLib.sol";
-import "../lib/MessageBusAddress.sol";
+import "../lib/MessageReceiverApp.sol";
 import "../interfaces/IBridgeAdapter.sol";
+import "../interfaces/ICallbackFromAdapter.sol";
 import "../interfaces/IIntermediaryOriginalToken.sol";
 
-contract CBridgeAdapter is MessageBusAddress, IBridgeAdapter {
+contract CBridgeAdapter is MessageReceiverApp, IBridgeAdapter {
     address public mainContract;
 
     event MainContractUpdated(address mainContract);
@@ -78,5 +79,15 @@ contract CBridgeAdapter is MessageBusAddress, IBridgeAdapter {
     function updateMainContract(address _mainContract) external onlyOwner {
         mainContract = _mainContract;
         emit MainContractUpdated(_mainContract);
+    }
+
+    function executeMessageWithTransferRefund(
+        address _token,
+        uint256 _amount,
+        bytes calldata _message,
+        address _executor
+    ) external payable override onlyMessageBus returns (ExecutionStatus) {
+        IERC20(_token).approve(mainContract, _amount);
+        return ICallbackFromAdapter(mainContract).executeMessageWithTransferRefundFromAdapter(_token, _amount, _message, _executor);
     }
 }

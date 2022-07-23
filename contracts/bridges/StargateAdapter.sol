@@ -41,7 +41,7 @@ contract StargateAdapter is IBridgeAdapter, Ownable {
         uint256 _amount,
         address _token,
         bytes memory _bridgeParams,
-        bytes memory _requestMessage // Not used for now, as stargate messaging is not supported in this version
+        bytes memory //_requestMessage // Not used for now, as stargate messaging is not supported in this version
     ) external payable onlyMainContract returns (bytes memory bridgeResp) {
         StargateParams memory params = abi.decode((_bridgeParams), (StargateParams));
         

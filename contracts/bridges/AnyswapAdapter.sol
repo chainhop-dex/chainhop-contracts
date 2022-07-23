@@ -46,7 +46,7 @@ contract AnyswapAdapter is IBridgeAdapter, Ownable {
         uint256 _amount,
         address _token, // Note, here uses the address of the native
         bytes memory _bridgeParams,
-        bytes memory _requestMessage // Not used for now, as Anyswap messaging is not supported in this version
+        bytes memory //_requestMessage // Not used for now, as Anyswap messaging is not supported in this version
     ) external payable onlyMainContract returns (bytes memory bridgeResp) {
         AnyswapParams memory params = abi.decode((_bridgeParams), (AnyswapParams));
         require(supportedRouters[params.router], "illegal router");
