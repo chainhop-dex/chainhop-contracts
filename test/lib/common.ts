@@ -5,6 +5,8 @@ import { ethers, waffle } from 'hardhat';
 import {
   Bridge,
   Bridge__factory,
+  CBridgeAdapter, 
+  CBridgeAdapter__factory,
   CurvePoolCodec,
   CurvePoolCodec__factory,
   IntermediaryOriginalToken__factory,
@@ -41,6 +43,7 @@ export function loadFixture<T>(fixture: Fixture<T>): Promise<T> {
 
 export interface BridgeContracts {
   bridge: Bridge;
+  bridgeAdapter: CBridgeAdapter;
   messageBus: MessageBus;
 }
 
@@ -95,7 +98,11 @@ export async function deployBridgeContracts(admin: Wallet, weth: string): Promis
   await messageBus.setFeeBase(1);
   await messageBus.setFeePerByte(1);
 
-  return { bridge, messageBus };
+  const bridgeAdapterFactory = (await ethers.getContractFactory('CBridgeAdapter')) as CBridgeAdapter__factory;
+  const bridgeAdapter = await bridgeAdapterFactory.connect(admin).deploy("0x0000000000000000000000000000000000000000", messageBus.address);
+  await bridgeAdapter.deployed();
+
+  return { bridge, bridgeAdapter, messageBus };
 }
 
 export async function deployWrappedBridgeToken(admin: Wallet, canonicalToken: string, bridge: string) {

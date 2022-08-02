@@ -7,6 +7,9 @@ export interface IConfig {
     messageBus?: string;
     supportedDex: IDexConfig[];
     codecs: ICodecConfig[];
+    transferSwapper?: string;
+    anyswapRouters?: string[];
+    stargateRouter?: string;
   };
 }
 

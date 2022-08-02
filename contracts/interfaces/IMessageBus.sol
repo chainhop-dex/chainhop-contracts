@@ -15,6 +15,10 @@ interface IMessageBus {
 
     function pegVaultV2() external view returns (address);
 
+    function feeBase() external view returns (uint256);
+
+    function feePerByte() external view returns (uint256);
+
     /**
      * @notice Calculates the required fee for the message.
      * @param _message Arbitrary message bytes to be decoded by the destination app contract.
