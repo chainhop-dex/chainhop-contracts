@@ -99,7 +99,7 @@ export async function signFee(c: IntegrationTestContext, opts?: FeeSigOverride) 
   const dstChainId = opts?.dstChainId ?? c.chainId + 1;
   const amountIn = opts?.amountIn ?? parseUnits('100');
   const tokenIn = opts?.tokenIn ?? c.tokenA.address;
-  const feeDeadline = opts?.feeDeadline ?? BigNumber.from(Math.floor(Date.now() / 1000 + 600));
+  const feeDeadline = opts?.feeDeadline ?? BigNumber.from(Math.floor(Date.now() / 1000 + 1200));
   const fee = opts?.fee ?? parseUnits('1');
   const hash = keccak256(
     ['string', 'uint64', 'uint64', 'uint256', 'address', 'uint256', 'uint256'],
@@ -219,7 +219,7 @@ export function buildTransferDesc(c: IntegrationTestContext, feeSig: string, opt
   const dstChainId = opts?.dstChainId ?? c.chainId + 1;
 
   const fee = opts?.fee ?? parseUnits('1');
-  const feeDeadline = opts?.feeDeadline ?? BigNumber.from(Math.floor(Date.now() / 1000 + 600));
+  const feeDeadline = opts?.feeDeadline ?? BigNumber.from(Math.floor(Date.now() / 1000 + 1200));
   const nonce = 1;
   let bridgeParams = ethers.utils.defaultAbiCoder.encode(
     ['uint256', 'uint32', 'address', 'uint64'],
