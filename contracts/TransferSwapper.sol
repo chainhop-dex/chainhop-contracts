@@ -111,7 +111,8 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         uint256 refundAmount,
         address refundToken,
         uint256 feeCollected,
-        Types.RequestStatus status
+        Types.RequestStatus status,
+        bytes forwardResp
     );
 
     /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
@@ -251,39 +252,59 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         address // _executor
     ) external payable override onlyMessageBus nonReentrant returns (ExecutionStatus) {
         Types.Request memory m = abi.decode((_message), (Types.Request));
+        Types.Forward memory f;
+        if (m.forward.length > 0) {
+            f = abi.decode(m.forward, (Types.Forward));
+        }
 
         // handle the case where amount received is not enough to pay fee
         if (_amount < m.fee) {
             m.fee = _amount;
-            emit RequestDone(m.id, 0, 0, _token, m.fee, Types.RequestStatus.Succeeded);
+            emit RequestDone(m.id, 0, 0, _token, m.fee, Types.RequestStatus.Succeeded, bytes(""));
             return ExecutionStatus.Success;
         } else {
-            _amount = _amount - m.fee;
+            _amount = _amount - m.fee - f.fee;
         }
 
-        _wrapBridgeOutToken(_token, _amount);
-
-        address tokenOut = _token;
-        bool nativeOut = m.nativeOut;
         uint256 sumAmtOut = _amount;
         uint256 sumAmtFailed;
+        bytes memory forwardResp;
+        {
+            _wrapBridgeOutToken(_token, _amount);
+            address tokenOut = _token;
+            if (m.swaps.length != 0) {
+                ICodec[] memory codecs;
+                address tokenIn;
+                // swap first before sending the token out to user
+                (, tokenIn, tokenOut, codecs) = sanitizeSwaps(m.swaps);
+                require(tokenIn == _token, "tkin mm"); // tokenIn mismatch
+                (sumAmtOut, sumAmtFailed) = executeSwapsWithOverride(m.swaps, codecs, _amount, m.allowPartialFill);
+                // if at this stage the tx is not reverted, it means at least 1 swap in routes succeeded
+                if (sumAmtFailed > 0) {
+                    _sendToken(_token, sumAmtFailed, m.receiver, false);
+                }
+            }
 
-        if (m.swaps.length != 0) {
-            ICodec[] memory codecs;
-            address tokenIn;
-            // swap first before sending the token out to user
-            (, tokenIn, tokenOut, codecs) = sanitizeSwaps(m.swaps);
-            require(tokenIn == _token, "tkin mm"); // tokenIn mismatch
-            (sumAmtOut, sumAmtFailed) = executeSwapsWithOverride(m.swaps, codecs, _amount, m.allowPartialFill);
-            // if at this stage the tx is not reverted, it means at least 1 swap in routes succeeded
-            if (sumAmtFailed > 0) {
-                _sendToken(_token, sumAmtFailed, m.receiver, false);
+            if (m.forward.length > 0) {
+                bytes32 forwardProviderHash = keccak256(bytes(f.provider));
+                IBridgeAdapter bridge = bridges[forwardProviderHash];
+                require(address(bridge) != address(0), "unsupported bridge");
+
+                IERC20(tokenOut).safeIncreaseAllowance(address(bridge), sumAmtOut);
+                forwardResp = bridge.bridge{value: f.fee}(
+                    f.dstChain,
+                    m.receiver,
+                    sumAmtOut,
+                    tokenOut,
+                    f.params,
+                    bytes("")
+                );
+            } else {
+                _sendToken(tokenOut, sumAmtOut, m.receiver, m.nativeOut);
             }
         }
-
-        _sendToken(tokenOut, sumAmtOut, m.receiver, nativeOut);
         // status is always success as long as this function call doesn't revert. partial fill is also considered success
-        emit RequestDone(m.id, sumAmtOut, sumAmtFailed, _token, m.fee, Types.RequestStatus.Succeeded);
+        emit RequestDone(m.id, sumAmtOut, sumAmtFailed, _token, m.fee, Types.RequestStatus.Succeeded, forwardResp);
         return ExecutionStatus.Success;
     }
 
@@ -308,7 +329,7 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         uint256 refundAmount = _amount - m.fee; // no need to check amount >= fee as it's already checked before
         _sendToken(_token, refundAmount, m.receiver, false);
 
-        emit RequestDone(m.id, 0, refundAmount, _token, m.fee, Types.RequestStatus.Fallback);
+        emit RequestDone(m.id, 0, refundAmount, _token, m.fee, Types.RequestStatus.Fallback, bytes(""));
         return ExecutionStatus.Success;
     }
 
@@ -337,7 +358,7 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         Types.Request memory m = abi.decode((_message), (Types.Request));
         _wrapBridgeOutToken(_token, _amount);
         _sendToken(_token, _amount, m.receiver, false);
-        emit RequestDone(m.id, 0, _amount, _token, m.fee, Types.RequestStatus.Fallback);
+        emit RequestDone(m.id, 0, _amount, _token, m.fee, Types.RequestStatus.Fallback, bytes(""));
         return ExecutionStatus.Success;
     }
     
@@ -370,7 +391,8 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
                 receiver: _desc.receiver,
                 nativeOut: _desc.nativeOut,
                 fee: _desc.fee,
-                allowPartialFill: _desc.allowPartialFill
+                allowPartialFill: _desc.allowPartialFill,
+                forward: _desc.forward
             })
         );
     }
