@@ -252,10 +252,6 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         address // _executor
     ) external payable override onlyMessageBus nonReentrant returns (ExecutionStatus) {
         Types.Request memory m = abi.decode((_message), (Types.Request));
-        Types.Forward memory f;
-        if (m.forward.length > 0) {
-            f = abi.decode(m.forward, (Types.Forward));
-        }
 
         // handle the case where amount received is not enough to pay fee
         if (_amount < m.fee) {
@@ -263,7 +259,7 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
             emit RequestDone(m.id, 0, 0, _token, m.fee, Types.RequestStatus.Succeeded, bytes(""));
             return ExecutionStatus.Success;
         } else {
-            _amount = _amount - m.fee - f.fee;
+            _amount = _amount - m.fee;
         }
 
         uint256 sumAmtOut = _amount;
@@ -286,12 +282,11 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
             }
 
             if (m.forward.length > 0) {
-                bytes32 forwardProviderHash = keccak256(bytes(f.provider));
-                IBridgeAdapter bridge = bridges[forwardProviderHash];
-                require(address(bridge) != address(0), "unsupported bridge");
-
-                IERC20(tokenOut).safeIncreaseAllowance(address(bridge), sumAmtOut);
-                forwardResp = bridge.bridge{value: f.fee}(
+                Types.Forward memory f = abi.decode(m.forward, (Types.Forward));
+                IBridgeAdapter cBridge = bridges[CBRIDGE_PROVIDER_HASH];
+                require(address(cBridge) != address(0), "cbridge not set");
+                IERC20(tokenOut).safeIncreaseAllowance(address(cBridge), sumAmtOut);
+                forwardResp = cBridge.bridge(
                     f.dstChain,
                     m.receiver,
                     sumAmtOut,

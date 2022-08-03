@@ -27,15 +27,13 @@ library Types {
         bool nativeOut; // see TransferDescription.nativeOut
         uint256 fee; // see TransferDescription.fee
         bool allowPartialFill; // see TransferDescription.allowPartialFill
-        // sets if another hop is required on the chain, abi.encode(Forward)
+        // sets if another cbridge hop is required on the chain, abi.encode(Forward)
         bytes forward;
     }
 
     struct Forward {
-        string provider;
         uint64 dstChain;
-        uint256 fee;
-        // abi encoded bridge params
+        // abi encoded cbridge params
         bytes params;
     }
 
@@ -66,7 +64,7 @@ library Types {
         // in case of multi route swaps, whether to allow the successful swaps to go through
         // and sending the amountIn of the failed swaps back to user
         bool allowPartialFill;
-        // sets if another hop is required on the chain, abi.encode(Forward)
+        // sets if another cbridge hop is required on the dst chain, abi.encode(Forward)
         bytes forward;
     }
 }
