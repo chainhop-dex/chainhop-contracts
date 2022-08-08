@@ -19,7 +19,7 @@ const deployFunc: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
     log: true,
     args: [
       config.transferSwapper,
-      config.stargateRouter
+      config.stargateRouters
     ]
   });
 };

@@ -14,7 +14,6 @@ import "./FeeOperator.sol";
 import "./SigVerifier.sol";
 import "./Swapper.sol";
 import "./interfaces/IBridgeAdapter.sol";
-import "./interfaces/ICallbackFromAdapter.sol";
 import "./interfaces/ICodec.sol";
 
 /**
@@ -23,7 +22,7 @@ import "./interfaces/ICodec.sol";
  * @title An app that enables swapping on a chain, transferring to another chain and swapping
  * another time on the destination chain before sending the result tokens to a user
  */
-contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperator, ReentrancyGuard, BridgeRegistry, ICallbackFromAdapter {
+contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperator, ReentrancyGuard, BridgeRegistry {
     using SafeERC20 for IERC20;
     using ECDSA for bytes32;
 
@@ -346,7 +345,7 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         uint256 _amount,
         bytes calldata _message,
         address // _executor
-    ) external override nonReentrant returns (ExecutionStatus) {
+    ) external nonReentrant returns (ExecutionStatus) {
         IERC20(_token).transferFrom(msg.sender, address(this), _amount);
         return _refund(_token, _amount, _message);
     }

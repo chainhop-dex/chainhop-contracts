@@ -9,7 +9,7 @@ export interface IConfig {
     codecs: ICodecConfig[];
     transferSwapper?: string;
     anyswapRouters?: string[];
-    stargateRouter?: string;
+    stargateRouters?: string[];
   };
 }
 
