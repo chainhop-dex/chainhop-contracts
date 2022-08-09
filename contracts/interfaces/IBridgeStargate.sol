@@ -9,6 +9,7 @@ interface IBridgeStargate {
         bytes dstNativeAddr;
     }
 
+    // only in non RouterETH
     function swap(
         uint16 _dstChainId,
         uint256 _srcPoolId,
@@ -20,8 +21,19 @@ interface IBridgeStargate {
         bytes calldata _to,
         bytes calldata _payload
     ) external payable;
-
+    // only in non RouterETH
     function bridge() external pure returns (address);
+
+    // only in RouterETH
+    function swapETH(
+        uint16 _dstChainId,                         // destination Stargate chainId
+        address payable _refundAddress,             // refund additional messageFee to this address
+        bytes calldata _toAddress,                  // the receiver of the destination ETH
+        uint256 _amountLD,                          // the amount, in Local Decimals, to be swapped
+        uint256 _minAmountLD                        // the minimum amount accepted out on destination
+    ) external payable;
+    // only in RouterETH
+    function stargateRouter() external pure returns (address);
 }
 
 interface IStargateInternalBridge {

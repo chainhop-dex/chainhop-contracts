@@ -24,8 +24,8 @@ export const deploymentConfigs: IConfig = {
     ],
     codecs: [UniswapV3ExactInputCodec, CurvePoolCodec, getSpecialMetaPoolCodecConfig(1), getMetaPoolCodecConfig(1)],
     transferSwapper: process.env.TRANSFER_SWAPPER_1, //set with the actual addr after TransferSwapper is deployed
-    anyswapRouters: [process.env.ANYSWAP_ROUTER_1 ?? ""], 
-    stargateRouter: process.env.STARGATE_ROUTER_1
+    anyswapRouters: (process.env.ANYSWAP_ROUTER_1 ?? "").split(','), 
+    stargateRouters: (process.env.STARGATE_ROUTER_1 ?? "").split(',')
   },
 
   // BSC
@@ -37,8 +37,8 @@ export const deploymentConfigs: IConfig = {
     ],
     codecs: [UniswapV2SwapExactTokensForTokensCodec],
     transferSwapper: process.env.TRANSFER_SWAPPER_56, //set with the actual addr after TransferSwapper is deployed
-    anyswapRouters: [process.env.ANYSWAP_ROUTER_56 ?? ""], 
-    stargateRouter: process.env.STARGATE_ROUTER_56
+    anyswapRouters: (process.env.ANYSWAP_ROUTER_56 ?? "").split(','), 
+    stargateRouters: (process.env.STARGATE_ROUTER_56 ?? "").split(',')
   },
 
   // Optimism
@@ -50,8 +50,8 @@ export const deploymentConfigs: IConfig = {
     ],
     codecs: [UniswapV3ExactInputCodec],
     transferSwapper: process.env.TRANSFER_SWAPPER_10, //set with the actual addr after TransferSwapper is deployed
-    anyswapRouters: [process.env.ANYSWAP_ROUTER_10 ?? ""], 
-    stargateRouter: process.env.STARGATE_ROUTER_10
+    anyswapRouters: (process.env.ANYSWAP_ROUTER_10 ?? "").split(','), 
+    stargateRouters: (process.env.STARGATE_ROUTER_10 ?? "").split(',')
   },
 
   // Polygon
@@ -70,8 +70,8 @@ export const deploymentConfigs: IConfig = {
       UniswapV3ExactInputCodec
     ],
     transferSwapper: process.env.TRANSFER_SWAPPER_137, //set with the actual addr after TransferSwapper is deployed
-    anyswapRouters: [process.env.ANYSWAP_ROUTER_137 ?? ""], 
-    stargateRouter: process.env.STARGATE_ROUTER_137
+    anyswapRouters: (process.env.ANYSWAP_ROUTER_137 ?? "").split(','), 
+    stargateRouters: (process.env.STARGATE_ROUTER_137 ?? "").split(',')
   },
 
   // Fantom
@@ -84,8 +84,8 @@ export const deploymentConfigs: IConfig = {
     ],
     codecs: [UniswapV2SwapExactTokensForTokensCodec, CurvePoolCodec, getMetaPoolCodecConfig(250)],
     transferSwapper: process.env.TRANSFER_SWAPPER_250, //set with the actual addr after TransferSwapper is deployed
-    anyswapRouters: [process.env.ANYSWAP_ROUTER_250 ?? ""], 
-    stargateRouter: process.env.STARGATE_ROUTER_250
+    anyswapRouters: (process.env.ANYSWAP_ROUTER_250 ?? "").split(','), 
+    stargateRouters: (process.env.STARGATE_ROUTER_250 ?? "").split(',')
   },
 
   // Avalanche
@@ -105,8 +105,8 @@ export const deploymentConfigs: IConfig = {
       PlatypusRouter01Codec
     ],
     transferSwapper: process.env.TRANSFER_SWAPPER_43114, //set with the actual addr after TransferSwapper is deployed
-    anyswapRouters: [process.env.ANYSWAP_ROUTER_43114 ?? ""], 
-    stargateRouter: process.env.STARGATE_ROUTER_43114
+    anyswapRouters: (process.env.ANYSWAP_ROUTER_43114 ?? "").split(','), 
+    stargateRouters: (process.env.STARGATE_ROUTER_43114 ?? "").split(',')
   },
 
   // Arbitrum
@@ -125,7 +125,7 @@ export const deploymentConfigs: IConfig = {
       UniswapV3ExactInputCodec
     ],
     transferSwapper: process.env.TRANSFER_SWAPPER_42161, //set with the actual addr after TransferSwapper is deployed
-    anyswapRouters: [process.env.ANYSWAP_ROUTER_42161 ?? ""], 
-    stargateRouter: process.env.STARGATE_ROUTER_42161
+    anyswapRouters: (process.env.ANYSWAP_ROUTER_42161 ?? "").split(','), 
+    stargateRouters: (process.env.STARGATE_ROUTER_42161 ?? "").split(',')
   }
 };
