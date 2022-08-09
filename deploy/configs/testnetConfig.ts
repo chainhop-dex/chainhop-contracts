@@ -16,8 +16,8 @@ export const testnetDeploymentConfigs: IConfig = {
     ],
     codecs: [UniswapV2SwapExactTokensForTokensCodec],
     transferSwapper: process.env.TRANSFER_SWAPPER_5, //set with the actual addr after TransferSwapper is deployed
-    anyswapRouters: [process.env.ANYSWAP_ROUTER_5 ?? ""], 
-    stargateRouter: process.env.STARGATE_ROUTER_5
+    anyswapRouters: (process.env.ANYSWAP_ROUTER_5 ?? "").split(','), 
+    stargateRouters: (process.env.STARGATE_ROUTER_5 ?? "").split(',')
   },
 
   // BSC Testnet
@@ -29,8 +29,8 @@ export const testnetDeploymentConfigs: IConfig = {
     ],
     codecs: [UniswapV2SwapExactTokensForTokensCodec],
     transferSwapper: process.env.TRANSFER_SWAPPER_97, //set with the actual addr after TransferSwapper is deployed
-    anyswapRouters: [process.env.ANYSWAP_ROUTER_97 ?? ""], 
-    stargateRouter: process.env.STARGATE_ROUTER_97
+    anyswapRouters: (process.env.ANYSWAP_ROUTER_97 ?? "").split(','), 
+    stargateRouters: (process.env.STARGATE_ROUTER_97 ?? "").split(',')
   }
 };
 

@@ -8,7 +8,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "../lib/MessageSenderLib.sol";
 import "../lib/MessageReceiverApp.sol";
 import "../interfaces/IBridgeAdapter.sol";
-import "../interfaces/ICallbackFromAdapter.sol";
+import "../interfaces/ITransferSwapper.sol";
 import "../interfaces/IIntermediaryOriginalToken.sol";
 
 contract CBridgeAdapter is MessageReceiverApp, IBridgeAdapter {
@@ -88,6 +88,6 @@ contract CBridgeAdapter is MessageReceiverApp, IBridgeAdapter {
         address _executor
     ) external payable override onlyMessageBus returns (ExecutionStatus) {
         IERC20(_token).approve(mainContract, _amount);
-        return ICallbackFromAdapter(mainContract).executeMessageWithTransferRefundFromAdapter(_token, _amount, _message, _executor);
+        return ITransferSwapper(mainContract).executeMessageWithTransferRefundFromAdapter(_token, _amount, _message, _executor);
     }
 }

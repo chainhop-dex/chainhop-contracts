@@ -4,7 +4,8 @@ pragma solidity >=0.8.15;
 
 import "./IMessageReceiverApp.sol";
 
-interface ICallbackFromAdapter {
+interface ITransferSwapper {
+    function nativeWrap() external view returns (address);
 
     /**
      * @notice Called by MessageBus (MessageBusReceiver) to process refund of the original transfer from this contract
