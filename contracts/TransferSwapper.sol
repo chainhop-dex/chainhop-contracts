@@ -248,7 +248,7 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         uint256 _amount,
         uint64, // _srcChainId
         bytes memory _message,
-        address // _executor
+        address _executor
     ) external payable override onlyMessageBus nonReentrant returns (ExecutionStatus) {
         Types.Request memory m = abi.decode((_message), (Types.Request));
 
@@ -285,15 +285,21 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
                 IBridgeAdapter cBridge = bridges[CBRIDGE_PROVIDER_HASH];
                 require(address(cBridge) != address(0), "cbridge not set");
                 IERC20(tokenOut).safeIncreaseAllowance(address(cBridge), sumAmtOut);
-                forwardResp = cBridge.bridge(
+                bytes memory requestMessage = _encodeRequestMessage(m.id, m.receiver);
+                forwardResp = cBridge.bridge{value: msg.value}(
                     f.dstChain,
                     m.receiver,
                     sumAmtOut,
                     tokenOut,
                     f.params,
-                    bytes("")
+                    requestMessage
                 );
             } else {
+                // msg.value is not used in this code branch, pay back to sender
+                if (msg.value > 0) {
+                    (bool sent, ) = _executor.call{value: msg.value}("");
+                    require(sent, "send fail");
+                }
                 _sendToken(tokenOut, sumAmtOut, m.receiver, m.nativeOut);
             }
         }
@@ -387,6 +393,25 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
                 fee: _desc.fee,
                 allowPartialFill: _desc.allowPartialFill,
                 forward: _desc.forward
+            })
+        );
+    }
+
+    function _encodeRequestMessage(
+        bytes32 _id,
+        address _receiver
+    ) internal pure returns (bytes memory message) {
+        ICodec.SwapDescription[] memory emptySwaps;
+        bytes memory empty;
+        message = abi.encode(
+            Types.Request({
+                id: _id,
+                receiver: _receiver,
+                swaps: emptySwaps,
+                nativeOut: false,
+                fee: 0,
+                allowPartialFill: false,
+                forward: empty
             })
         );
     }
