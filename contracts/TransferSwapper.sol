@@ -265,7 +265,10 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         uint256 sumAmtFailed;
         bytes memory forwardResp;
         {
+            // Note if to wrap, the NATIVE used to convert is from the ones sent by upstream in advance, but not part of the `msg.value`
+            // `msg.value` here is only used to pay for msg fee
             _wrapBridgeOutToken(_token, _amount);
+            
             address tokenOut = _token;
             if (m.swaps.length != 0) {
                 ICodec[] memory codecs;

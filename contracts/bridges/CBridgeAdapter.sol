@@ -2,6 +2,7 @@
 
 pragma solidity >=0.8.15;
 
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
@@ -12,6 +13,8 @@ import "../interfaces/ITransferSwapper.sol";
 import "../interfaces/IIntermediaryOriginalToken.sol";
 
 contract CBridgeAdapter is MessageReceiverApp, IBridgeAdapter {
+    using SafeERC20 for IERC20;
+    
     address public mainContract;
 
     event MainContractUpdated(address mainContract);
@@ -49,7 +52,7 @@ contract CBridgeAdapter is MessageReceiverApp, IBridgeAdapter {
         bytes memory _requestMessage
     ) external payable onlyMainContract returns (bytes memory bridgeResp) {
         CBridgeParams memory params = abi.decode((_bridgeParams), (CBridgeParams));
-        IERC20(_token).transferFrom(msg.sender, address(this), _amount);
+        IERC20(_token).safeTransferFrom(msg.sender, address(this), _amount);
         if (params.wrappedBridgeToken != address(0)) {
             address canonical = IIntermediaryOriginalToken(params.wrappedBridgeToken).canonical();
             require(canonical == _token, "canonical != _token");

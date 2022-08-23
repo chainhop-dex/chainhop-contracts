@@ -2,6 +2,7 @@
 
 pragma solidity >=0.8.15;
 
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
@@ -11,6 +12,8 @@ import "../interfaces/ITransferSwapper.sol";
 import "../interfaces/IWETH.sol";
 
 contract StargateAdapter is IBridgeAdapter, Ownable {
+    using SafeERC20 for IERC20;
+    
     address public mainContract;
     mapping(address => bool) public supportedRouters;
     mapping(bytes32 => bool) public transfers;
@@ -58,7 +61,7 @@ contract StargateAdapter is IBridgeAdapter, Ownable {
         );
         require(transfers[transferId] == false, "transfer exists");
         transfers[transferId] = true;
-        IERC20(_token).transferFrom(msg.sender, address(this), _amount);
+        IERC20(_token).safeTransferFrom(msg.sender, address(this), _amount);
         uint64 outboundNonce = swap(_token, _receiver, _amount, params);
         return abi.encodePacked(outboundNonce);
     }
