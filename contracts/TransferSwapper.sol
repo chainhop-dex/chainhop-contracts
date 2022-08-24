@@ -110,7 +110,8 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         uint256 refundAmount,
         address refundToken,
         uint256 feeCollected,
-        Types.RequestStatus status
+        Types.RequestStatus status,
+        bytes forwardResp
     );
 
     /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
@@ -247,42 +248,66 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         uint256 _amount,
         uint64, // _srcChainId
         bytes memory _message,
-        address // _executor
+        address _executor
     ) external payable override onlyMessageBus nonReentrant returns (ExecutionStatus) {
         Types.Request memory m = abi.decode((_message), (Types.Request));
 
         // handle the case where amount received is not enough to pay fee
         if (_amount < m.fee) {
             m.fee = _amount;
-            emit RequestDone(m.id, 0, 0, _token, m.fee, Types.RequestStatus.Succeeded);
+            emit RequestDone(m.id, 0, 0, _token, m.fee, Types.RequestStatus.Succeeded, bytes(""));
             return ExecutionStatus.Success;
         } else {
             _amount = _amount - m.fee;
         }
 
-        _wrapBridgeOutToken(_token, _amount);
-
-        address tokenOut = _token;
-        bool nativeOut = m.nativeOut;
         uint256 sumAmtOut = _amount;
         uint256 sumAmtFailed;
+        bytes memory forwardResp;
+        {
+            // Note if to wrap, the NATIVE used to convert is from the ones sent by upstream in advance, but not part of the `msg.value`
+            // `msg.value` here is only used to pay for msg fee
+            _wrapBridgeOutToken(_token, _amount);
+            
+            address tokenOut = _token;
+            if (m.swaps.length != 0) {
+                ICodec[] memory codecs;
+                address tokenIn;
+                // swap first before sending the token out to user
+                (, tokenIn, tokenOut, codecs) = sanitizeSwaps(m.swaps);
+                require(tokenIn == _token, "tkin mm"); // tokenIn mismatch
+                (sumAmtOut, sumAmtFailed) = executeSwapsWithOverride(m.swaps, codecs, _amount, m.allowPartialFill);
+                // if at this stage the tx is not reverted, it means at least 1 swap in routes succeeded
+                if (sumAmtFailed > 0) {
+                    _sendToken(_token, sumAmtFailed, m.receiver, false);
+                }
+            }
 
-        if (m.swaps.length != 0) {
-            ICodec[] memory codecs;
-            address tokenIn;
-            // swap first before sending the token out to user
-            (, tokenIn, tokenOut, codecs) = sanitizeSwaps(m.swaps);
-            require(tokenIn == _token, "tkin mm"); // tokenIn mismatch
-            (sumAmtOut, sumAmtFailed) = executeSwapsWithOverride(m.swaps, codecs, _amount, m.allowPartialFill);
-            // if at this stage the tx is not reverted, it means at least 1 swap in routes succeeded
-            if (sumAmtFailed > 0) {
-                _sendToken(_token, sumAmtFailed, m.receiver, false);
+            if (m.forward.length > 0) {
+                Types.Forward memory f = abi.decode(m.forward, (Types.Forward));
+                IBridgeAdapter cBridge = bridges[CBRIDGE_PROVIDER_HASH];
+                require(address(cBridge) != address(0), "cbridge not set");
+                IERC20(tokenOut).safeIncreaseAllowance(address(cBridge), sumAmtOut);
+                bytes memory requestMessage = _encodeRequestMessage(m.id, m.receiver);
+                forwardResp = cBridge.bridge{value: msg.value}(
+                    f.dstChain,
+                    m.receiver,
+                    sumAmtOut,
+                    tokenOut,
+                    f.params,
+                    requestMessage
+                );
+            } else {
+                // msg.value is not used in this code branch, pay back to sender
+                if (msg.value > 0) {
+                    (bool sent, ) = _executor.call{value: msg.value}("");
+                    require(sent, "send fail");
+                }
+                _sendToken(tokenOut, sumAmtOut, m.receiver, m.nativeOut);
             }
         }
-
-        _sendToken(tokenOut, sumAmtOut, m.receiver, nativeOut);
         // status is always success as long as this function call doesn't revert. partial fill is also considered success
-        emit RequestDone(m.id, sumAmtOut, sumAmtFailed, _token, m.fee, Types.RequestStatus.Succeeded);
+        emit RequestDone(m.id, sumAmtOut, sumAmtFailed, _token, m.fee, Types.RequestStatus.Succeeded, forwardResp);
         return ExecutionStatus.Success;
     }
 
@@ -307,7 +332,7 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         uint256 refundAmount = _amount - m.fee; // no need to check amount >= fee as it's already checked before
         _sendToken(_token, refundAmount, m.receiver, false);
 
-        emit RequestDone(m.id, 0, refundAmount, _token, m.fee, Types.RequestStatus.Fallback);
+        emit RequestDone(m.id, 0, refundAmount, _token, m.fee, Types.RequestStatus.Fallback, bytes(""));
         return ExecutionStatus.Success;
     }
 
@@ -336,7 +361,7 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         Types.Request memory m = abi.decode((_message), (Types.Request));
         _wrapBridgeOutToken(_token, _amount);
         _sendToken(_token, _amount, m.receiver, false);
-        emit RequestDone(m.id, 0, _amount, _token, m.fee, Types.RequestStatus.Fallback);
+        emit RequestDone(m.id, 0, _amount, _token, m.fee, Types.RequestStatus.Fallback, bytes(""));
         return ExecutionStatus.Success;
     }
     
@@ -369,7 +394,27 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
                 receiver: _desc.receiver,
                 nativeOut: _desc.nativeOut,
                 fee: _desc.fee,
-                allowPartialFill: _desc.allowPartialFill
+                allowPartialFill: _desc.allowPartialFill,
+                forward: _desc.forward
+            })
+        );
+    }
+
+    function _encodeRequestMessage(
+        bytes32 _id,
+        address _receiver
+    ) internal pure returns (bytes memory message) {
+        ICodec.SwapDescription[] memory emptySwaps;
+        bytes memory empty;
+        message = abi.encode(
+            Types.Request({
+                id: _id,
+                receiver: _receiver,
+                swaps: emptySwaps,
+                nativeOut: false,
+                fee: 0,
+                allowPartialFill: false,
+                forward: empty
             })
         );
     }

@@ -53,8 +53,8 @@ export function encodeMessage(
   allowPartialFill = false
 ): string {
   const encoded = ethers.utils.defaultAbiCoder.encode(
-    ['(bytes32, (address dex, bytes data)[], address, bool, uint256, bool)'],
-    [[id, swaps, receiver, nativeOut, fee, allowPartialFill]]
+    ['(bytes32, (address dex, bytes data)[], address, bool, uint256, bool, bytes)'],
+    [[id, swaps, receiver, nativeOut, fee, allowPartialFill, "0x"]]
   );
   return encoded;
 }
@@ -241,7 +241,8 @@ export function buildTransferDesc(c: IntegrationTestContext, feeSig: string, opt
     amountIn: opts?.amountIn || parseUnits('0'),
     tokenIn: opts?.tokenIn || c.tokenA.address,
     dstTokenOut: opts?.dstTokenOut ?? c.tokenB.address,
-    allowPartialFill: false
+    allowPartialFill: false,
+    forward: '0x'
   };
 
   return desc;
