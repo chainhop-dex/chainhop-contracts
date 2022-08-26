@@ -77,7 +77,7 @@ contract CBridgeAdapter is MessageReceiverApp, IBridgeAdapter {
             msg.value
         );
         if (params.wrappedBridgeToken != address(0)) {
-            IERC20(_token).safeApprove(params.wrappedBridgeToken, 0);
+            IERC20(IIntermediaryOriginalToken(params.wrappedBridgeToken).canonical()).safeApprove(params.wrappedBridgeToken, 0);
         }
         return abi.encodePacked(transferId);
     }
