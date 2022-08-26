@@ -19,5 +19,5 @@ interface ITransferSwapper {
         uint256 _amount,
         bytes calldata _message,
         address _executor
-    ) external returns (IMessageReceiverApp.ExecutionStatus);
+    ) external payable returns (IMessageReceiverApp.ExecutionStatus);
 }

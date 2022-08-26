@@ -132,7 +132,7 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         require(_srcSwaps.length != 0 || (_desc.amountIn != 0 && _desc.tokenIn != address(0)), "nop");
         // swapping on the dst chain requires message passing. only integrated with cbridge for now
         bytes32 bridgeProviderHash = keccak256(bytes(_desc.bridgeProvider));
-        require(_dstSwaps.length == 0 || bridgeProviderHash == CBRIDGE_PROVIDER_HASH, "bridge does not support msg");
+        require((_dstSwaps.length == 0 && _desc.forward.length == 0) || bridgeProviderHash == CBRIDGE_PROVIDER_HASH, "bridge does not support msg");
 
         IBridgeAdapter bridge = bridges[bridgeProviderHash];
         // if not DirectSwap, the bridge provider should be a valid one
@@ -195,7 +195,7 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         uint256 _amountOut
     ) private {
         // fund is directly to user if there is no swaps needed on the destination chain
-        address bridgeOutReceiver = _dstSwaps.length > 0 ? _desc.dstTransferSwapper : _desc.receiver;
+        address bridgeOutReceiver = (_dstSwaps.length > 0 || _desc.forward.length > 0) ? _desc.dstTransferSwapper : _desc.receiver;
         bytes memory bridgeResp;
         {
             _verifyFee(_desc, _amountIn, srcToken);
@@ -370,8 +370,12 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         uint256 _amount,
         bytes calldata _message,
         address // _executor
-    ) external nonReentrant returns (ExecutionStatus) {
-        IERC20(_token).transferFrom(msg.sender, address(this), _amount);
+    ) external payable nonReentrant returns (ExecutionStatus) {
+        if (_token != nativeWrap) {
+            IERC20(_token).safeTransferFrom(msg.sender, address(this), _amount);
+        } else {
+            require(msg.value >= _amount, "no native transferred in");
+        }
         return _refund(_token, _amount, _message);
     }
 
@@ -409,8 +413,8 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         message = abi.encode(
             Types.Request({
                 id: _id,
-                receiver: _receiver,
                 swaps: emptySwaps,
+                receiver: _receiver,
                 nativeOut: false,
                 fee: 0,
                 allowPartialFill: false,

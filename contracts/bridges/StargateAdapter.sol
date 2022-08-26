@@ -82,7 +82,7 @@ contract StargateAdapter is IBridgeAdapter, Ownable {
                 _amount, 
                 params.minReceivedAmt);
         } else {
-            IERC20(_token).approve(address(params.router), _amount);
+            IERC20(_token).safeApprove(params.router, _amount);
             router.swap{value: msg.value}(
                 params.stargateDstChainId, 
                 params.srcPoolId, 
@@ -94,6 +94,7 @@ contract StargateAdapter is IBridgeAdapter, Ownable {
                 abi.encodePacked(_receiver), 
                 bytes("") // not supported additional msg in this version
             );
+            IERC20(_token).safeApprove(params.router, 0);
         }
 
         // query current nonce

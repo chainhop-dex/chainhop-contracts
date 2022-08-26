@@ -61,7 +61,7 @@ contract CBridgeAdapter is MessageReceiverApp, IBridgeAdapter {
             // send so that when bridge contract calls wrapper.transferFrom() it automatically pulls
             // the original token from this contract, wraps it, then transfer the wrapper token from
             // this contract to bridge.
-            IERC20(_token).approve(params.wrappedBridgeToken, _amount);
+            IERC20(_token).safeApprove(params.wrappedBridgeToken, _amount);
             _token = params.wrappedBridgeToken;
         }
         bytes32 transferId = MessageSenderLib.sendMessageWithTransfer(
@@ -76,6 +76,9 @@ contract CBridgeAdapter is MessageReceiverApp, IBridgeAdapter {
             messageBus,
             msg.value
         );
+        if (params.wrappedBridgeToken != address(0)) {
+            IERC20(_token).safeApprove(params.wrappedBridgeToken, 0);
+        }
         return abi.encodePacked(transferId);
     }
 
@@ -84,13 +87,31 @@ contract CBridgeAdapter is MessageReceiverApp, IBridgeAdapter {
         emit MainContractUpdated(_mainContract);
     }
 
+    /**
+     * @notice Used to trigger refund when bridging fails due to large slippage
+     * @dev only MessageBus can call this function, this requires the user to get sigs of the message from SGN
+     * @dev Bridge contract *always* sends native token to its receiver (this contract) even though the _token field is always an ERC20 token
+     * @param _token the token received by this contract
+     * @param _amount the amount of token received by this contract
+     * @return ok whether the processing is successful
+     */
     function executeMessageWithTransferRefund(
         address _token,
         uint256 _amount,
         bytes calldata _message,
         address _executor
     ) external payable override onlyMessageBus returns (ExecutionStatus) {
-        IERC20(_token).approve(mainContract, _amount);
-        return ITransferSwapper(mainContract).executeMessageWithTransferRefundFromAdapter(_token, _amount, _message, _executor);
+        uint256 nativeAmt = 0;
+        ITransferSwapper main = ITransferSwapper(mainContract);
+        if (_token != main.nativeWrap()) {
+            IERC20(_token).safeApprove(mainContract, _amount);
+        } else {
+            nativeAmt = _amount;
+        }
+        ExecutionStatus status = main.executeMessageWithTransferRefundFromAdapter{value: nativeAmt}(_token, _amount, _message, _executor);
+        if (_token != main.nativeWrap()) {
+            IERC20(_token).safeApprove(mainContract, 0);
+        }
+        return status;
     }
 }
