@@ -42,9 +42,9 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         string[] memory _supportedDexFuncs,
         bool _testMode
     )
-        Swapper(_funcSigs, _codecs, _supportedDexList, _supportedDexFuncs)
-        FeeOperator(_feeCollector)
-        SigVerifier(_signer)
+    Swapper(_funcSigs, _codecs, _supportedDexList, _supportedDexFuncs)
+    FeeOperator(_feeCollector)
+    SigVerifier(_signer)
     {
         messageBus = _messageBus;
         nativeWrap = _nativeWrap;
@@ -144,7 +144,13 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         address srcToken = _desc.tokenIn;
         address bridgeToken = _desc.tokenIn;
         if (_srcSwaps.length != 0) {
-            (amountIn, srcToken, bridgeToken, codecs) = sanitizeSwaps(_srcSwaps);
+            bool hasRawDex = false
+            (amountIn, srcToken, bridgeToken, codecs, hasRawDex) = sanitizeSwaps(_srcSwaps);
+            if (hasRawDex) {
+                amountIn = _desc.amountIn;
+                srcToken = _desc.tokenIn;
+                bridgeToken = _desc.tokenIn;
+            }
         }
         if (_desc.nativeIn) {
             require(srcToken == nativeWrap, "tkin no nativeWrap");
@@ -268,14 +274,16 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
             // Note if to wrap, the NATIVE used to convert is from the ones sent by upstream in advance, but not part of the `msg.value`
             // `msg.value` here is only used to pay for msg fee
             _wrapBridgeOutToken(_token, _amount);
-            
+
             address tokenOut = _token;
             if (m.swaps.length != 0) {
                 ICodec[] memory codecs;
                 address tokenIn;
+                bool hasRawDex = false;
                 // swap first before sending the token out to user
-                (, tokenIn, tokenOut, codecs) = sanitizeSwaps(m.swaps);
+                (, tokenIn, tokenOut, codecs, hasRawDex) = sanitizeSwaps(m.swaps);
                 require(tokenIn == _token, "tkin mm"); // tokenIn mismatch
+                require(!hasRawDex, "no rd"); // dex raw calling not allowed
                 (sumAmtOut, sumAmtFailed) = executeSwapsWithOverride(m.swaps, codecs, _amount, m.allowPartialFill);
                 // if at this stage the tx is not reverted, it means at least 1 swap in routes succeeded
                 if (sumAmtFailed > 0) {
@@ -364,7 +372,7 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         emit RequestDone(m.id, 0, _amount, _token, m.fee, Types.RequestStatus.Fallback, bytes(""));
         return ExecutionStatus.Success;
     }
-    
+
     function executeMessageWithTransferRefundFromAdapter(
         address _token,
         uint256 _amount,
@@ -393,14 +401,14 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
     ) internal pure returns (bytes memory message) {
         message = abi.encode(
             Types.Request({
-                id: _id,
-                swaps: _swaps,
-                receiver: _desc.receiver,
-                nativeOut: _desc.nativeOut,
-                fee: _desc.fee,
-                allowPartialFill: _desc.allowPartialFill,
-                forward: _desc.forward
-            })
+        id: _id,
+        swaps: _swaps,
+        receiver: _desc.receiver,
+        nativeOut: _desc.nativeOut,
+        fee: _desc.fee,
+        allowPartialFill: _desc.allowPartialFill,
+        forward: _desc.forward
+        })
         );
     }
 
@@ -412,14 +420,14 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         bytes memory empty;
         message = abi.encode(
             Types.Request({
-                id: _id,
-                swaps: emptySwaps,
-                receiver: _receiver,
-                nativeOut: false,
-                fee: 0,
-                allowPartialFill: false,
-                forward: empty
-            })
+        id: _id,
+        swaps: emptySwaps,
+        receiver: _receiver,
+        nativeOut: false,
+        fee: 0,
+        allowPartialFill: false,
+        forward: empty
+        })
         );
     }
 
