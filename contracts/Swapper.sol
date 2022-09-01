@@ -90,6 +90,31 @@ contract Swapper is CodecRegistry, DexRegistry {
     }
 
     /**
+         * @notice Executes the swaps, decode their return values and sums the returned amount
+     * @dev This function is intended to be used on src chain only
+     * @dev This function immediately fails (return false) if any swaps fail. There is no "partial fill" on src chain
+     * @param _swap. this function assumes that the swaps are already sanitized
+     * @return ok whether the operation is successful
+     * @return amtOut the amount gained from swapping
+     */
+    function executeRawSwap(
+        address tokenIn,
+        address tokenOut,
+        uint256 amountIn,
+        ICodec.SwapDescription memory _swap
+    ) internal returns (bool ok, uint256 amtOut) {
+        IERC20(tokenIn).safeIncreaseAllowance(_swap.dex, amountIn);
+        uint256 balBefore = IERC20(tokenOut).balanceOf(address(this));
+        (ok, ) = _swap.dex.call(_swap.data);
+        if (!ok) {
+            return (false, 0);
+        }
+        uint256 balAfter = IERC20(tokenOut).balanceOf(address(this));
+        amtOut = balAfter - balBefore;
+    }
+
+
+    /**
      * @notice Executes the swaps with override, redistributes amountIns for each swap route,
      * decode their return values and sums the returned amount
      * @dev This function is intended to be used on dst chain only

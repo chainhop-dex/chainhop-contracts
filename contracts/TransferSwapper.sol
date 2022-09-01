@@ -40,9 +40,11 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         address[] memory _codecs,
         address[] memory _supportedDexList,
         string[] memory _supportedDexFuncs,
+        address[] memory _rawDexList,
+        string[] memory _rawDexFuncs,
         bool _testMode
     )
-        Swapper(_funcSigs, _codecs, _supportedDexList, _supportedDexFuncs)
+        Swapper(_funcSigs, _codecs, _supportedDexList, _supportedDexFuncs, _rawDexList, _rawDexFuncs)
         FeeOperator(_feeCollector)
         SigVerifier(_signer)
     {
@@ -144,12 +146,13 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         address srcToken = _desc.tokenIn;
         address bridgeToken = _desc.tokenIn;
         if (_srcSwaps.length != 0) {
-            bool hasRawDex = false;
-            (amountIn, srcToken, bridgeToken, codecs, hasRawDex) = sanitizeSwaps(_srcSwaps);
-            if (hasRawDex) {
+            if (isRawSwap(_srcSwaps[0])) {
+                // till now, only one swap, if it is raw swap
                 amountIn = _desc.amountIn;
                 srcToken = _desc.tokenIn;
                 bridgeToken = _desc.tokenIn;
+            } else {
+                (amountIn, srcToken, bridgeToken, codecs) = sanitizeSwaps(_srcSwaps);
             }
         }
         if (_desc.nativeIn) {
@@ -164,8 +167,8 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
     }
 
     function _swapAndSend(
-        address srcToken,
-        address bridgeToken,
+        address _srcToken,
+        address _bridgeToken,
         uint256 _amountIn,
         Types.TransferDescription memory _desc,
         ICodec.SwapDescription[] memory _srcSwaps,
@@ -178,7 +181,7 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
             bool ok;
             if (isRawSwap(_srcSwaps[0])) {
                 // till now, only one swap, if it is raw swap
-                (ok, amountOut) = executeRawSwap(bridgeToken, _srcSwaps[0]);
+                (ok, amountOut) = executeRawSwap(_srcToken, _bridgeToken, _amountIn, _srcSwaps[0]);
             } else {
                 (ok, amountOut) = executeSwaps(_srcSwaps, _codecs);
             }
@@ -188,12 +191,12 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         bytes32 id = _computeId(_desc.receiver, _desc.nonce);
         // direct send if needed
         if (_desc.dstChainId == uint64(block.chainid)) {
-            emit DirectSwap(id, _amountIn, srcToken, amountOut, bridgeToken);
-            _sendToken(bridgeToken, amountOut, _desc.receiver, _desc.nativeOut);
+            emit DirectSwap(id, _amountIn, _srcToken, amountOut, _bridgeToken);
+            _sendToken(_bridgeToken, amountOut, _desc.receiver, _desc.nativeOut);
             return;
         }
 
-        _transfer(id, srcToken, bridgeToken, _desc, _dstSwaps, _amountIn, amountOut);
+        _transfer(id, _srcToken, _bridgeToken, _desc, _dstSwaps, _amountIn, amountOut);
     }
 
     function _transfer(
@@ -284,13 +287,11 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
             if (m.swaps.length != 0) {
                 ICodec[] memory codecs;
                 address tokenIn;
-                bool hasRawDex = false;
                 // swap first before sending the token out to user
-                (, tokenIn, tokenOut, codecs, hasRawDex) = sanitizeSwaps(m.swaps);
+                (, tokenIn, tokenOut, codecs) = sanitizeSwaps(m.swaps);
                 // tokenIn mismatch
                 require(tokenIn == _token, "tkin mm");
                 // dex raw calling is not allowed for message execution
-                require(!hasRawDex, "no rd");
                 (sumAmtOut, sumAmtFailed) = executeSwapsWithOverride(m.swaps, codecs, _amount, m.allowPartialFill);
                 // if at this stage the tx is not reverted, it means at least 1 swap in routes succeeded
                 if (sumAmtFailed > 0) {
