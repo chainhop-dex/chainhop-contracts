@@ -12,11 +12,16 @@ abstract contract DexRegistry is Ownable {
     event SupportedDexUpdated(address dex, bytes4 selector, bool enabled);
 
     mapping(address => mapping(bytes4 => bool)) public dexRegistry;
+    mapping(address => mapping(bytes4 => bool)) public rawDex;
 
-    constructor(address[] memory _supportedDexList, string[] memory _supportedFuncs) {
+    constructor(address[] memory _supportedDexList, string[] memory _supportedFuncs, address[] memory _rawDexList, string[] memory _rawDexFuncs) {
         for (uint256 i = 0; i < _supportedDexList.length; i++) {
             bytes4 selector = bytes4(keccak256(bytes(_supportedFuncs[i])));
             _setSupportedDex(_supportedDexList[i], selector, true);
+        }
+        for (uint256 i = 0; i < _rawDexList.length; i++) {
+            bytes4 selector = bytes4(keccak256(bytes(_rawDexFuncs[i])));
+            _setRawDex(_rawDexList[i], selector, true);
         }
     }
 
@@ -37,5 +42,15 @@ abstract contract DexRegistry is Ownable {
         bool enabled = dexRegistry[_dex][_selector];
         require(enabled != _enabled, "nop");
         dexRegistry[_dex][_selector] = _enabled;
+    }
+
+    function _setRawDex(
+        address _dex,
+        bytes4 _selector,
+        bool _enabled
+    ) private {
+        bool enabled = rawDex[_dex][_selector];
+        require(enabled != _enabled, "nop");
+        rawDex[_dex][_selector] = _enabled;
     }
 }

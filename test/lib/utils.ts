@@ -3,7 +3,7 @@ import { BigNumber, BigNumberish } from 'ethers';
 import { parseUnits } from 'ethers/lib/utils';
 import { ethers } from 'hardhat';
 import { Types } from '../../typechain/TransferSwapper';
-import { ICodec } from '../../typechain/ICodec';
+import { ICodec } from '../../typechain';
 import { CURVE_SLIPPAGE, UINT64_MAX, UNISWAP_V2_SLIPPAGE, ZERO_ADDR } from './constants';
 import { ChainhopFixture, IntegrationTestContext } from './fixtures';
 
@@ -130,7 +130,32 @@ export function buildUniV2Swap(
   return { dex, data };
 }
 
+export function build1inchSwap(
+    dex: string,
+    amountIn: BigNumber,
+    amountOutMin: BigNumber,
+    tokenIn: string,
+    tokenOut: string,
+    to: string
+): ICodec.SwapDescriptionStruct {
+  let data = ethers.utils.defaultAbiCoder.encode(
+      ['uint256', 'uint256', 'address','address', 'address'],
+      [amountIn, amountOutMin, tokenIn, tokenOut, to]
+  );
+  data = data.slice(2); // strip 0x
+  data = '0xeab90da6' + data; // prepend selector
+  return { dex, data };
+}
+
 export interface UniV2SwapsOverride {
+  amountOutMin?: BigNumber;
+  tokenIn?: string;
+  tokenOut?: string;
+  to?: string;
+  num?: number;
+}
+
+export interface OneinchSwapsOverride {
   amountOutMin?: BigNumber;
   tokenIn?: string;
   tokenOut?: string;
@@ -140,6 +165,12 @@ export interface UniV2SwapsOverride {
 
 interface MockV2Address {
   mockV2: {
+    address: string;
+  };
+}
+
+interface Mock1inchAddress {
+  mock1inch: {
     address: string;
   };
 }
@@ -158,6 +189,20 @@ export function buildUniV2Swaps(c: ChainhopFixture & MockV2Address, amountIn: Bi
   const num = opts?.num ?? 1;
   const swaps: ICodec.SwapDescriptionStruct[] = [];
   const swap = buildUniV2Swap(c.mockV2.address, amountIn, amountOutMin, tokenIn, tokenOut, to);
+  for (let i = 0; i < num; i++) {
+    swaps.push(swap);
+  }
+  return swaps;
+}
+
+export function build1inchSwaps(c: ChainhopFixture & Mock1inchAddress, amountIn: BigNumber, opts?: OneinchSwapsOverride) {
+  const amountOutMin = opts?.amountOutMin ?? slipCurve(amountIn);
+  const tokenIn = opts?.tokenIn ?? c.tokenA.address;
+  const tokenOut = opts?.tokenOut ?? c.tokenB.address;
+  const to = opts?.to ?? c.xswap.address;
+  const num = opts?.num ?? 1;
+  const swaps: ICodec.SwapDescriptionStruct[] = [];
+  const swap = build1inchSwap(c.mock1inch.address, amountIn, amountOutMin, tokenIn, tokenOut, to);
   for (let i = 0; i < num; i++) {
     swaps.push(swap);
   }
@@ -207,6 +252,7 @@ export interface TransferDescOpts {
   feeSig?: string;
   amountIn?: BigNumber;
   tokenIn?: string;
+  bridgeTokenIn?: string;
   wrappedBridgeToken?: string;
   nativeIn?: boolean;
   nativeOut?: boolean;
@@ -240,6 +286,7 @@ export function buildTransferDesc(c: IntegrationTestContext, feeSig: string, opt
     feeSig: feeSig,
     amountIn: opts?.amountIn || parseUnits('0'),
     tokenIn: opts?.tokenIn || c.tokenA.address,
+    bridgeTokenIn: opts?.bridgeTokenIn || c.tokenB.address,
     dstTokenOut: opts?.dstTokenOut ?? c.tokenB.address,
     allowPartialFill: false,
     forward: '0x'

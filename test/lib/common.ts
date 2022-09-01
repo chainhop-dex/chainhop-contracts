@@ -5,13 +5,14 @@ import { ethers, waffle } from 'hardhat';
 import {
   Bridge,
   Bridge__factory,
-  CBridgeAdapter, 
+  CBridgeAdapter,
   CBridgeAdapter__factory,
   CurvePoolCodec,
   CurvePoolCodec__factory,
   IntermediaryOriginalToken__factory,
   MessageBus,
   MessageBus__factory,
+  Mock1inch__factory,
   MockCurvePool__factory,
   MockUniswapV2__factory,
   PlatypusRouter01Codec,
@@ -32,7 +33,9 @@ import { IntermediaryOriginalToken } from './../../typechain/IntermediaryOrigina
 import { MinimalUniswapV2 } from './../../typechain/MinimalUniswapV2';
 import { MockCurvePool } from './../../typechain/MockCurvePool';
 import { MockUniswapV2 } from './../../typechain/MockUniswapV2';
+import { Mock1inch } from './../../typechain/Mock1inch';
 import * as consts from './constants';
+import {expect} from "chai";
 
 // Workaround for https://github.com/nomiclabs/hardhat/issues/849
 // TODO: Remove once fixed upstream.
@@ -71,6 +74,7 @@ export interface TokenContracts {
 export interface MockDexContracts {
   mockV2: MockUniswapV2;
   mockCurve: MockCurvePool;
+  mock1inch: Mock1inch;
 }
 
 export interface MinimalDexContracts {
@@ -149,7 +153,8 @@ export async function deployChainhopContracts(
   feeCollector: string,
   messageBus: string,
   supportedDexList: string[],
-  supportedDexFuncs: string[]
+  supportedDexFuncs: string[],
+  rawDexList: string[]
 ): Promise<ChainHopContracts> {
   const { v2Codec, v3Codec, curveCodec } = await deployCodecContracts(admin);
   const transferSwapperFactory = (await ethers.getContractFactory('TransferSwapper')) as TransferSwapper__factory;
@@ -204,7 +209,10 @@ export async function deployMockDexContracts(admin: Wallet, tokens: TokenContrac
     ); // 1% fixed fake slippage
   await mockCurve.deployed();
 
-  return { mockV2, mockCurve };
+  const mock1inchFactory = (await ethers.getContractFactory('Mock1inch')) as Mock1inch__factory;
+  const mock1inch = await mock1inchFactory.connect(admin).deploy();
+  await mock1inch.deployed();
+  return {mockV2, mockCurve, mock1inch};
 }
 
 export async function deployMinimalDexContracts(admin: Wallet): Promise<MinimalDexContracts> {

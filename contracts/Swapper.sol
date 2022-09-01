@@ -17,14 +17,14 @@ import "./DexRegistry.sol";
 contract Swapper is CodecRegistry, DexRegistry {
     using SafeERC20 for IERC20;
 
-    mapping(address => bool) public rawDex;
-
     constructor(
         string[] memory _funcSigs,
         address[] memory _codecs,
         address[] memory _supportedDexList,
-        string[] memory _supportedDexFuncs
-    ) DexRegistry(_supportedDexList, _supportedDexFuncs) CodecRegistry(_funcSigs, _codecs) {}
+        string[] memory _supportedDexFuncs,
+        address[] memory _rawDexList,
+        string[] memory _rawDexFuncs
+    ) DexRegistry(_supportedDexList, _supportedDexFuncs, _rawDexList, _rawDexFuncs) CodecRegistry(_funcSigs, _codecs) {}
 
     /**
      * @dev Checks the input swaps for that tokenIn and tokenOut for every swap should be the same
@@ -33,28 +33,22 @@ contract Swapper is CodecRegistry, DexRegistry {
      * @return tokenIn the input token of the swaps
      * @return tokenOut the desired output token of the swaps
      * @return codecs a list of codecs which each of them corresponds to a swap
-     * @return hasRawDex if _swaps has raw dex
      */
     function sanitizeSwaps(ICodec.SwapDescription[] memory _swaps)
-    internal
-    view
-    returns (
-        uint256 sumAmtIn,
-        address tokenIn,
-        address tokenOut,
-        ICodec[] memory codecs, // _codecs[i] is for _swaps[i]
-        bool hasRawDex
-    )
+        internal
+        view
+        returns (
+            uint256 sumAmtIn,
+            address tokenIn,
+            address tokenOut,
+            ICodec[] memory codecs // _codecs[i] is for _swaps[i]
+        )
     {
         address prevTokenIn;
         address prevTokenOut;
         codecs = loadCodecs(_swaps);
 
         for (uint256 i = 0; i < _swaps.length; i++) {
-            if (_isRawSwap(_swaps[i])){
-                hasRawDex = true;
-                continue;
-            }
             require(dexRegistry[_swaps[i].dex][bytes4(_swaps[i].data)], "unsupported dex");
             (uint256 _amountIn, address _tokenIn, address _tokenOut) = codecs[i].decodeCalldata(_swaps[i]);
             require(prevTokenIn == address(0) || prevTokenIn == _tokenIn, "tkin mismatch");
@@ -82,11 +76,8 @@ contract Swapper is CodecRegistry, DexRegistry {
         ICodec[] memory _codecs // _codecs[i] is for _swaps[i]
     ) internal returns (bool ok, uint256 sumAmtOut) {
         for (uint256 i = 0; i < _swaps.length; i++) {
-            if (!_isRawSwap(_swaps[i])){
-                (uint256 amountIn, address tokenIn, address tokenOut) = _codecs[i].decodeCalldata(_swaps[i]);
-                bytes memory data = _codecs[i].encodeCalldataWithOverride(_swaps[i].data, amountIn, address(this));
-            }
-
+            (uint256 amountIn, address tokenIn, address tokenOut) = _codecs[i].decodeCalldata(_swaps[i]);
+            bytes memory data = _codecs[i].encodeCalldataWithOverride(_swaps[i].data, amountIn, address(this));
             IERC20(tokenIn).safeIncreaseAllowance(_swaps[i].dex, amountIn);
             uint256 balBefore = IERC20(tokenOut).balanceOf(address(this));
             (ok, ) = _swaps[i].dex.call(data);
@@ -147,13 +138,13 @@ contract Swapper is CodecRegistry, DexRegistry {
         uint256 _amountInOverride,
         ICodec[] memory _codecs
     )
-    private
-    view
-    returns (
-        uint256[] memory amountIns,
-        address tokenIn,
-        address tokenOut
-    )
+        private
+        view
+        returns (
+            uint256[] memory amountIns,
+            address tokenIn,
+            address tokenOut
+        )
     {
         uint256 sumAmtIn;
         amountIns = new uint256[](_swaps.length);
@@ -172,7 +163,7 @@ contract Swapper is CodecRegistry, DexRegistry {
         }
     }
 
-    function _isRawSwap(ICodec.SwapDescription memory _swap) private view returns (bool ok){
+    function isRawSwap(ICodec.SwapDescription memory _swap) internal view returns (bool ok){
         require(dexRegistry[_swap.dex][bytes4(_swap.data)], "unsupported dex");
         return rawDex[_swap.dex];
     }

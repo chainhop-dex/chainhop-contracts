@@ -42,9 +42,9 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         string[] memory _supportedDexFuncs,
         bool _testMode
     )
-    Swapper(_funcSigs, _codecs, _supportedDexList, _supportedDexFuncs)
-    FeeOperator(_feeCollector)
-    SigVerifier(_signer)
+        Swapper(_funcSigs, _codecs, _supportedDexList, _supportedDexFuncs)
+        FeeOperator(_feeCollector)
+        SigVerifier(_signer)
     {
         messageBus = _messageBus;
         nativeWrap = _nativeWrap;
@@ -144,7 +144,7 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         address srcToken = _desc.tokenIn;
         address bridgeToken = _desc.tokenIn;
         if (_srcSwaps.length != 0) {
-            bool hasRawDex = false
+            bool hasRawDex = false;
             (amountIn, srcToken, bridgeToken, codecs, hasRawDex) = sanitizeSwaps(_srcSwaps);
             if (hasRawDex) {
                 amountIn = _desc.amountIn;
@@ -176,7 +176,12 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         uint256 amountOut = _amountIn;
         if (_srcSwaps.length != 0) {
             bool ok;
-            (ok, amountOut) = executeSwaps(_srcSwaps, _codecs);
+            if (isRawSwap(_srcSwaps[0])) {
+                // till now, only one swap, if it is raw swap
+                (ok, amountOut) = executeRawSwap(bridgeToken, _srcSwaps[0]);
+            } else {
+                (ok, amountOut) = executeSwaps(_srcSwaps, _codecs);
+            }
             require(ok, "swap fail");
         }
 
@@ -282,8 +287,10 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
                 bool hasRawDex = false;
                 // swap first before sending the token out to user
                 (, tokenIn, tokenOut, codecs, hasRawDex) = sanitizeSwaps(m.swaps);
-                require(tokenIn == _token, "tkin mm"); // tokenIn mismatch
-                require(!hasRawDex, "no rd"); // dex raw calling not allowed
+                // tokenIn mismatch
+                require(tokenIn == _token, "tkin mm");
+                // dex raw calling is not allowed for message execution
+                require(!hasRawDex, "no rd");
                 (sumAmtOut, sumAmtFailed) = executeSwapsWithOverride(m.swaps, codecs, _amount, m.allowPartialFill);
                 // if at this stage the tx is not reverted, it means at least 1 swap in routes succeeded
                 if (sumAmtFailed > 0) {
@@ -401,14 +408,14 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
     ) internal pure returns (bytes memory message) {
         message = abi.encode(
             Types.Request({
-        id: _id,
-        swaps: _swaps,
-        receiver: _desc.receiver,
-        nativeOut: _desc.nativeOut,
-        fee: _desc.fee,
-        allowPartialFill: _desc.allowPartialFill,
-        forward: _desc.forward
-        })
+                id: _id,
+                swaps: _swaps,
+                receiver: _desc.receiver,
+                nativeOut: _desc.nativeOut,
+                fee: _desc.fee,
+                allowPartialFill: _desc.allowPartialFill,
+                forward: _desc.forward
+            })
         );
     }
 
@@ -420,14 +427,14 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         bytes memory empty;
         message = abi.encode(
             Types.Request({
-        id: _id,
-        swaps: emptySwaps,
-        receiver: _receiver,
-        nativeOut: false,
-        fee: 0,
-        allowPartialFill: false,
-        forward: empty
-        })
+                id: _id,
+                swaps: emptySwaps,
+                receiver: _receiver,
+                nativeOut: false,
+                fee: 0,
+                allowPartialFill: false,
+                forward: empty
+            })
         );
     }
 
