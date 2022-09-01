@@ -10,20 +10,23 @@ import "@openzeppelin/contracts/access/Ownable.sol";
  */
 abstract contract DexRegistry is Ownable {
     event SupportedDexUpdated(address dex, bytes4 selector, bool enabled);
-    event RawDexUpdated(address dex, bool enabled);
 
+    // supported swap functions
+    // 0x3df02124 exchange(int128,int128,uint256,uint256)
+    // 0xa6417ed6 exchange_underlying(int128,int128,uint256,uint256)
+    // 0x44ee1986 exchange_underlying(int128,int128,uint256,uint256,address)
+    // 0x38ed1739 swapExactTokensForTokens(uint256,uint256,address[],address,uint256)
+    // 0xc04b8d59 exactInput((bytes,address,uint256,uint256,uint256))
+    // 0xb0431182 clipperSwap(address,address,uint256,uint256)
+    // 0xe449022e uniswapV3Swap(uint256,uint256,uint256[])
+    // 0x2e95b6c8 unoswap(address,uint256,uint256,bytes32[])
+    // 0x7c025200 swap(address,(address,address,address,address,uint256,uint256,uint256,bytes),bytes)
     mapping(address => mapping(bytes4 => bool)) public dexRegistry;
-    mapping(address => bool) public rawDex;
 
-    constructor(address[] memory _supportedDexList, string[] memory _supportedFuncs, address[] memory _rawDexList, string[] memory _rawDexFuncs) {
+    constructor(address[] memory _supportedDexList, string[] memory _supportedFuncs) {
         for (uint256 i = 0; i < _supportedDexList.length; i++) {
             bytes4 selector = bytes4(keccak256(bytes(_supportedFuncs[i])));
             _setSupportedDex(_supportedDexList[i], selector, true);
-        }
-        for (uint256 i = 0; i < _rawDexList.length; i++) {
-            bytes4 selector = bytes4(keccak256(bytes(_rawDexFuncs[i])));
-            _setSupportedDex(_rawDexList[i], selector, true);
-            _setRawDex(_rawDexList[i], true);
         }
     }
 
@@ -44,22 +47,5 @@ abstract contract DexRegistry is Ownable {
         bool enabled = dexRegistry[_dex][_selector];
         require(enabled != _enabled, "nop");
         dexRegistry[_dex][_selector] = _enabled;
-    }
-
-    function setRawDex(
-        address _dex,
-        bool _enabled
-    ) external onlyOwner {
-        _setRawDex(_dex, _enabled);
-        emit RawDexUpdated(_dex, _enabled);
-    }
-
-    function _setRawDex(
-        address _dex,
-        bool _enabled
-    ) private {
-        bool enabled = rawDex[_dex];
-        require(enabled != _enabled, "nop");
-        rawDex[_dex] = _enabled;
     }
 }

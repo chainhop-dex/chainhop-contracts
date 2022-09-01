@@ -40,11 +40,10 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         address[] memory _codecs,
         address[] memory _supportedDexList,
         string[] memory _supportedDexFuncs,
-        address[] memory _rawDexList,
-        string[] memory _rawDexFuncs,
+        address[] memory _externalSwapDexList,
         bool _testMode
     )
-        Swapper(_funcSigs, _codecs, _supportedDexList, _supportedDexFuncs, _rawDexList, _rawDexFuncs)
+        Swapper(_funcSigs, _codecs, _supportedDexList, _supportedDexFuncs, _externalSwapDexList)
         FeeOperator(_feeCollector)
         SigVerifier(_signer)
     {
@@ -134,7 +133,10 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         require(_srcSwaps.length != 0 || (_desc.amountIn != 0 && _desc.tokenIn != address(0)), "nop");
         // swapping on the dst chain requires message passing. only integrated with cbridge for now
         bytes32 bridgeProviderHash = keccak256(bytes(_desc.bridgeProvider));
-        require((_dstSwaps.length == 0 && _desc.forward.length == 0) || bridgeProviderHash == CBRIDGE_PROVIDER_HASH, "bridge does not support msg");
+        require(
+            (_dstSwaps.length == 0 && _desc.forward.length == 0) || bridgeProviderHash == CBRIDGE_PROVIDER_HASH,
+            "bridge does not support msg"
+        );
 
         IBridgeAdapter bridge = bridges[bridgeProviderHash];
         // if not DirectSwap, the bridge provider should be a valid one
@@ -146,7 +148,7 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         address srcToken = _desc.tokenIn;
         address bridgeToken = _desc.bridgeTokenIn;
         if (_srcSwaps.length != 0) {
-            if (!isRawSwap(_srcSwaps[0])) {
+            if (!isExternalSwap(_srcSwaps[0])) {
                 (amountIn, srcToken, bridgeToken, codecs) = sanitizeSwaps(_srcSwaps);
             }
         }
@@ -174,9 +176,9 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         uint256 amountOut = _amountIn;
         if (_srcSwaps.length != 0) {
             bool ok;
-            if (isRawSwap(_srcSwaps[0])) {
-                // till now, only one swap, if it is raw swap
-                (ok, amountOut) = executeRawSwap(_srcToken, _bridgeToken, _amountIn, _srcSwaps[0]);
+            if (isExternalSwap(_srcSwaps[0])) {
+                // if a swap is raw, it is only possible that there is one element in the array
+                (ok, amountOut) = executeExternalSwap(_srcToken, _bridgeToken, _amountIn, _srcSwaps[0]);
             } else {
                 (ok, amountOut) = executeSwaps(_srcSwaps, _codecs);
             }
@@ -204,7 +206,9 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         uint256 _amountOut
     ) private {
         // fund is directly to user if there is no swaps needed on the destination chain
-        address bridgeOutReceiver = (_dstSwaps.length > 0 || _desc.forward.length > 0) ? _desc.dstTransferSwapper : _desc.receiver;
+        address bridgeOutReceiver = (_dstSwaps.length > 0 || _desc.forward.length > 0)
+            ? _desc.dstTransferSwapper
+            : _desc.receiver;
         bytes memory bridgeResp;
         {
             _verifyFee(_desc, _amountIn, srcToken);
@@ -415,10 +419,7 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         );
     }
 
-    function _encodeRequestMessage(
-        bytes32 _id,
-        address _receiver
-    ) internal pure returns (bytes memory message) {
+    function _encodeRequestMessage(bytes32 _id, address _receiver) internal pure returns (bytes memory message) {
         ICodec.SwapDescription[] memory emptySwaps;
         bytes memory empty;
         message = abi.encode(
