@@ -154,7 +154,8 @@ export async function deployChainhopContracts(
   messageBus: string,
   supportedDexList: string[],
   supportedDexFuncs: string[],
-  rawDexList: string[]
+  rawDexList: string[],
+  rawDexFuncs: string[],
 ): Promise<ChainHopContracts> {
   const { v2Codec, v3Codec, curveCodec } = await deployCodecContracts(admin);
   const transferSwapperFactory = (await ethers.getContractFactory('TransferSwapper')) as TransferSwapper__factory;
@@ -173,6 +174,8 @@ export async function deployChainhopContracts(
       [v2Codec.address, curveCodec.address, v3Codec.address],
       supportedDexList,
       supportedDexFuncs,
+      rawDexList,
+      rawDexFuncs,
       true
     );
   await xswap.deployed();

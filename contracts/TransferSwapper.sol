@@ -144,14 +144,9 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         ICodec[] memory codecs;
 
         address srcToken = _desc.tokenIn;
-        address bridgeToken = _desc.tokenIn;
+        address bridgeToken = _desc.bridgeTokenIn;
         if (_srcSwaps.length != 0) {
-            if (isRawSwap(_srcSwaps[0])) {
-                // till now, only one swap, if it is raw swap
-                amountIn = _desc.amountIn;
-                srcToken = _desc.tokenIn;
-                bridgeToken = _desc.tokenIn;
-            } else {
+            if (!isRawSwap(_srcSwaps[0])) {
                 (amountIn, srcToken, bridgeToken, codecs) = sanitizeSwaps(_srcSwaps);
             }
         }

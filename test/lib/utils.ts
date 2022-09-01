@@ -140,7 +140,7 @@ export function build1inchSwap(
 ): ICodec.SwapDescriptionStruct {
   let data = ethers.utils.defaultAbiCoder.encode(
       ['uint256', 'uint256', 'address','address', 'address'],
-      [amountIn, amountOutMin, tokenIn, tokenOut, to]
+      [amountIn, amountOutMin, to, tokenIn, tokenOut]
   );
   data = data.slice(2); // strip 0x
   data = '0xeab90da6' + data; // prepend selector
@@ -196,7 +196,7 @@ export function buildUniV2Swaps(c: ChainhopFixture & MockV2Address, amountIn: Bi
 }
 
 export function build1inchSwaps(c: ChainhopFixture & Mock1inchAddress, amountIn: BigNumber, opts?: OneinchSwapsOverride) {
-  const amountOutMin = opts?.amountOutMin ?? slipCurve(amountIn);
+  const amountOutMin = opts?.amountOutMin ?? slipUniV2(amountIn);
   const tokenIn = opts?.tokenIn ?? c.tokenA.address;
   const tokenOut = opts?.tokenOut ?? c.tokenB.address;
   const to = opts?.to ?? c.xswap.address;
