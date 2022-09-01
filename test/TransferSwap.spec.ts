@@ -78,7 +78,8 @@ describe('transferWithSwap', () => {
     const desc = await utils.buildTransferDesc(c, feeSig, {
       amountIn: amountIn,
       maxSlippage: maxSlippage,
-      dstTransferSwapper: c.receiver.address
+      dstTransferSwapper: c.receiver.address,
+      bridgeTokenIn: c.tokenA.address
     });
 
     await c.tokenA.connect(c.sender).approve(c.xswap.address, amountIn);
@@ -305,7 +306,8 @@ describe('transferWithSwap', () => {
       tokenIn: c.tokenA.address,
       wrappedBridgeToken: c.wrappedBridgeToken.address, // wraps tokenA
       maxSlippage: maxSlippage,
-      dstTransferSwapper: c.receiver.address
+      dstTransferSwapper: c.receiver.address,
+      bridgeTokenIn: c.tokenA.address
     });
     await c.tokenA.connect(c.sender).approve(c.xswap.address, amountIn);
     const tx = await c.xswap.connect(c.sender).transferWithSwap(desc, [], [], { value: 1000 });
