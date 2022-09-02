@@ -5,13 +5,14 @@ import { ethers, waffle } from 'hardhat';
 import {
   Bridge,
   Bridge__factory,
-  CBridgeAdapter, 
+  CBridgeAdapter,
   CBridgeAdapter__factory,
   CurvePoolCodec,
   CurvePoolCodec__factory,
   IntermediaryOriginalToken__factory,
   MessageBus,
   MessageBus__factory,
+  Mock1inch__factory,
   MockCurvePool__factory,
   MockUniswapV2__factory,
   PlatypusRouter01Codec,
@@ -30,6 +31,7 @@ import { MinimalUniswapV2__factory } from '../../typechain/factories/MinimalUnis
 import { WETH__factory } from './../../typechain/factories/WETH__factory';
 import { IntermediaryOriginalToken } from './../../typechain/IntermediaryOriginalToken';
 import { MinimalUniswapV2 } from './../../typechain/MinimalUniswapV2';
+import { Mock1inch } from './../../typechain/Mock1inch';
 import { MockCurvePool } from './../../typechain/MockCurvePool';
 import { MockUniswapV2 } from './../../typechain/MockUniswapV2';
 import * as consts from './constants';
@@ -71,6 +73,7 @@ export interface TokenContracts {
 export interface MockDexContracts {
   mockV2: MockUniswapV2;
   mockCurve: MockCurvePool;
+  mock1inch: Mock1inch;
 }
 
 export interface MinimalDexContracts {
@@ -99,7 +102,9 @@ export async function deployBridgeContracts(admin: Wallet, weth: string): Promis
   await messageBus.setFeePerByte(1);
 
   const bridgeAdapterFactory = (await ethers.getContractFactory('CBridgeAdapter')) as CBridgeAdapter__factory;
-  const bridgeAdapter = await bridgeAdapterFactory.connect(admin).deploy("0x0000000000000000000000000000000000000000", messageBus.address);
+  const bridgeAdapter = await bridgeAdapterFactory
+    .connect(admin)
+    .deploy('0x0000000000000000000000000000000000000000', messageBus.address);
   await bridgeAdapter.deployed();
 
   return { bridge, bridgeAdapter, messageBus };
@@ -149,7 +154,8 @@ export async function deployChainhopContracts(
   feeCollector: string,
   messageBus: string,
   supportedDexList: string[],
-  supportedDexFuncs: string[]
+  supportedDexFuncs: string[],
+  externalSwapDexList: string[]
 ): Promise<ChainHopContracts> {
   const { v2Codec, v3Codec, curveCodec } = await deployCodecContracts(admin);
   const transferSwapperFactory = (await ethers.getContractFactory('TransferSwapper')) as TransferSwapper__factory;
@@ -168,6 +174,7 @@ export async function deployChainhopContracts(
       [v2Codec.address, curveCodec.address, v3Codec.address],
       supportedDexList,
       supportedDexFuncs,
+      externalSwapDexList,
       true
     );
   await xswap.deployed();
@@ -204,7 +211,10 @@ export async function deployMockDexContracts(admin: Wallet, tokens: TokenContrac
     ); // 1% fixed fake slippage
   await mockCurve.deployed();
 
-  return { mockV2, mockCurve };
+  const mock1inchFactory = (await ethers.getContractFactory('Mock1inch')) as Mock1inch__factory;
+  const mock1inch = await mock1inchFactory.connect(admin).deploy();
+  await mock1inch.deployed();
+  return { mockV2, mockCurve, mock1inch };
 }
 
 export async function deployMinimalDexContracts(admin: Wallet): Promise<MinimalDexContracts> {
