@@ -2,8 +2,8 @@ import { keccak256 } from '@ethersproject/solidity';
 import { BigNumber, BigNumberish } from 'ethers';
 import { parseUnits } from 'ethers/lib/utils';
 import { ethers } from 'hardhat';
-import { TransferSwapper } from '../../typechain';
-import { ICodec } from './../../typechain/ICodec';
+import { Types } from '../../typechain/TransferSwapper';
+import { ICodec } from '../../typechain';
 import { CURVE_SLIPPAGE, UINT64_MAX, UNISWAP_V2_SLIPPAGE, ZERO_ADDR } from './constants';
 import { ChainhopFixture, IntegrationTestContext } from './fixtures';
 
@@ -53,8 +53,8 @@ export function encodeMessage(
   allowPartialFill = false
 ): string {
   const encoded = ethers.utils.defaultAbiCoder.encode(
-    ['(bytes32, (address dex, bytes data)[], address, bool, uint256, bool)'],
-    [[id, swaps, receiver, nativeOut, fee, allowPartialFill]]
+    ['(bytes32, (address dex, bytes data)[], address, bool, uint256, bool, bytes)'],
+    [[id, swaps, receiver, nativeOut, fee, allowPartialFill, "0x"]]
   );
   return encoded;
 }
@@ -72,7 +72,7 @@ export interface ComputeTranferIdOverride {
 }
 
 export function computeTransferId(c: IntegrationTestContext, o?: ComputeTranferIdOverride) {
-  const xswap = c.xswap.address;
+  const sender = c.bridgeAdapter.address;
   const receiver = o?.receiver ?? c.receiver.address;
   const token = o?.token ?? c.tokenB.address;
   const amount = o?.amount ?? parseUnits('100');
@@ -81,7 +81,7 @@ export function computeTransferId(c: IntegrationTestContext, o?: ComputeTranferI
   const srcChainId = o?.srcChainId ?? c.chainId;
   return keccak256(
     ['address', 'address', 'address', 'uint256', 'uint64', 'uint64', 'uint64'],
-    [xswap, receiver, token, amount, dstChainId, nonce, srcChainId]
+    [sender, receiver, token, amount, dstChainId, nonce, srcChainId]
   );
 }
 
@@ -99,7 +99,7 @@ export async function signFee(c: IntegrationTestContext, opts?: FeeSigOverride) 
   const dstChainId = opts?.dstChainId ?? c.chainId + 1;
   const amountIn = opts?.amountIn ?? parseUnits('100');
   const tokenIn = opts?.tokenIn ?? c.tokenA.address;
-  const feeDeadline = opts?.feeDeadline ?? BigNumber.from(Math.floor(Date.now() / 1000 + 600));
+  const feeDeadline = opts?.feeDeadline ?? BigNumber.from(Math.floor(Date.now() / 1000 + 1200));
   const fee = opts?.fee ?? parseUnits('1');
   const hash = keccak256(
     ['string', 'uint64', 'uint64', 'uint256', 'address', 'uint256', 'uint256'],
@@ -130,7 +130,32 @@ export function buildUniV2Swap(
   return { dex, data };
 }
 
+export function build1inchSwap(
+    dex: string,
+    amountIn: BigNumber,
+    amountOutMin: BigNumber,
+    tokenIn: string,
+    tokenOut: string,
+    to: string
+): ICodec.SwapDescriptionStruct {
+  let data = ethers.utils.defaultAbiCoder.encode(
+      ['uint256', 'uint256', 'address','address', 'address'],
+      [amountIn, amountOutMin, to, tokenIn, tokenOut]
+  );
+  data = data.slice(2); // strip 0x
+  data = '0xeab90da6' + data; // prepend selector
+  return { dex, data };
+}
+
 export interface UniV2SwapsOverride {
+  amountOutMin?: BigNumber;
+  tokenIn?: string;
+  tokenOut?: string;
+  to?: string;
+  num?: number;
+}
+
+export interface OneinchSwapsOverride {
   amountOutMin?: BigNumber;
   tokenIn?: string;
   tokenOut?: string;
@@ -140,6 +165,12 @@ export interface UniV2SwapsOverride {
 
 interface MockV2Address {
   mockV2: {
+    address: string;
+  };
+}
+
+interface Mock1inchAddress {
+  mock1inch: {
     address: string;
   };
 }
@@ -158,6 +189,20 @@ export function buildUniV2Swaps(c: ChainhopFixture & MockV2Address, amountIn: Bi
   const num = opts?.num ?? 1;
   const swaps: ICodec.SwapDescriptionStruct[] = [];
   const swap = buildUniV2Swap(c.mockV2.address, amountIn, amountOutMin, tokenIn, tokenOut, to);
+  for (let i = 0; i < num; i++) {
+    swaps.push(swap);
+  }
+  return swaps;
+}
+
+export function build1inchSwaps(c: ChainhopFixture & Mock1inchAddress, amountIn: BigNumber, opts?: OneinchSwapsOverride) {
+  const amountOutMin = opts?.amountOutMin ?? slipUniV2(amountIn);
+  const tokenIn = opts?.tokenIn ?? c.tokenA.address;
+  const tokenOut = opts?.tokenOut ?? c.tokenB.address;
+  const to = opts?.to ?? c.xswap.address;
+  const num = opts?.num ?? 1;
+  const swaps: ICodec.SwapDescriptionStruct[] = [];
+  const swap = build1inchSwap(c.mock1inch.address, amountIn, amountOutMin, tokenIn, tokenOut, to);
   for (let i = 0; i < num; i++) {
     swaps.push(swap);
   }
@@ -200,41 +245,51 @@ export function buildCurveSwaps(c: ChainhopFixture & MockCurveAddress, amountIn:
 export interface TransferDescOpts {
   receiver?: string;
   dstChainId?: number;
+  dstTransferSwapper?: string;
+  bridgeProvider?: string;
   fee?: BigNumber;
   feeDeadline?: BigNumber;
   feeSig?: string;
   amountIn?: BigNumber;
   tokenIn?: string;
+  bridgeTokenIn?: string;
   wrappedBridgeToken?: string;
   nativeIn?: boolean;
   nativeOut?: boolean;
   dstTokenOut?: string;
   allowPartialFill?: boolean;
+  maxSlippage?: number;
 }
 
 export function buildTransferDesc(c: IntegrationTestContext, feeSig: string, opts?: TransferDescOpts) {
   const dstChainId = opts?.dstChainId ?? c.chainId + 1;
 
   const fee = opts?.fee ?? parseUnits('1');
-  const feeDeadline = opts?.feeDeadline ?? BigNumber.from(Math.floor(Date.now() / 1000 + 600));
+  const feeDeadline = opts?.feeDeadline ?? BigNumber.from(Math.floor(Date.now() / 1000 + 1200));
+  const nonce = 1;
+  let bridgeParams = ethers.utils.defaultAbiCoder.encode(
+    ['uint256', 'uint32', 'address', 'uint64'],
+    [BridgeType.Liquidity, opts?.maxSlippage ?? 1000000, opts?.wrappedBridgeToken || ZERO_ADDR, nonce]
+  );
 
-  const desc: TransferSwapper.TransferDescriptionStruct = {
-    bridgeType: BridgeType.Liquidity,
-    maxBridgeSlippage: 1000000,
-    nonce: 1,
+  const desc: Types.TransferDescriptionStruct = {
     receiver: opts?.receiver ?? c.receiver.address,
-
+    dstChainId: dstChainId,
+    dstTransferSwapper: opts?.dstTransferSwapper ?? c.receiver.address,
+    nonce: nonce,
+    bridgeProvider: opts?.bridgeProvider ?? "cbridge",
+    bridgeParams: bridgeParams,
     nativeIn: opts?.nativeIn ?? false,
     nativeOut: opts?.nativeOut ?? false,
-    dstTokenOut: opts?.dstTokenOut ?? c.tokenB.address,
-    dstChainId: dstChainId,
     fee: fee,
     feeDeadline: feeDeadline,
     feeSig: feeSig,
     amountIn: opts?.amountIn || parseUnits('0'),
     tokenIn: opts?.tokenIn || c.tokenA.address,
-    wrappedBridgeToken: opts?.wrappedBridgeToken || ZERO_ADDR,
-    allowPartialFill: false
+    bridgeTokenIn: opts?.bridgeTokenIn || c.tokenB.address,
+    dstTokenOut: opts?.dstTokenOut ?? c.tokenB.address,
+    allowPartialFill: false,
+    forward: '0x'
   };
 
   return desc;

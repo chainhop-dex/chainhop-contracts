@@ -1,8 +1,32 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
-pragma solidity >=0.8.0;
+pragma solidity >=0.8.15;
 
-interface IBridge {
+interface IBridgeCeler {
+    // common
+    function delayThresholds(address token) external view returns (uint256);
+
+    function delayPeriod() external view returns (uint256);
+
+    function epochVolumes(address token) external view returns (uint256);
+
+    function epochVolumeCaps(address token) external view returns (uint256);
+
+    // liquidity bridge
+    function minSend(address token) external view returns (uint256);
+
+    function maxSend(address token) external view returns (uint256);
+
+    // peg vault v0/v2
+    function minDeposit(address token) external view returns (uint256);
+
+    function maxDeposit(address token) external view returns (uint256);
+
+    // peg bridge v0/v2
+    function minBurn(address token) external view returns (uint256);
+
+    function maxBurn(address token) external view returns (uint256);
+
     function nativeWrap() external view returns (address);
 
     function send(

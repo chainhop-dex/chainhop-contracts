@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
-pragma solidity >=0.8.12;
+pragma solidity >=0.8.15;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "./interfaces/ICodec.sol";
@@ -10,12 +10,6 @@ import "./interfaces/ICodec.sol";
  * @author Padoriku
  */
 abstract contract CodecRegistry is Ownable {
-    // Initially supported swap functions
-    // 0x3df02124 exchange(int128,int128,uint256,uint256)
-    // 0xa6417ed6 exchange_underlying(int128,int128,uint256,uint256)
-    // 0x44ee1986 exchange_underlying(int128,int128,uint256,uint256,address)
-    // 0x38ed1739 swapExactTokensForTokens(uint256,uint256,address[],address,uint256)
-    // 0xc04b8d59 exactInput((bytes,address,uint256,uint256,uint256))
     mapping(bytes4 => ICodec) public selector2codec;
 
     // not used programmatically, but added for contract transparency

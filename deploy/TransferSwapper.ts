@@ -42,6 +42,16 @@ const deployTransferSwapper: DeployFunction = async (hre: HardhatRuntimeEnvironm
 
   const { codecDeployResults, codecConfigs } = await deployCodecs(hre);
 
+  const deployEnv = process.env.DEPLOY_ENV;
+  let testMode = false;
+  if (deployEnv == 'fork') {
+    console.warn(`
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !!!!!! deploying contract using DEPLOY_ENV='fork' and test mode is ENABLED  !!!!!!
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      `);
+    testMode = true;
+  }
   const args = [
     config.messageBus,
     config.nativeWrap,
@@ -51,20 +61,23 @@ const deployTransferSwapper: DeployFunction = async (hre: HardhatRuntimeEnvironm
     codecDeployResults.map((codecDeployment) => codecDeployment.address),
     config.supportedDex.map((dex) => dex.address),
     config.supportedDex.map((dex) => dex.func),
-    false
+    config.externalSwapDex,
+    testMode
   ];
   console.log(args);
   const deployResult = await deploy('TransferSwapper', { from: deployer, log: true, args });
   console.log('addr', deployResult.address);
-  console.log('sleeping 15 seconds before verifying contract');
-  await sleep(15000);
 
-  // verify newly deployed TransferSwapper
-  await verify(hre, deployResult, args);
+  if (deployEnv !== 'fork') {
+    console.log('sleeping 15 seconds before verifying contract');
+    await sleep(15000);
+    // verify newly deployed TransferSwapper
+    await verify(hre, deployResult, args);
 
-  // verify newly deployed codecs
-  for (let i = 0; i < codecDeployResults.length; i++) {
-    await verify(hre, codecDeployResults[i], codecConfigs[i].args);
+    // verify newly deployed codecs
+    for (let i = 0; i < codecDeployResults.length; i++) {
+      await verify(hre, codecDeployResults[i], codecConfigs[i].args);
+    }
   }
 };
 

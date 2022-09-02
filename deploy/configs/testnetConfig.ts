@@ -14,7 +14,10 @@ export const testnetDeploymentConfigs: IConfig = {
     supportedDex: [
       { address: '0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D', func: UniswapV2SwapExactTokensForTokensCodec.func } // UniswapV2: UniswapV2Router02
     ],
-    codecs: [UniswapV2SwapExactTokensForTokensCodec]
+    codecs: [UniswapV2SwapExactTokensForTokensCodec],
+    transferSwapper: process.env.TRANSFER_SWAPPER_5, //set with the actual addr after TransferSwapper is deployed
+    anyswapRouters: (process.env.ANYSWAP_ROUTER_5 ?? "").split(','), 
+    stargateRouters: (process.env.STARGATE_ROUTER_5 ?? "").split(',')
   },
 
   // BSC Testnet
@@ -24,7 +27,10 @@ export const testnetDeploymentConfigs: IConfig = {
     supportedDex: [
       { address: '0x9Ac64Cc6e4415144C455BD8E4837Fea55603e5c3', func: UniswapV2SwapExactTokensForTokensCodec.func } // PancakeSwap: UniswapV2Router02
     ],
-    codecs: [UniswapV2SwapExactTokensForTokensCodec]
+    codecs: [UniswapV2SwapExactTokensForTokensCodec],
+    transferSwapper: process.env.TRANSFER_SWAPPER_97, //set with the actual addr after TransferSwapper is deployed
+    anyswapRouters: (process.env.ANYSWAP_ROUTER_97 ?? "").split(','), 
+    stargateRouters: (process.env.STARGATE_ROUTER_97 ?? "").split(',')
   }
 };
 

@@ -23,6 +23,7 @@ export interface IntegrationTestContext extends IntegrationTestFixture {
   sender: Wallet;
   receiver: Wallet;
 }
+
 export interface BenchmarkContext extends BenchmarkFixture {
   sender: Wallet;
   receiver: Wallet;
@@ -37,7 +38,9 @@ export interface BaseFixture extends TokenContracts {
 }
 
 export interface ChainhopFixture extends BaseFixture, BridgeContracts, ChainHopContracts {}
+
 export interface IntegrationTestFixture extends ChainhopFixture, MockDexContracts, WrappedBridgeTokens {}
+
 export interface BenchmarkFixture extends ChainhopFixture, MinimalDexContracts {}
 
 const fundTokens = async (tokens: TokenContracts, to: string) => {
@@ -66,11 +69,20 @@ export const chainhopFixture = async ([admin]: Wallet[]): Promise<IntegrationTes
     signer.address,
     feeCollector.address,
     bridge.messageBus.address,
-    [dex.mockV2.address, dex.mockCurve.address],
-    ['swapExactTokensForTokens(uint256,uint256,address[],address,uint256)', 'exchange(int128,int128,uint256,uint256)']
+    [dex.mockV2.address, dex.mockCurve.address, dex.mock1inch.address],
+    [
+      'swapExactTokensForTokens(uint256,uint256,address[],address,uint256)',
+      'exchange(int128,int128,uint256,uint256)',
+      'swap(uint256,uint256,address,address,address)'
+    ],
+    [dex.mock1inch.address]
   );
+
+  await bridge.bridgeAdapter.updateMainContract(chainhop.xswap.address);
+  await chainhop.xswap.setSupportedBridges(['cbridge'], [bridge.bridgeAdapter.address]);
   await fundTokens(tokens, dex.mockCurve.address);
   await fundTokens(tokens, dex.mockV2.address);
+  await fundTokens(tokens, dex.mock1inch.address);
   await tokens.weth.deposit({ value: parseUnits('20') });
 
   return {
@@ -104,8 +116,11 @@ export const benchmarkFixture = async ([admin]: Wallet[]): Promise<BenchmarkFixt
     feeCollector.address,
     bridge.messageBus.address,
     [dex.mockV2.address],
-    ['swapExactTokensForTokens(uint256,uint256,address[],address,uint256)']
+    ['swapExactTokensForTokens(uint256,uint256,address[],address,uint256)'],
+    []
   );
+  await bridge.bridgeAdapter.updateMainContract(chainhop.xswap.address);
+  await chainhop.xswap.setSupportedBridges(['cbridge'], [bridge.bridgeAdapter.address]);
   await fundTokens(tokens, dex.mockV2.address);
   await tokens.weth.deposit({ value: parseUnits('20') });
 
