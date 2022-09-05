@@ -12,19 +12,11 @@ import "../interfaces/ISpokePool.sol";
 contract AcrossAdapter is IBridgeAdapter, Ownable {
     using SafeERC20 for IERC20;
 
-    address public mainContract;
     address public spokePool;
 
-    event MainContractUpdated(address mainContract);
     event SpokePoolUpdated(address spokePool);
 
-    modifier onlyMainContract() {
-        require(msg.sender == mainContract, "caller is not main contract");
-        _;
-    }
-
-    constructor(address _mainContract, address _spokePool) {
-        mainContract = _mainContract;
+    constructor(address _spokePool) {
         spokePool = _spokePool;
     }
 
@@ -40,8 +32,9 @@ contract AcrossAdapter is IBridgeAdapter, Ownable {
         address _token,
         bytes memory _bridgeParams,
         bytes memory //_requestMessage
-    ) external payable onlyMainContract returns (bytes memory bridgeResp) {
+    ) external payable returns (bytes memory bridgeResp) {
         BridgeParams memory params = abi.decode(_bridgeParams, (BridgeParams));
+        IERC20(_token).safeTransferFrom(msg.sender, address(this), _amount);
         ISpokePool(spokePool).deposit(
             _receiver,
             _token,
@@ -52,11 +45,6 @@ contract AcrossAdapter is IBridgeAdapter, Ownable {
         );
         uint32 depositId = ISpokePool(spokePool).numberOfDeposits();
         return abi.encode(depositId);
-    }
-
-    function setMainContract(address _mainContract) external onlyOwner {
-        mainContract = _mainContract;
-        emit MainContractUpdated(_mainContract);
     }
 
     function setSpokePool(address _spokePool) external onlyOwner {
