@@ -60,6 +60,24 @@ interface ISpokePool {
         mapping(uint256 => uint256) claimedBitmap;
     }
 
+    event FilledRelay(
+        uint256 amount,
+        uint256 totalFilledAmount,
+        uint256 fillAmount,
+        uint256 repaymentChainId,
+        uint256 originChainId,
+        uint256 destinationChainId,
+        uint64 relayerFeePct,
+        uint64 appliedRelayerFeePct,
+        uint64 realizedLpFeePct,
+        uint32 depositId,
+        address destinationToken,
+        address indexed relayer,
+        address indexed depositor,
+        address recipient,
+        bool isSlowRelay
+    );
+
     function setCrossDomainAdmin(address newCrossDomainAdmin) external;
 
     function setHubPool(address newHubPool) external;
