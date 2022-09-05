@@ -11,6 +11,7 @@ export interface IConfig {
     transferSwapper?: string;
     anyswapRouters?: string[];
     stargateRouters?: string[];
+    acrossSpokePool?: string;
   };
 }
 
