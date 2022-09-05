@@ -38,7 +38,7 @@ export const deploymentConfigs: IConfig = {
     ],
     externalSwapDex: ['0x1111111254fb6c44bAC0beD2854e76F90643097d'], // 1inch
     anyswapRouters: ['0x6b7a87899490ece95443e979ca9485cbe7e71522', '0x765277eebeca2e31912c9946eae1021199b39c61'],
-    stargateRouters: []
+    stargateRouters: ['0x8731d54E9D02c286767d56ac03e8037C07e01e98', '0x150f94B44927F078737562f0fcF3C95c01Cc2376']
   },
 
   // Optimism
