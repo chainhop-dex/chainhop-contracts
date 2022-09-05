@@ -1,6 +1,8 @@
 import * as dotenv from 'dotenv';
+import { ethers } from 'hardhat';
 import { DeployFunction, DeployResult } from 'hardhat-deploy/types';
 import { HardhatRuntimeEnvironment } from 'hardhat/types';
+import { TransferSwapper__factory } from './../typechain/factories/TransferSwapper__factory';
 import { deploymentConfigs } from './configs/config';
 import { sleep, verify } from './configs/functions';
 import { isTestnet, testnetDeploymentConfigs } from './configs/testnetConfig';
@@ -66,18 +68,71 @@ const deployTransferSwapper: DeployFunction = async (hre: HardhatRuntimeEnvironm
   ];
   console.log(args);
   const deployResult = await deploy('TransferSwapper', { from: deployer, log: true, args });
-  console.log('addr', deployResult.address);
+
+  const cbridgeArgs = [deployResult.address, config.messageBus];
+  console.log(cbridgeArgs);
+  const cbridgeResult = await deploy('CBridgeAdapter', {
+    from: deployer,
+    log: true,
+    args: cbridgeArgs
+  });
+
+  const anyswapArgs = [deployResult.address, config.anyswapRouters];
+  console.log(anyswapArgs);
+  const anyswapResult = await deploy('AnyswapAdapter', {
+    from: deployer,
+    log: true,
+    args: anyswapArgs
+  });
+
+  const stargateArgs = [deployResult.address, config.stargateRouters];
+  console.log(stargateArgs);
+  const stargateResult = await deploy('StargateAdapter', {
+    from: deployer,
+    log: true,
+    args: stargateArgs
+  });
+
+  const xswapFactory = await ethers.getContractFactory<TransferSwapper__factory>('TransferSwapper');
+  const xswap = xswapFactory.attach(deployResult.address);
+  const deployerSigner = await ethers.getSigner(deployer);
+  const tx = await xswap
+    .connect(deployerSigner)
+    .setSupportedBridges(
+      ['cbridge', 'anyswap', 'stargate'],
+      [cbridgeResult.address, anyswapResult.address, stargateResult.address]
+    );
+  console.log('setSupportedBridges: tx', tx.hash);
+  tx.wait();
+  console.log(`setSupportedBridges: tx ${tx.hash} mined`);
 
   if (deployEnv !== 'fork') {
     console.log('sleeping 15 seconds before verifying contract');
     await sleep(15000);
-    // verify newly deployed TransferSwapper
-    await verify(hre, deployResult, args);
+    const verifications: Promise<any>[] = [];
 
+    // verify newly deployed TransferSwapper
+    if (deployResult.newlyDeployed) {
+      verifications.push(verify(hre, deployResult, args));
+    }
+    // verify newly deployed bridge adapters
+    if (cbridgeResult.newlyDeployed) {
+      verifications.push(verify(hre, cbridgeResult, cbridgeArgs));
+    }
+    if (anyswapResult.newlyDeployed) {
+      verifications.push(verify(hre, anyswapResult, anyswapArgs));
+    }
+    if (stargateResult.newlyDeployed) {
+      verifications.push(verify(hre, stargateResult, stargateArgs));
+    }
     // verify newly deployed codecs
     for (let i = 0; i < codecDeployResults.length; i++) {
-      await verify(hre, codecDeployResults[i], codecConfigs[i].args);
+      if (codecDeployResults[i].newlyDeployed) {
+        verifications.push(verify(hre, codecDeployResults[i], codecConfigs[i].args));
+      }
     }
+
+    await Promise.all(verifications);
   }
 };
 
