@@ -38,7 +38,8 @@ export const deploymentConfigs: IConfig = {
     ],
     externalSwapDex: ['0x1111111254fb6c44bAC0beD2854e76F90643097d'], // 1inch
     anyswapRouters: ['0x6b7a87899490ece95443e979ca9485cbe7e71522', '0x765277eebeca2e31912c9946eae1021199b39c61'],
-    stargateRouters: ['0x8731d54E9D02c286767d56ac03e8037C07e01e98', '0x150f94B44927F078737562f0fcF3C95c01Cc2376']
+    stargateRouters: ['0x8731d54E9D02c286767d56ac03e8037C07e01e98', '0x150f94B44927F078737562f0fcF3C95c01Cc2376'],
+    acrossSpokePool: '0x4D9079Bb4165aeb4084c526a32695dCfd2F77381'
   },
 
   // Optimism
@@ -52,7 +53,8 @@ export const deploymentConfigs: IConfig = {
     codecs: [UniswapV3ExactInputCodec],
     externalSwapDex: ['0x1111111254760f7ab3f16433eea9304126dcd199'], // 1inch
     anyswapRouters: ['0xDC42728B0eA910349ed3c6e1c9Dc06b5FB591f98', '0x80a16016cc4a2e6a2caca8a4a498b1699ff0f844'],
-    stargateRouters: ['0xB0D502E938ed5f4df2E681fE6E419ff29631d62b', '0xB49c4e680174E331CB0A7fF3Ab58afC9738d5F8b']
+    stargateRouters: ['0xB0D502E938ed5f4df2E681fE6E419ff29631d62b', '0xB49c4e680174E331CB0A7fF3Ab58afC9738d5F8b'],
+    acrossSpokePool: '0xa420b2d1c0841415A695b81E5B867BCD07Dff8C9'
   },
 
   // BSC
@@ -89,7 +91,8 @@ export const deploymentConfigs: IConfig = {
     ],
     externalSwapDex: ['0x1111111254fb6c44bac0bed2854e76f90643097d'], // 1inch
     anyswapRouters: ['0x4f3Aff3A747fCADe12598081e80c6605A8be192F', '0x6ff0609046a38d76bd40c5863b4d1a2dce687f73'],
-    stargateRouters: ['0x45A01E4e04F14f7A4a6702c74187c5F6222033cd']
+    stargateRouters: ['0x45A01E4e04F14f7A4a6702c74187c5F6222033cd'],
+    acrossSpokePool: '0x69B5c72837769eF1e7C164Abc6515DcFf217F920'
   },
 
   // Fantom
@@ -126,7 +129,8 @@ export const deploymentConfigs: IConfig = {
     ],
     externalSwapDex: ['0x1111111254fb6c44bac0bed2854e76f90643097d'], // 1inch
     anyswapRouters: ['0xc931f61b1534eb21d8c11b24f3f5ab2471d4ab50', '0x0cae51e1032e8461f4806e26332c030e34de3adb'],
-    stargateRouters: ['0x53Bf833A5d6c4ddA888F69c22C88C9f356a41614', '0xbf22f0f184bCcbeA268dF387a49fF5238dD23E40']
+    stargateRouters: ['0x53Bf833A5d6c4ddA888F69c22C88C9f356a41614', '0xbf22f0f184bCcbeA268dF387a49fF5238dD23E40'],
+    acrossSpokePool: '0xB88690461dDbaB6f04Dfad7df66B7725942FEb9C'
   },
 
   // Avalanche
