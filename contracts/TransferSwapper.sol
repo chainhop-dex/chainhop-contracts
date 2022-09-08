@@ -146,11 +146,16 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         ICodec[] memory codecs;
 
         address srcToken = _desc.tokenIn;
-        address bridgeToken = _desc.bridgeTokenIn;
+        address bridgeToken = _desc.tokenIn;
         if (_srcSwaps.length != 0) {
-            if (!isExternalSwap(_srcSwaps[0])) {
+            if (isExternalSwap(_srcSwaps[0])) {
+                bridgeToken = _desc.bridgeTokenIn;
+            } else {
                 (amountIn, srcToken, bridgeToken, codecs) = sanitizeSwaps(_srcSwaps);
             }
+            require(srcToken != bridgeToken, "srcToken must not equal bridgeToken");
+        } else {
+            require(srcToken == bridgeToken, "srcToken must equal bridgeToken");
         }
         if (_desc.nativeIn) {
             require(srcToken == nativeWrap, "tkin no nativeWrap");
