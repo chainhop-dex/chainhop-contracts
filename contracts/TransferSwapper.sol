@@ -145,22 +145,25 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         uint256 amountIn = _desc.amountIn;
         ICodec[] memory codecs;
 
-        address srcToken = _desc.tokenIn;
-        address bridgeToken = _desc.bridgeTokenIn;
+        address srcTokenIn = _desc.tokenIn;
+        address srcTokenOut = _desc.tokenIn;
         if (_srcSwaps.length != 0) {
-            if (!isExternalSwap(_srcSwaps[0])) {
-                (amountIn, srcToken, bridgeToken, codecs) = sanitizeSwaps(_srcSwaps);
+            if (isExternalSwap(_srcSwaps[0])) {
+                srcTokenOut = _desc.bridgeTokenIn;
+            } else {
+                (amountIn, srcTokenIn, srcTokenOut, codecs) = sanitizeSwaps(_srcSwaps);
             }
+            require(srcTokenIn != srcTokenOut, "token in/out must not equal if exists swaps");
         }
         if (_desc.nativeIn) {
-            require(srcToken == nativeWrap, "tkin no nativeWrap");
+            require(srcTokenIn == nativeWrap, "tkin no nativeWrap");
             require(msg.value >= amountIn, "insfcnt amt"); // insufficient amount
             IWETH(nativeWrap).deposit{value: amountIn}();
         } else {
-            IERC20(srcToken).safeTransferFrom(msg.sender, address(this), amountIn);
+            IERC20(srcTokenIn).safeTransferFrom(msg.sender, address(this), amountIn);
         }
 
-        _swapAndSend(srcToken, bridgeToken, amountIn, _desc, _srcSwaps, _dstSwaps, codecs);
+        _swapAndSend(srcTokenIn, srcTokenOut, amountIn, _desc, _srcSwaps, _dstSwaps, codecs);
     }
 
     function _swapAndSend(
@@ -177,7 +180,7 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         if (_srcSwaps.length != 0) {
             bool ok;
             if (isExternalSwap(_srcSwaps[0])) {
-                // if a swap is raw, it is only possible that there is one element in the array
+                // for external swaps, it is only possible that there is one element in the array
                 (ok, amountOut) = executeExternalSwap(_srcToken, _bridgeToken, _amountIn, _srcSwaps[0]);
             } else {
                 (ok, amountOut) = executeSwaps(_srcSwaps, _codecs);
@@ -198,8 +201,8 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
 
     function _transfer(
         bytes32 _id,
-        address srcToken,
-        address bridgeToken,
+        address srcTokenIn,
+        address srcTokenOut,
         Types.TransferDescription memory _desc,
         ICodec.SwapDescription[] memory _dstSwaps,
         uint256 _amountIn,
@@ -211,19 +214,19 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
             : _desc.receiver;
         bytes memory bridgeResp;
         {
-            _verifyFee(_desc, _amountIn, srcToken);
+            _verifyFee(_desc, _amountIn, srcTokenIn);
             uint256 msgFee = msg.value;
             if (_desc.nativeIn) {
                 msgFee = msg.value - _amountIn;
             }
             IBridgeAdapter bridge = bridges[keccak256(bytes(_desc.bridgeProvider))];
-            IERC20(bridgeToken).safeIncreaseAllowance(address(bridge), _amountOut);
+            IERC20(srcTokenOut).safeIncreaseAllowance(address(bridge), _amountOut);
             bytes memory requestMessage = _encodeRequestMessage(_id, _desc, _dstSwaps);
             bridgeResp = bridge.bridge{value: msgFee}(
                 _desc.dstChainId,
                 bridgeOutReceiver,
                 _amountOut,
-                bridgeToken,
+                srcTokenOut,
                 _desc.bridgeParams,
                 requestMessage
             );
@@ -233,10 +236,10 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
             bridgeResp,
             _desc.dstChainId,
             _amountIn,
-            srcToken,
+            srcTokenIn,
             _desc.dstTokenOut,
             bridgeOutReceiver,
-            bridgeToken,
+            srcTokenOut,
             _amountOut,
             _desc.bridgeProvider
         );

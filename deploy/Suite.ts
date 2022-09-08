@@ -3,19 +3,14 @@ import { ethers } from 'hardhat';
 import { DeployFunction, DeployResult } from 'hardhat-deploy/types';
 import { HardhatRuntimeEnvironment } from 'hardhat/types';
 import { TransferSwapper__factory } from '../typechain/factories/TransferSwapper__factory';
-import { AnyswapAdapter__factory } from './../typechain/factories/AnyswapAdapter__factory';
-import { CBridgeAdapter__factory } from './../typechain/factories/CBridgeAdapter__factory';
-import { StargateAdapter__factory } from './../typechain/factories/StargateAdapter__factory';
-import { bridgeAdapters } from './configs/adapters';
 import { deploymentConfigs } from './configs/config';
-import { verify } from './configs/functions';
+import { sleep, verify } from './configs/functions';
 import { isTestnet, testnetDeploymentConfigs } from './configs/testnetConfig';
 import { ICodecConfig } from './configs/types';
 
 dotenv.config();
 
-// deploys TransferSwapper and codecs only, then set supported bridges in the contract and update
-// mainContract address in bridge adapters
+// deploy script for deploying the entire contract suite
 
 const deployCodecs = async (hre: HardhatRuntimeEnvironment) => {
   const { deployments, getNamedAccounts } = hre;
@@ -74,62 +69,86 @@ const deployTransferSwapper: DeployFunction = async (hre: HardhatRuntimeEnvironm
     testMode
   ];
   console.log(args);
-
   const deployResult = await deploy('TransferSwapper', { from: deployer, log: true, args });
 
-  // Update supported bridge adapters in TransferSwapper
+  const cbridgeArgs = [deployResult.address, config.messageBus];
+  console.log(cbridgeArgs);
+  const cbridgeResult = await deploy('CBridgeAdapter', {
+    from: deployer,
+    log: true,
+    args: cbridgeArgs
+  });
+
+  const anyswapArgs = [deployResult.address, config.anyswapRouters];
+  console.log(anyswapArgs);
+  const anyswapResult = await deploy('AnyswapAdapter', {
+    from: deployer,
+    log: true,
+    args: anyswapArgs
+  });
+
+  const stargateArgs = [deployResult.address, config.stargateRouters];
+  console.log(stargateArgs);
+  const stargateResult = await deploy('StargateAdapter', {
+    from: deployer,
+    log: true,
+    args: stargateArgs
+  });
+
+  const acrossArgs = [config.acrossSpokePool];
+  console.log(acrossArgs);
+  const acrossResult = await deploy('AcrossAdapter', {
+    from: deployer,
+    log: true,
+    args: acrossArgs
+  });
 
   const xswapFactory = await ethers.getContractFactory<TransferSwapper__factory>('TransferSwapper');
   const xswap = xswapFactory.attach(deployResult.address);
   const deployerSigner = await ethers.getSigner(deployer);
-
-  const bridgeTypes = bridgeAdapters[chainId].map((bridge) => bridge.type);
-  const bridgeAddrs = bridgeAdapters[chainId].map((bridge) => bridge.address);
-
-  let tx = await xswap.connect(deployerSigner).setSupportedBridges(bridgeTypes, bridgeAddrs);
+  const tx = await xswap
+    .connect(deployerSigner)
+    .setSupportedBridges(
+      ['cbridge', 'anyswap', 'stargate', 'across'],
+      [cbridgeResult.address, anyswapResult.address, stargateResult.address, acrossResult.address]
+    );
   console.log('setSupportedBridges: tx', tx.hash);
   tx.wait();
-  console.log(`setSupportedBridges: tx ${tx.hash} done`);
+  console.log(`setSupportedBridges: tx ${tx.hash} mined`);
 
-  // Update main contract addrs for each adapter
+  if (deployEnv !== 'fork') {
+    console.log('sleeping 15 seconds before verifying contract');
+    await sleep(15000);
+    const verifications: Promise<any>[] = [];
 
-  const cbridgeAdapter = bridgeAdapters[chainId].find((bridge) => bridge.type == 'cbridge');
-  const anyswapAdapter = bridgeAdapters[chainId].find((bridge) => bridge.type == 'anyswap');
-  const stargateAdapter = bridgeAdapters[chainId].find((bridge) => bridge.type == 'stargate');
+    // verify newly deployed TransferSwapper
+    if (deployResult.newlyDeployed) {
+      verifications.push(verify(hre, deployResult, args));
+    }
+    // verify newly deployed bridge adapters
+    if (cbridgeResult.newlyDeployed) {
+      verifications.push(verify(hre, cbridgeResult, cbridgeArgs));
+    }
+    if (anyswapResult.newlyDeployed) {
+      verifications.push(verify(hre, anyswapResult, anyswapArgs));
+    }
+    if (stargateResult.newlyDeployed) {
+      verifications.push(verify(hre, stargateResult, stargateArgs));
+    }
+    if (acrossResult.newlyDeployed) {
+      verifications.push(verify(hre, acrossResult, acrossArgs));
+    }
+    // verify newly deployed codecs
+    for (let i = 0; i < codecDeployResults.length; i++) {
+      if (codecDeployResults[i].newlyDeployed) {
+        verifications.push(verify(hre, codecDeployResults[i], codecConfigs[i].args));
+      }
+    }
 
-  if (cbridgeAdapter) {
-    const factory = await ethers.getContractFactory<CBridgeAdapter__factory>('CBridgeAdapter');
-    const adapter = factory.attach(cbridgeAdapter.address);
-    tx = await adapter.connect(deployerSigner).updateMainContract(deployResult.address);
-    console.log('updateMainContract for cbridge adapter: tx', tx.hash);
-    await tx.wait();
-    console.log(`updateMainContract for cbridge adapter: tx ${tx.hash} done`);
-  }
-
-  if (anyswapAdapter) {
-    const factory = await ethers.getContractFactory<AnyswapAdapter__factory>('AnyswapAdapter');
-    const adapter = factory.attach(anyswapAdapter.address);
-    tx = await adapter.connect(deployerSigner).updateMainContract(deployResult.address);
-    console.log('updateMainContract for anyswap adapter: tx', tx.hash);
-    await tx.wait();
-    console.log(`updateMainContract for anyswap adapter: tx ${tx.hash} done`);
-  }
-
-  if (stargateAdapter) {
-    const factory = await ethers.getContractFactory<StargateAdapter__factory>('StargateAdapter');
-    const adapter = factory.attach(stargateAdapter.address);
-    tx = await adapter.connect(deployerSigner).updateMainContract(deployResult.address);
-    console.log('updateMainContract for stargate adapter: tx', tx.hash);
-    await tx.wait();
-    console.log(`updateMainContract for stargate adapter: tx ${tx.hash} done`);
-  }
-
-  // verify newly deployed TransferSwapper
-  if (deployResult.newlyDeployed) {
-    verify(hre, deployResult, args);
+    await Promise.all(verifications);
   }
 };
 
-deployTransferSwapper.tags = ['TransferSwapper'];
+deployTransferSwapper.tags = ['Suite'];
 deployTransferSwapper.dependencies = [];
 export default deployTransferSwapper;

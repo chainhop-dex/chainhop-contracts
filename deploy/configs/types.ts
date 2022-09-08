@@ -15,6 +15,10 @@ export interface IConfig {
   };
 }
 
+export interface IBridgeAdapterConfig {
+  [chainId: number]: IBridgeAdapter[];
+}
+
 export interface IDexConfig {
   address: string;
   func: string;
@@ -36,6 +40,11 @@ export interface IPoolConfig {
   base_pool: string;
   tokens: string[];
   gas: number;
+}
+
+export interface IBridgeAdapter {
+  type: 'cbridge' | 'anyswap' | 'stargate' | 'across';
+  address: string;
 }
 
 export const UniswapV2SwapFunc = 'swapExactTokensForTokens(uint256,uint256,address[],address,uint256)';
