@@ -153,9 +153,7 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
             } else {
                 (amountIn, srcToken, bridgeToken, codecs) = sanitizeSwaps(_srcSwaps);
             }
-            require(srcToken != bridgeToken, "srcToken must not equal bridgeToken");
-        } else {
-            require(srcToken == bridgeToken, "srcToken must equal bridgeToken");
+            require(srcToken != bridgeToken, "src/bridge token must not equal if exists swaps");
         }
         if (_desc.nativeIn) {
             require(srcToken == nativeWrap, "tkin no nativeWrap");
