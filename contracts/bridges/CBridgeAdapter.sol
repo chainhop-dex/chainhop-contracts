@@ -14,7 +14,7 @@ import "../interfaces/IIntermediaryOriginalToken.sol";
 
 contract CBridgeAdapter is MessageReceiverApp, IBridgeAdapter {
     using SafeERC20 for IERC20;
-    
+
     address public mainContract;
 
     event MainContractUpdated(address mainContract);
@@ -77,7 +77,10 @@ contract CBridgeAdapter is MessageReceiverApp, IBridgeAdapter {
             msg.value
         );
         if (params.wrappedBridgeToken != address(0)) {
-            IERC20(IIntermediaryOriginalToken(params.wrappedBridgeToken).canonical()).safeApprove(params.wrappedBridgeToken, 0);
+            IERC20(IIntermediaryOriginalToken(params.wrappedBridgeToken).canonical()).safeApprove(
+                params.wrappedBridgeToken,
+                0
+            );
         }
         return abi.encodePacked(transferId);
     }
@@ -108,10 +111,17 @@ contract CBridgeAdapter is MessageReceiverApp, IBridgeAdapter {
         } else {
             nativeAmt = _amount;
         }
-        ExecutionStatus status = main.executeMessageWithTransferRefundFromAdapter{value: nativeAmt}(_token, _amount, _message, _executor);
+        ExecutionStatus status = main.executeMessageWithTransferRefundFromAdapter{value: nativeAmt}(
+            _token,
+            _amount,
+            _message,
+            _executor
+        );
         if (_token != main.nativeWrap()) {
             IERC20(_token).safeApprove(mainContract, 0);
         }
         return status;
     }
+
+    receive() external payable {}
 }

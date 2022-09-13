@@ -53,7 +53,7 @@ contract AnyswapAdapter is IBridgeAdapter, Ownable {
     ) external payable onlyMainContract returns (bytes memory bridgeResp) {
         AnyswapParams memory params = abi.decode((_bridgeParams), (AnyswapParams));
         require(supportedRouters[params.router], "illegal router");
-        
+
         bytes32 transferId = keccak256(
             abi.encodePacked(_receiver, _token, _amount, _dstChainId, params.nonce, uint64(block.chainid))
         );
@@ -64,7 +64,7 @@ contract AnyswapAdapter is IBridgeAdapter, Ownable {
         IERC20(_token).safeApprove(params.router, _amount);
         IBridgeAnyswap(params.router).anySwapOutUnderlying(params.anyToken, _receiver, _amount, _dstChainId);
         IERC20(_token).safeApprove(params.router, 0);
-        
+
         return abi.encodePacked(transferId);
     }
 
