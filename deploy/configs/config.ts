@@ -37,7 +37,11 @@ export const deploymentConfigs: IConfig = {
       getMetaPoolCodecConfig(1)
     ],
     externalSwapDex: ['0x1111111254fb6c44bAC0beD2854e76F90643097d'], // 1inch
-    anyswapRouters: ['0x6b7a87899490ece95443e979ca9485cbe7e71522', '0x765277eebeca2e31912c9946eae1021199b39c61'],
+    anyswapRouters: [
+      '0x6b7a87899490ece95443e979ca9485cbe7e71522',
+      '0x765277eebeca2e31912c9946eae1021199b39c61',
+      '0xe95fd76cf16008c12ff3b3a937cb16cd9cc20284'
+    ],
     stargateRouters: ['0x8731d54E9D02c286767d56ac03e8037C07e01e98', '0x150f94B44927F078737562f0fcF3C95c01Cc2376'],
     acrossSpokePool: '0x4D9079Bb4165aeb4084c526a32695dCfd2F77381'
   },
@@ -68,7 +72,11 @@ export const deploymentConfigs: IConfig = {
     ],
     codecs: [UniswapV2SwapExactTokensForTokensCodec],
     externalSwapDex: ['0x1111111254fb6c44bac0bed2854e76f90643097d'], // 1inch
-    anyswapRouters: ['0xd1c5966f9f5ee6881ff6b261bbeda45972b1b5f3', '0xabd380327fe66724ffda91a87c772fb8d00be488'],
+    anyswapRouters: [
+      '0xd1c5966f9f5ee6881ff6b261bbeda45972b1b5f3',
+      '0xabd380327fe66724ffda91a87c772fb8d00be488',
+      '0xf9736ec3926703e85c843fc972bd89a7f8e827c0'
+    ],
     stargateRouters: ['0x4a364f8c717cAAD9A442737Eb7b8A55cc6cf18D8']
   },
 
@@ -90,7 +98,11 @@ export const deploymentConfigs: IConfig = {
       getMetaPoolCodecConfig(137)
     ],
     externalSwapDex: ['0x1111111254fb6c44bac0bed2854e76f90643097d'], // 1inch
-    anyswapRouters: ['0x4f3Aff3A747fCADe12598081e80c6605A8be192F', '0x6ff0609046a38d76bd40c5863b4d1a2dce687f73'],
+    anyswapRouters: [
+      '0x4f3Aff3A747fCADe12598081e80c6605A8be192F',
+      '0x6ff0609046a38d76bd40c5863b4d1a2dce687f73',
+      '0xafaace7138ab3c2bcb2db4264f8312e1bbb80653'
+    ],
     stargateRouters: ['0x45A01E4e04F14f7A4a6702c74187c5F6222033cd'],
     acrossSpokePool: '0x69B5c72837769eF1e7C164Abc6515DcFf217F920'
   },
@@ -107,7 +119,11 @@ export const deploymentConfigs: IConfig = {
     ],
     codecs: [UniswapV2SwapExactTokensForTokensCodec, CurvePoolCodec, getMetaPoolCodecConfig(250)],
     externalSwapDex: ['0x1111111254fb6c44bac0bed2854e76f90643097d'], // 1inch
-    anyswapRouters: ['0x1ccca1ce62c62f7be95d4a67722a8fdbed6eecb4', '0xb576c9403f39829565bd6051695e2ac7ecf850e2'],
+    anyswapRouters: [
+      '0x1ccca1ce62c62f7be95d4a67722a8fdbed6eecb4',
+      '0xb576c9403f39829565bd6051695e2ac7ecf850e2',
+      '0xf3ce95ec61114a4b1bfc615c16e6726015913ccc'
+    ],
     stargateRouters: ['0xAf5191B0De278C7286d6C7CC6ab6BB8A73bA2Cd6']
   },
 
@@ -128,7 +144,11 @@ export const deploymentConfigs: IConfig = {
       getMetaPoolCodecConfig(42161)
     ],
     externalSwapDex: ['0x1111111254fb6c44bac0bed2854e76f90643097d'], // 1inch
-    anyswapRouters: ['0xc931f61b1534eb21d8c11b24f3f5ab2471d4ab50', '0x0cae51e1032e8461f4806e26332c030e34de3adb'],
+    anyswapRouters: [
+      '0xc931f61b1534eb21d8c11b24f3f5ab2471d4ab50',
+      '0x0cae51e1032e8461f4806e26332c030e34de3adb',
+      '0x39fde572a18448f8139b7788099f0a0740f51205'
+    ],
     stargateRouters: ['0x53Bf833A5d6c4ddA888F69c22C88C9f356a41614', '0xbf22f0f184bCcbeA268dF387a49fF5238dD23E40'],
     acrossSpokePool: '0xB88690461dDbaB6f04Dfad7df66B7725942FEb9C'
   },
@@ -152,7 +172,11 @@ export const deploymentConfigs: IConfig = {
       getMetaPoolCodecConfig(43114)
     ],
     externalSwapDex: ['0x1111111254fb6c44bac0bed2854e76f90643097d'], // 1inch
-    anyswapRouters: ['0x42e6Af231bA8eE39f1bf185d452061283bfB324b', '0xe5cf1558a1470cb5c166c2e8651ed0f3c5fb8f42'],
+    anyswapRouters: [
+      '0x42e6Af231bA8eE39f1bf185d452061283bfB324b',
+      '0xe5cf1558a1470cb5c166c2e8651ed0f3c5fb8f42',
+      '0x9b17baadf0f21f03e35249e0e59723f34994f806'
+    ],
     stargateRouters: ['0xB0D502E938ed5f4df2E681fE6E419ff29631d62b', '0xB49c4e680174E331CB0A7fF3Ab58afC9738d5F8b']
   }
 };
