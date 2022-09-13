@@ -62,7 +62,11 @@ contract AnyswapAdapter is IBridgeAdapter, Ownable {
 
         IERC20(_token).safeTransferFrom(msg.sender, address(this), _amount);
         IERC20(_token).safeApprove(params.router, _amount);
-        IBridgeAnyswap(params.router).anySwapOutUnderlying(params.anyToken, _receiver, _amount, _dstChainId);
+        if (IUnderlying(params.anyToken).underlying() != address(0)) {
+            IBridgeAnyswap(params.router).anySwapOutUnderlying(params.anyToken, _receiver, _amount, _dstChainId);
+        } else {
+            IBridgeAnyswap(params.router).anySwapOut(params.anyToken, _receiver, _amount, _dstChainId);
+        }
         IERC20(_token).safeApprove(params.router, 0);
 
         return abi.encodePacked(transferId);
