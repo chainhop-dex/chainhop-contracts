@@ -40,6 +40,7 @@ export const deploymentConfigs: IConfig = {
     anyswapRouters: [
       '0x6b7a87899490ece95443e979ca9485cbe7e71522',
       '0x765277eebeca2e31912c9946eae1021199b39c61',
+      '0xba8da9dcf11b50b03fd5284f164ef5cdef910705',
       '0xe95fd76cf16008c12ff3b3a937cb16cd9cc20284'
     ],
     stargateRouters: ['0x8731d54E9D02c286767d56ac03e8037C07e01e98', '0x150f94B44927F078737562f0fcF3C95c01Cc2376'],
@@ -75,6 +76,7 @@ export const deploymentConfigs: IConfig = {
     anyswapRouters: [
       '0xd1c5966f9f5ee6881ff6b261bbeda45972b1b5f3',
       '0xabd380327fe66724ffda91a87c772fb8d00be488',
+      '0x92c079d3155c2722dbf7e65017a5baf9cd15561c',
       '0xf9736ec3926703e85c843fc972bd89a7f8e827c0'
     ],
     stargateRouters: ['0x4a364f8c717cAAD9A442737Eb7b8A55cc6cf18D8']
@@ -101,7 +103,8 @@ export const deploymentConfigs: IConfig = {
     anyswapRouters: [
       '0x4f3Aff3A747fCADe12598081e80c6605A8be192F',
       '0x6ff0609046a38d76bd40c5863b4d1a2dce687f73',
-      '0xafaace7138ab3c2bcb2db4264f8312e1bbb80653'
+      '0xafaace7138ab3c2bcb2db4264f8312e1bbb80653',
+      '0x2ef4a574b72e1f555185afa8a09c6d1a8ac4025c'
     ],
     stargateRouters: ['0x45A01E4e04F14f7A4a6702c74187c5F6222033cd'],
     acrossSpokePool: '0x69B5c72837769eF1e7C164Abc6515DcFf217F920'
@@ -147,7 +150,8 @@ export const deploymentConfigs: IConfig = {
     anyswapRouters: [
       '0xc931f61b1534eb21d8c11b24f3f5ab2471d4ab50',
       '0x0cae51e1032e8461f4806e26332c030e34de3adb',
-      '0x39fde572a18448f8139b7788099f0a0740f51205'
+      '0x39fde572a18448f8139b7788099f0a0740f51205',
+      '0x650af55d5877f289837c30b94af91538a7504b76'
     ],
     stargateRouters: ['0x53Bf833A5d6c4ddA888F69c22C88C9f356a41614', '0xbf22f0f184bCcbeA268dF387a49fF5238dD23E40'],
     acrossSpokePool: '0xB88690461dDbaB6f04Dfad7df66B7725942FEb9C'
@@ -173,9 +177,10 @@ export const deploymentConfigs: IConfig = {
     ],
     externalSwapDex: ['0x1111111254fb6c44bac0bed2854e76f90643097d'], // 1inch
     anyswapRouters: [
-      '0x42e6Af231bA8eE39f1bf185d452061283bfB324b',
+      '0x833f307ac507d47309fd8cdd1f835bef8d702a93',
       '0xe5cf1558a1470cb5c166c2e8651ed0f3c5fb8f42',
-      '0x9b17baadf0f21f03e35249e0e59723f34994f806'
+      '0x9b17baadf0f21f03e35249e0e59723f34994f806',
+      '0xb0731d50c681c45856bfc3f7539d5f61d4be81d8'
     ],
     stargateRouters: ['0xB0D502E938ed5f4df2E681fE6E419ff29631d62b', '0xB49c4e680174E331CB0A7fF3Ab58afC9738d5F8b']
   }
