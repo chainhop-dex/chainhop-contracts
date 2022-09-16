@@ -1,6 +1,6 @@
 import * as dotenv from 'dotenv';
 import { ethers } from 'hardhat';
-import { TransferSwapper } from './../typechain/TransferSwapper';
+import { TransferSwapper } from '../typechain/TransferSwapper';
 
 dotenv.config();
 
