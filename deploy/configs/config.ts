@@ -44,7 +44,8 @@ export const deploymentConfigs: IConfig = {
       '0xe95fd76cf16008c12ff3b3a937cb16cd9cc20284'
     ],
     stargateRouters: ['0x8731d54E9D02c286767d56ac03e8037C07e01e98', '0x150f94B44927F078737562f0fcF3C95c01Cc2376'],
-    acrossSpokePool: '0x4D9079Bb4165aeb4084c526a32695dCfd2F77381'
+    acrossSpokePool: '0x4D9079Bb4165aeb4084c526a32695dCfd2F77381',
+    hyphenLiquidityPool: '0x2A5c2568b10A0E826BfA892Cf21BA7218310180b'
   },
 
   // Optimism
@@ -59,7 +60,8 @@ export const deploymentConfigs: IConfig = {
     externalSwapDex: ['0x1111111254760f7ab3f16433eea9304126dcd199'], // 1inch
     anyswapRouters: ['0xDC42728B0eA910349ed3c6e1c9Dc06b5FB591f98', '0x80a16016cc4a2e6a2caca8a4a498b1699ff0f844'],
     stargateRouters: ['0xB0D502E938ed5f4df2E681fE6E419ff29631d62b', '0xB49c4e680174E331CB0A7fF3Ab58afC9738d5F8b'],
-    acrossSpokePool: '0xa420b2d1c0841415A695b81E5B867BCD07Dff8C9'
+    acrossSpokePool: '0xa420b2d1c0841415A695b81E5B867BCD07Dff8C9',
+    hyphenLiquidityPool: '0x856cb5c3cbbe9e2e21293a644aa1f9363cee11e8'
   },
 
   // BSC
@@ -79,7 +81,8 @@ export const deploymentConfigs: IConfig = {
       '0x92c079d3155c2722dbf7e65017a5baf9cd15561c',
       '0xf9736ec3926703e85c843fc972bd89a7f8e827c0'
     ],
-    stargateRouters: ['0x4a364f8c717cAAD9A442737Eb7b8A55cc6cf18D8']
+    stargateRouters: ['0x4a364f8c717cAAD9A442737Eb7b8A55cc6cf18D8'],
+    hyphenLiquidityPool: '0x94D3E62151B12A12A4976F60EdC18459538FaF08'
   },
 
   // Polygon
@@ -107,7 +110,8 @@ export const deploymentConfigs: IConfig = {
       '0x2ef4a574b72e1f555185afa8a09c6d1a8ac4025c'
     ],
     stargateRouters: ['0x45A01E4e04F14f7A4a6702c74187c5F6222033cd'],
-    acrossSpokePool: '0x69B5c72837769eF1e7C164Abc6515DcFf217F920'
+    acrossSpokePool: '0x69B5c72837769eF1e7C164Abc6515DcFf217F920',
+    hyphenLiquidityPool: '0x2A5c2568b10A0E826BfA892Cf21BA7218310180b'
   },
 
   // Fantom
@@ -127,7 +131,8 @@ export const deploymentConfigs: IConfig = {
       '0xb576c9403f39829565bd6051695e2ac7ecf850e2',
       '0xf3ce95ec61114a4b1bfc615c16e6726015913ccc'
     ],
-    stargateRouters: ['0xAf5191B0De278C7286d6C7CC6ab6BB8A73bA2Cd6']
+    stargateRouters: ['0xAf5191B0De278C7286d6C7CC6ab6BB8A73bA2Cd6'],
+    hyphenLiquidityPool: '0x856cb5c3cbbe9e2e21293a644aa1f9363cee11e8'
   },
 
   // Arbitrum
@@ -154,7 +159,8 @@ export const deploymentConfigs: IConfig = {
       '0x650af55d5877f289837c30b94af91538a7504b76'
     ],
     stargateRouters: ['0x53Bf833A5d6c4ddA888F69c22C88C9f356a41614', '0xbf22f0f184bCcbeA268dF387a49fF5238dD23E40'],
-    acrossSpokePool: '0xB88690461dDbaB6f04Dfad7df66B7725942FEb9C'
+    acrossSpokePool: '0xB88690461dDbaB6f04Dfad7df66B7725942FEb9C',
+    hyphenLiquidityPool: '0x856cb5c3cbbe9e2e21293a644aa1f9363cee11e8'
   },
 
   // Avalanche
@@ -182,6 +188,7 @@ export const deploymentConfigs: IConfig = {
       '0x9b17baadf0f21f03e35249e0e59723f34994f806',
       '0xb0731d50c681c45856bfc3f7539d5f61d4be81d8'
     ],
-    stargateRouters: ['0xB0D502E938ed5f4df2E681fE6E419ff29631d62b', '0xB49c4e680174E331CB0A7fF3Ab58afC9738d5F8b']
+    stargateRouters: ['0xB0D502E938ed5f4df2E681fE6E419ff29631d62b', '0xB49c4e680174E331CB0A7fF3Ab58afC9738d5F8b'],
+    hyphenLiquidityPool: '0x2A5c2568b10A0E826BfA892Cf21BA7218310180b'
   }
 };
