@@ -12,6 +12,7 @@ export interface IConfig {
     anyswapRouters?: string[];
     stargateRouters?: string[];
     acrossSpokePool?: string;
+    hyphenLiquidityPool?: string;
   };
 }
 
