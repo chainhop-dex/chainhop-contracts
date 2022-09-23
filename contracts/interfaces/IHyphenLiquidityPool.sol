@@ -7,6 +7,12 @@ interface IHyphenLiquidityPool {
         address tokenAddress,
         address receiver,
         uint256 amount,
-        string memory tag
+        string calldata tag
     ) external;
+
+    function depositNative(
+        address receiver,
+        uint256 toChainId,
+        string calldata tag
+    ) external payable;
 }
