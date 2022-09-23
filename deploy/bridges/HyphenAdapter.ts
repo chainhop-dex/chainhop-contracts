@@ -19,7 +19,7 @@ const deployFunc: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   const xswap = await deployments.get('TransferSwapper');
   console.log('TransferSwapper', xswap.address);
 
-  const args = [config.hyphenLiquidityPool];
+  const args = [config.hyphenLiquidityPool, config.nativeWrap];
   const result = await deploy('HyphenAdapter', {
     from: deployer,
     log: true,
