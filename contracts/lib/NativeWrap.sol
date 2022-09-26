@@ -21,4 +21,6 @@ abstract contract NativeWrap is Ownable {
     function setNativeWrap(address _nativeWrap) external onlyOwner {
         nativeWrap = _nativeWrap;
     }
+
+    receive() external payable {}
 }
