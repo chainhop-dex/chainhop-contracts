@@ -48,6 +48,4 @@ contract HyphenAdapter is IBridgeAdapter, NativeWrap {
         pool = _pool;
         emit PoolUpdated(_pool);
     }
-
-    receive() external payable {}
 }
