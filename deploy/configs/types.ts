@@ -7,10 +7,17 @@ export interface IConfig {
     messageBus?: string;
     supportedDex: IDexConfig[];
     codecs: ICodecConfig[];
+    externalSwapDex?: string[];
     transferSwapper?: string;
     anyswapRouters?: string[];
     stargateRouters?: string[];
+    acrossSpokePool?: string;
+    hyphenLiquidityPool?: string;
   };
+}
+
+export interface IBridgeAdapterConfig {
+  [chainId: number]: IBridgeAdapter[];
 }
 
 export interface IDexConfig {
@@ -36,32 +43,48 @@ export interface IPoolConfig {
   gas: number;
 }
 
+export interface IBridgeAdapter {
+  type: 'cbridge' | 'anyswap' | 'stargate' | 'across';
+  address: string;
+}
+
+export const UniswapV2SwapFunc = 'swapExactTokensForTokens(uint256,uint256,address[],address,uint256)';
+export const UniswapV3SwapFunc = 'exactInput((bytes,address,uint256,uint256,uint256))';
+export const CurvePlainPoolSwapFunc = 'exchange(int128,int128,uint256,uint256)';
+export const CurveMetaPoolSwapFunc = 'exchange_underlying(int128,int128,uint256,uint256,address)';
+export const CurveSpecialMetaPoolSwapFunc = 'exchange_underlying(int128,int128,uint256,uint256)';
+export const PlatypusSwapFunc = 'swapTokensForTokens(address[],address[],uint256,uint256,address,uint256)';
+export const OneInchSwapFunc = 'swap(address,(address,address,address,address,uint256,uint256,uint256,bytes),bytes)';
+export const OneInchClipperSwapFunc = 'clipperSwap(address,address,uint256,uint256)';
+export const OneInchUnoswapSwapFunc = 'unoswap(address,uint256,uint256,bytes32[])';
+export const OneInchUnoswapV3SwapFunc = 'uniswapV3Swap(uint256,uint256,uint256[])';
+
 export const UniswapV2SwapExactTokensForTokensCodec: ICodecConfig = {
   name: 'UniswapV2SwapExactTokensForTokensCodec',
-  func: 'swapExactTokensForTokens(uint256,uint256,address[],address,uint256)'
+  func: UniswapV2SwapFunc
 };
 
 export const UniswapV3ExactInputCodec: ICodecConfig = {
   name: 'UniswapV3ExactInputCodec',
-  func: 'exactInput((bytes,address,uint256,uint256,uint256))'
+  func: UniswapV3SwapFunc
 };
 
 export const CurvePoolCodec: ICodecConfig = {
   name: 'CurvePoolCodec',
-  func: 'exchange(int128,int128,uint256,uint256)'
+  func: CurvePlainPoolSwapFunc
 };
 
 export const CurveMetaPoolCodecBase: ICodecConfig = {
   name: 'CurveMetaPoolCodec',
-  func: 'exchange_underlying(int128,int128,uint256,uint256,address)'
+  func: CurveMetaPoolSwapFunc
 };
 
 export const CurveSpecialMetaPoolCodecBase: ICodecConfig = {
   name: 'CurveSpecialMetaPoolCodec',
-  func: 'exchange_underlying(int128,int128,uint256,uint256)'
+  func: CurveSpecialMetaPoolSwapFunc
 };
 
 export const PlatypusRouter01Codec: ICodecConfig = {
   name: 'PlatypusRouter01Codec',
-  func: 'swapTokensForTokens(address[],address[],uint256,uint256,address,uint256)'
+  func: PlatypusSwapFunc
 };

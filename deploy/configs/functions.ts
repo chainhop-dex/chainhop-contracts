@@ -10,7 +10,11 @@ import {
   ICodecConfig,
   IDexConfig,
   IMetaPoolArgs,
-  IPoolConfig
+  IPoolConfig,
+  OneInchClipperSwapFunc,
+  OneInchSwapFunc,
+  OneInchUnoswapSwapFunc,
+  OneInchUnoswapV3SwapFunc
 } from './types';
 
 dotenv.config();
@@ -27,6 +31,15 @@ const getCurvePools = (chainId: number): IPoolConfig[] => {
   const config = readCurveConfig();
   const pools = config.curve_pool as IPoolConfig[];
   return pools.filter((p) => p['chain_id'] == chainId);
+};
+
+export const getSupportedOneInchFuncs = (addr: string): IDexConfig[] => {
+  return [
+    { address: addr, func: OneInchSwapFunc },
+    { address: addr, func: OneInchClipperSwapFunc },
+    { address: addr, func: OneInchUnoswapSwapFunc },
+    { address: addr, func: OneInchUnoswapV3SwapFunc }
+  ];
 };
 
 export const getSupportedCurvePools = (chainId: number): IDexConfig[] => {
