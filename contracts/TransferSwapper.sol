@@ -146,7 +146,7 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         ICodec[] memory codecs;
 
         address srcTokenIn = _desc.tokenIn;
-        address srcTokenOut = _desc.bridgeTokenIn;
+        address srcTokenOut = _desc.tokenIn;
         if (_srcSwaps.length != 0) {
             if (isExternalSwap(_srcSwaps[0])) {
                 srcTokenOut = _desc.bridgeTokenIn;
