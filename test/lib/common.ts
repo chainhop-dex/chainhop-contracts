@@ -1,7 +1,7 @@
-import { parseUnits } from '@ethersproject/units';
-import { Wallet } from '@ethersproject/wallet';
-import { Fixture } from 'ethereum-waffle/dist/esm';
-import { ethers, waffle } from 'hardhat';
+import {parseUnits} from '@ethersproject/units';
+import {Wallet} from '@ethersproject/wallet';
+import {Fixture} from 'ethereum-waffle/dist/esm';
+import {ethers, waffle} from 'hardhat';
 import {
   Bridge,
   Bridge__factory,
@@ -14,7 +14,7 @@ import {
   MessageBus__factory,
   Mock1inch__factory,
   MockCurvePool__factory,
-  MockUniswapV2__factory,
+  MockUniswapV2__factory, OneInchPoolCodec, OneInchPoolCodec__factory,
   PlatypusRouter01Codec,
   PlatypusRouter01Codec__factory,
   TestERC20,
@@ -27,14 +27,15 @@ import {
   UniswapV3ExactInputCodec__factory,
   WETH
 } from '../../typechain';
-import { MinimalUniswapV2__factory } from '../../typechain/factories/MinimalUniswapV2__factory';
-import { WETH__factory } from './../../typechain/factories/WETH__factory';
-import { IntermediaryOriginalToken } from './../../typechain/IntermediaryOriginalToken';
-import { MinimalUniswapV2 } from './../../typechain/MinimalUniswapV2';
-import { Mock1inch } from './../../typechain/Mock1inch';
-import { MockCurvePool } from './../../typechain/MockCurvePool';
-import { MockUniswapV2 } from './../../typechain/MockUniswapV2';
+import {MinimalUniswapV2__factory} from '../../typechain/factories/MinimalUniswapV2__factory';
+import {WETH__factory} from './../../typechain/factories/WETH__factory';
+import {IntermediaryOriginalToken} from './../../typechain/IntermediaryOriginalToken';
+import {MinimalUniswapV2} from './../../typechain/MinimalUniswapV2';
+import {Mock1inch} from './../../typechain/Mock1inch';
+import {MockCurvePool} from './../../typechain/MockCurvePool';
+import {MockUniswapV2} from './../../typechain/MockUniswapV2';
 import * as consts from './constants';
+import OneinchCodec from "../../deploy/codecs/OneinchCodec";
 
 // Workaround for https://github.com/nomiclabs/hardhat/issues/849
 // TODO: Remove once fixed upstream.
@@ -62,6 +63,7 @@ export interface CodecContracts {
   v3Codec: UniswapV3ExactInputCodec;
   curveCodec: CurvePoolCodec;
   platypusCodec: PlatypusRouter01Codec;
+  oneinchCodec: OneInchPoolCodec;
 }
 
 export interface TokenContracts {
@@ -144,7 +146,13 @@ export async function deployCodecContracts(admin: Wallet): Promise<CodecContract
   const platypusCodec = await platypusCodecFactory.connect(admin).deploy();
   await platypusCodec.deployed();
 
-  return { v2Codec, v3Codec, curveCodec, platypusCodec };
+  const oneinchCodecFactory = (await ethers.getContractFactory(
+      'OneInchPoolCodec'
+  )) as OneInchPoolCodec__factory;
+  const oneinchCodec = await oneinchCodecFactory.connect(admin).deploy();
+  await oneinchCodec.deployed();
+
+  return {v2Codec, v3Codec, curveCodec, platypusCodec, oneinchCodec};
 }
 
 export async function deployChainhopContracts(
@@ -157,7 +165,7 @@ export async function deployChainhopContracts(
   supportedDexFuncs: string[],
   externalSwapDexList: string[]
 ): Promise<ChainHopContracts> {
-  const { v2Codec, v3Codec, curveCodec } = await deployCodecContracts(admin);
+  const { v2Codec, v3Codec, curveCodec, oneinchCodec } = await deployCodecContracts(admin);
   const transferSwapperFactory = (await ethers.getContractFactory('TransferSwapper')) as TransferSwapper__factory;
   const xswap = await transferSwapperFactory
     .connect(admin)
@@ -171,7 +179,7 @@ export async function deployChainhopContracts(
         'exchange(int128,int128,uint256,uint256)',
         'exactInput((bytes,address,uint256,uint256,uint256))'
       ],
-      [v2Codec.address, curveCodec.address, v3Codec.address],
+      [v2Codec.address, curveCodec.address, v3Codec.address, oneinchCodec.address],
       supportedDexList,
       supportedDexFuncs,
       externalSwapDexList,
