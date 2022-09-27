@@ -37,7 +37,7 @@ contract HyphenAdapter is IBridgeAdapter, NativeWrap {
             IWETH(nativeWrap).withdraw(_amount);
             IHyphenLiquidityPool(pool).depositNative{value: _amount}(_receiver, _dstChainId, "chainhop");
         } else {
-            IERC20(_token).approve(pool, _amount);
+            IERC20(_token).safeIncreaseAllowance(pool, _amount);
             IHyphenLiquidityPool(pool).depositErc20(_dstChainId, _token, _receiver, _amount, "chainhop");
         }
         // hyphen uses src tx hash to track history so bridgeResp is not needed. returning empty
