@@ -3,6 +3,7 @@ export interface IConfig {
   feeSigner?: string;
   feeCollector?: string;
   [chainId: number]: {
+    isL1?: boolean;
     nativeWrap: string;
     messageBus?: string;
     supportedDex: IDexConfig[];
@@ -13,6 +14,7 @@ export interface IConfig {
     stargateRouters?: string[];
     acrossSpokePool?: string;
     hyphenLiquidityPool?: string;
+    hopBridges?: Record<string, string>;
   };
 }
 
