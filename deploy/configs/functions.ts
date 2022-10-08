@@ -1,7 +1,7 @@
 import * as dotenv from 'dotenv';
 import fs from 'fs';
-import { DeployResult } from 'hardhat-deploy/types';
-import { HardhatRuntimeEnvironment } from 'hardhat/types';
+import {DeployResult} from 'hardhat-deploy/types';
+import {HardhatRuntimeEnvironment} from 'hardhat/types';
 import toml from 'toml';
 import {
   CurveMetaPoolCodecBase,
@@ -12,6 +12,7 @@ import {
   IMetaPoolArgs,
   IPoolConfig,
   OneInchClipperSwapFunc,
+  OneInchFillOrderRFQFunc,
   OneInchSwapFunc,
   OneInchUnoswapSwapFunc,
   OneInchUnoswapV3SwapFunc
@@ -38,7 +39,8 @@ export const getSupportedOneInchFuncs = (addr: string): IDexConfig[] => {
     { address: addr, func: OneInchSwapFunc },
     { address: addr, func: OneInchClipperSwapFunc },
     { address: addr, func: OneInchUnoswapSwapFunc },
-    { address: addr, func: OneInchUnoswapV3SwapFunc }
+    { address: addr, func: OneInchUnoswapV3SwapFunc },
+    { address: addr, func: OneInchFillOrderRFQFunc }
   ];
 };
 

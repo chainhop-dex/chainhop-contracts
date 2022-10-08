@@ -177,9 +177,14 @@ export async function deployChainhopContracts(
       [
         'swapExactTokensForTokens(uint256,uint256,address[],address,uint256)',
         'exchange(int128,int128,uint256,uint256)',
-        'exactInput((bytes,address,uint256,uint256,uint256))'
+        'exactInput((bytes,address,uint256,uint256,uint256))',
+        'clipperSwap(address,address,uint256,uint256)',
+        'fillOrderRFQ((uint256,address,address,address,address,uint256,uint256),bytes,uint256,uint256)',
+        'swap(address,(address,address,address,address,uint256,uint256,uint256,bytes),bytes)',
+        'uniswapV3Swap(uint256,uint256,uint256[])',
+        'unoswap(address,uint256,uint256,bytes32[])'
       ],
-      [v2Codec.address, curveCodec.address, v3Codec.address, oneinchCodec.address],
+      [v2Codec.address, curveCodec.address, v3Codec.address, oneinchCodec.address, oneinchCodec.address, oneinchCodec.address, oneinchCodec.address, oneinchCodec.address],
       supportedDexList,
       supportedDexFuncs,
       externalSwapDexList,

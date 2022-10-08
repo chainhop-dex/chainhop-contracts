@@ -149,5 +149,4 @@ contract OneInchPoolCodec is ICodec {
             return (IUniswapV2Pair(poolAddr).token1(), IUniswapV2Pair(poolAddr).token0());
         }
     }
-
 }
