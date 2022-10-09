@@ -65,53 +65,102 @@ const deployTransferSwapper: DeployFunction = async (hre: HardhatRuntimeEnvironm
     codecDeployResults.map((codecDeployment) => codecDeployment.address),
     config.supportedDex.map((dex) => dex.address),
     config.supportedDex.map((dex) => dex.func),
-    config.externalSwapDex,
     testMode
   ];
   console.log(args);
   const deployResult = await deploy('TransferSwapper', { from: deployer, log: true, args });
 
+  const supportedBridges = [];
+  const supportedBridgeAdapters = [];
+
   const cbridgeArgs = [deployResult.address, config.messageBus];
   console.log(cbridgeArgs);
-  const cbridgeResult = await deploy('CBridgeAdapter', {
-    from: deployer,
-    log: true,
-    args: cbridgeArgs
-  });
+  supportedBridges.push('cbridge');
+  supportedBridgeAdapters.push(
+    await deploy('CBridgeAdapter', {
+      from: deployer,
+      log: true,
+      args: cbridgeArgs
+    })
+  );
 
-  const anyswapArgs = [deployResult.address, config.anyswapRouters];
-  console.log(anyswapArgs);
-  const anyswapResult = await deploy('AnyswapAdapter', {
-    from: deployer,
-    log: true,
-    args: anyswapArgs
-  });
+  if (config.anyswapRouters) {
+    const anyswapArgs = [deployResult.address, config.anyswapRouters];
+    console.log(anyswapArgs);
+    supportedBridges.push('anyswap');
+    supportedBridgeAdapters.push(
+      await deploy('AnyswapAdapter', {
+        from: deployer,
+        log: true,
+        args: anyswapArgs
+      })
+    );
+  }
 
-  const stargateArgs = [deployResult.address, config.stargateRouters];
-  console.log(stargateArgs);
-  const stargateResult = await deploy('StargateAdapter', {
-    from: deployer,
-    log: true,
-    args: stargateArgs
-  });
+  if (config.stargateRouters) {
+    const stargateArgs = [deployResult.address, config.stargateRouters];
+    console.log(stargateArgs);
+    supportedBridges.push('stargate');
+    supportedBridgeAdapters.push(
+      await deploy('StargateAdapter', {
+        from: deployer,
+        log: true,
+        args: stargateArgs
+      })
+    );
+  }
 
-  const acrossArgs = [config.acrossSpokePool];
-  console.log(acrossArgs);
-  const acrossResult = await deploy('AcrossAdapter', {
-    from: deployer,
-    log: true,
-    args: acrossArgs
-  });
+  if (config.acrossSpokePool) {
+    const acrossArgs = [config.acrossSpokePool];
+    console.log(acrossArgs);
+    supportedBridges.push('across');
+    supportedBridgeAdapters.push(
+      await deploy('AcrossAdapter', {
+        from: deployer,
+        log: true,
+        args: acrossArgs
+      })
+    );
+  }
+
+  if (config.hyphenLiquidityPool) {
+    const hyphenArgs = [config.hyphenLiquidityPool, config.nativeWrap];
+    console.log(hyphenArgs);
+    supportedBridges.push('hyphen');
+    supportedBridgeAdapters.push(
+      await deploy('HyphenAdapter', {
+        from: deployer,
+        log: true,
+        args: hyphenArgs
+      })
+    );
+  }
+
+  if (config.hopBridges) {
+    const tokens: string[] = [];
+    const bridges: string[] = [];
+    Object.entries(config.hopBridges).forEach(([token, bridge]) => {
+      tokens.push(token);
+      bridges.push(bridge);
+    });
+    const hopArgs = [tokens, bridges, config.isL1, config.nativeWrap];
+    console.log(hopArgs);
+    supportedBridgeAdapters.push(
+      await deploy('HopAdapter', {
+        from: deployer,
+        log: true,
+        args: hopArgs
+      })
+    );
+  }
 
   const xswapFactory = await ethers.getContractFactory<TransferSwapper__factory>('TransferSwapper');
   const xswap = xswapFactory.attach(deployResult.address);
   const deployerSigner = await ethers.getSigner(deployer);
-  const tx = await xswap
-    .connect(deployerSigner)
-    .setSupportedBridges(
-      ['cbridge', 'anyswap', 'stargate', 'across'],
-      [cbridgeResult.address, anyswapResult.address, stargateResult.address, acrossResult.address]
-    );
+  const tx = await xswap.connect(deployerSigner).setSupportedBridges(
+    supportedBridges,
+    supportedBridgeAdapters.map((adapter) => adapter.address)
+  );
   console.log('setSupportedBridges: tx', tx.hash);
   tx.wait();
   console.log(`setSupportedBridges: tx ${tx.hash} mined`);
@@ -119,31 +168,24 @@ const deployTransferSwapper: DeployFunction = async (hre: HardhatRuntimeEnvironm
   if (deployEnv !== 'fork') {
     console.log('sleeping 15 seconds before verifying contract');
     await sleep(15000);
-    const verifications: Promise<any>[] = [];
+    const verifications: Promise<void>[] = [];
 
     // verify newly deployed TransferSwapper
     if (deployResult.newlyDeployed) {
       verifications.push(verify(hre, deployResult, args));
     }
     // verify newly deployed bridge adapters
-    if (cbridgeResult.newlyDeployed) {
-      verifications.push(verify(hre, cbridgeResult, cbridgeArgs));
-    }
-    if (anyswapResult.newlyDeployed) {
-      verifications.push(verify(hre, anyswapResult, anyswapArgs));
-    }
-    if (stargateResult.newlyDeployed) {
-      verifications.push(verify(hre, stargateResult, stargateArgs));
-    }
-    if (acrossResult.newlyDeployed) {
-      verifications.push(verify(hre, acrossResult, acrossArgs));
-    }
-    // verify newly deployed codecs
-    for (let i = 0; i < codecDeployResults.length; i++) {
-      if (codecDeployResults[i].newlyDeployed) {
-        verifications.push(verify(hre, codecDeployResults[i], codecConfigs[i].args));
+    supportedBridgeAdapters.forEach((bridgeAdapter) => {
+      if (bridgeAdapter.newlyDeployed) {
+        verifications.push(verify(hre, bridgeAdapter));
       }
-    }
+    });
+    // verify newly deployed codecs
+    codecDeployResults.forEach((codecDeployment) => {
+      if (codecDeployment.newlyDeployed) {
+        verifications.push(verify(hre, codecDeployment));
+      }
+    });
 
     await Promise.all(verifications);
   }

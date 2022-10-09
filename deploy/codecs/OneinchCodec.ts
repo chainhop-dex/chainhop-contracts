@@ -9,12 +9,12 @@ const deployFunc: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   const { deploy } = deployments;
   const { deployer } = await getNamedAccounts();
 
-  await deploy('OneInchPoolCodec', {
+  await deploy('OneInchCodec', {
     from: deployer,
     log: true
   });
 };
 
-deployFunc.tags = ['OneInchPoolCodec'];
+deployFunc.tags = ['OneInchCodec'];
 deployFunc.dependencies = [];
 export default deployFunc;

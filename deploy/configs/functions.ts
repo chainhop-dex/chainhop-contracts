@@ -1,7 +1,7 @@
 import * as dotenv from 'dotenv';
 import fs from 'fs';
-import {DeployResult} from 'hardhat-deploy/types';
-import {HardhatRuntimeEnvironment} from 'hardhat/types';
+import { DeployResult } from 'hardhat-deploy/types';
+import { HardhatRuntimeEnvironment } from 'hardhat/types';
 import toml from 'toml';
 import {
   CurveMetaPoolCodecBase,
@@ -97,6 +97,6 @@ export const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 export const verify = async (hre: HardhatRuntimeEnvironment, deployResult: DeployResult, args?: any) => {
   return hre.run('verify:verify', {
     address: deployResult.address,
-    constructorArguments: args
+    constructorArguments: args ?? deployResult.args
   });
 };

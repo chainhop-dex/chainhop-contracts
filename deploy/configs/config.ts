@@ -8,6 +8,7 @@ import {
 import {
   CurvePoolCodec,
   IConfig,
+  OneInchCodecs,
   PlatypusRouter01Codec,
   UniswapV2SwapExactTokensForTokensCodec,
   UniswapV3ExactInputCodec
@@ -35,9 +36,9 @@ export const deploymentConfigs: IConfig = {
       UniswapV2SwapExactTokensForTokensCodec,
       CurvePoolCodec,
       getSpecialMetaPoolCodecConfig(1),
-      getMetaPoolCodecConfig(1)
+      getMetaPoolCodecConfig(1),
+      ...OneInchCodecs
     ],
-    externalSwapDex: ['0x1111111254fb6c44bAC0beD2854e76F90643097d'], // 1inch
     anyswapRouters: [
       '0x6b7a87899490ece95443e979ca9485cbe7e71522',
       '0x765277eebeca2e31912c9946eae1021199b39c61',
@@ -67,8 +68,7 @@ export const deploymentConfigs: IConfig = {
       { address: '0xE592427A0AEce92De3Edee1F18E0157C05861564', func: UniswapV3ExactInputCodec.func }, // UniswapV3: SwapRouter
       ...getSupportedOneInchFuncs('0x1111111254760f7ab3f16433eea9304126dcd199')
     ],
-    codecs: [UniswapV3ExactInputCodec],
-    externalSwapDex: ['0x1111111254760f7ab3f16433eea9304126dcd199'], // 1inch
+    codecs: [UniswapV3ExactInputCodec, ...OneInchCodecs],
     anyswapRouters: ['0xDC42728B0eA910349ed3c6e1c9Dc06b5FB591f98', '0x80a16016cc4a2e6a2caca8a4a498b1699ff0f844'],
     stargateRouters: ['0xB0D502E938ed5f4df2E681fE6E419ff29631d62b', '0xB49c4e680174E331CB0A7fF3Ab58afC9738d5F8b'],
     acrossSpokePool: '0xa420b2d1c0841415A695b81E5B867BCD07Dff8C9',
@@ -93,8 +93,7 @@ export const deploymentConfigs: IConfig = {
       { address: '0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506', func: UniswapV2SwapExactTokensForTokensCodec.func }, // SushiSwap: SushiSwapRouter
       ...getSupportedOneInchFuncs('0x1111111254fb6c44bAC0beD2854e76F90643097d')
     ],
-    codecs: [UniswapV2SwapExactTokensForTokensCodec],
-    externalSwapDex: ['0x1111111254fb6c44bac0bed2854e76f90643097d'], // 1inch
+    codecs: [UniswapV2SwapExactTokensForTokensCodec, ...OneInchCodecs],
     anyswapRouters: [
       '0xd1c5966f9f5ee6881ff6b261bbeda45972b1b5f3',
       '0xabd380327fe66724ffda91a87c772fb8d00be488',
@@ -121,9 +120,9 @@ export const deploymentConfigs: IConfig = {
       UniswapV2SwapExactTokensForTokensCodec,
       UniswapV3ExactInputCodec,
       getSpecialMetaPoolCodecConfig(137),
-      getMetaPoolCodecConfig(137)
+      getMetaPoolCodecConfig(137),
+      ...OneInchCodecs
     ],
-    externalSwapDex: ['0x1111111254fb6c44bac0bed2854e76f90643097d'], // 1inch
     anyswapRouters: [
       '0x4f3Aff3A747fCADe12598081e80c6605A8be192F',
       '0x6ff0609046a38d76bd40c5863b4d1a2dce687f73',
@@ -154,8 +153,7 @@ export const deploymentConfigs: IConfig = {
       ...getSupportedOneInchFuncs('0x1111111254fb6c44bAC0beD2854e76F90643097d'),
       ...getSupportedCurvePools(250)
     ],
-    codecs: [UniswapV2SwapExactTokensForTokensCodec, CurvePoolCodec, getMetaPoolCodecConfig(250)],
-    externalSwapDex: ['0x1111111254fb6c44bac0bed2854e76f90643097d'], // 1inch
+    codecs: [UniswapV2SwapExactTokensForTokensCodec, CurvePoolCodec, getMetaPoolCodecConfig(250), ...OneInchCodecs],
     anyswapRouters: [
       '0x1ccca1ce62c62f7be95d4a67722a8fdbed6eecb4',
       '0xb576c9403f39829565bd6051695e2ac7ecf850e2',
@@ -180,9 +178,9 @@ export const deploymentConfigs: IConfig = {
       UniswapV2SwapExactTokensForTokensCodec,
       UniswapV3ExactInputCodec,
       CurvePoolCodec,
-      getMetaPoolCodecConfig(42161)
+      getMetaPoolCodecConfig(42161),
+      ...OneInchCodecs
     ],
-    externalSwapDex: ['0x1111111254fb6c44bac0bed2854e76f90643097d'], // 1inch
     anyswapRouters: [
       '0xc931f61b1534eb21d8c11b24f3f5ab2471d4ab50',
       '0x0cae51e1032e8461f4806e26332c030e34de3adb',
@@ -218,9 +216,9 @@ export const deploymentConfigs: IConfig = {
       PlatypusRouter01Codec,
       CurvePoolCodec,
       getSpecialMetaPoolCodecConfig(43114),
-      getMetaPoolCodecConfig(43114)
+      getMetaPoolCodecConfig(43114),
+      ...OneInchCodecs
     ],
-    externalSwapDex: ['0x1111111254fb6c44bac0bed2854e76f90643097d'], // 1inch
     anyswapRouters: [
       '0x833f307ac507d47309fd8cdd1f835bef8d702a93',
       '0xe5cf1558a1470cb5c166c2e8651ed0f3c5fb8f42',
