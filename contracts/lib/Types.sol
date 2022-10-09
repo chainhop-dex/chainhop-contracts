@@ -59,8 +59,6 @@ library Types {
         bytes feeSig;
         uint256 amountIn;
         address tokenIn;
-        // only used if the swap on the src chain is an external swap
-        address bridgeTokenIn;
         address dstTokenOut; // the final output token, emitted in event for display purpose only
         // in case of multi route swaps, whether to allow the successful swaps to go through
         // and sending the amountIn of the failed swaps back to user
