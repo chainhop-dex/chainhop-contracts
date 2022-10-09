@@ -8,7 +8,6 @@ export interface IConfig {
     messageBus?: string;
     supportedDex: IDexConfig[];
     codecs: ICodecConfig[];
-    externalSwapDex?: string[];
     transferSwapper?: string;
     anyswapRouters?: string[];
     stargateRouters?: string[];
@@ -60,6 +59,8 @@ export const OneInchSwapFunc = 'swap(address,(address,address,address,address,ui
 export const OneInchClipperSwapFunc = 'clipperSwap(address,address,uint256,uint256)';
 export const OneInchUnoswapSwapFunc = 'unoswap(address,uint256,uint256,bytes32[])';
 export const OneInchUnoswapV3SwapFunc = 'uniswapV3Swap(uint256,uint256,uint256[])';
+export const OneInchFillOrderRFQFunc =
+  'fillOrderRFQ((uint256,address,address,address,address,uint256,uint256),bytes,uint256,uint256)';
 
 export const UniswapV2SwapExactTokensForTokensCodec: ICodecConfig = {
   name: 'UniswapV2SwapExactTokensForTokensCodec',
@@ -90,3 +91,10 @@ export const PlatypusRouter01Codec: ICodecConfig = {
   name: 'PlatypusRouter01Codec',
   func: PlatypusSwapFunc
 };
+
+export const OneInchCodecs: ICodecConfig[] = [
+  { name: 'OneInchCodec', func: OneInchClipperSwapFunc },
+  { name: 'OneInchCodec', func: OneInchUnoswapSwapFunc },
+  { name: 'OneInchCodec', func: OneInchUnoswapV3SwapFunc },
+  { name: 'OneInchCodec', func: OneInchFillOrderRFQFunc }
+];

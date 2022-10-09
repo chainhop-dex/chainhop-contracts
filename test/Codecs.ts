@@ -1,7 +1,7 @@
 import { expect } from 'chai';
+import { BytesLike } from 'ethers/lib/utils';
 import { ethers } from 'hardhat';
-import { ICodec } from '../typechain';
-import { ISwapRouter } from './../typechain/ISwapRouter';
+import { ICodec, ISwapRouter } from '../typechain';
 import { CodecContracts, loadFixture } from './lib/common';
 import { ZERO_ADDR } from './lib/constants';
 import { codecFixture } from './lib/fixtures';
@@ -114,5 +114,134 @@ describe('PlatypusRouter01Codec', () => {
     expectData = expectData.slice(2); // strip 0x
     expectData = '0x12121212' + expectData;
     expect(res).equal(expectData);
+  });
+});
+
+describe('1inchCodec', () => {
+  beforeEach(prepareContext);
+  it('should decode and override clipperSwap calldata', async function () {
+    const amountIn = 111111;
+    const amountOutMin = 100000;
+
+    // "b0431182": "clipperSwap(address srcToken, address dstToken, uint256 amount, uint256 minReturn)",
+    let data = ethers.utils.defaultAbiCoder.encode(
+      ['address srcToken', 'address dstToken', 'uint256 amount', 'uint256 minReturn'],
+      [tokenA, tokenB, amountIn, amountOutMin]
+    );
+    data = data.slice(2); // strip 0x
+    data = '0xb0431182' + data;
+    const swap: ICodec.SwapDescriptionStruct = { dex: ZERO_ADDR, data: data };
+    const res0 = await c.oneinchCodec.decodeCalldata(swap);
+
+    expect(res0[0]).equal(amountIn);
+    expect(res0.tokenIn).equal(tokenA);
+    expect(res0.tokenOut).equal(tokenB);
+
+    const amountInOverride = '123123';
+    const res1 = await c.oneinchCodec.encodeCalldataWithOverride(data, amountInOverride, user);
+    let expectData = ethers.utils.defaultAbiCoder.encode(
+      ['address srcToken', 'address dstToken', 'uint256 amount', 'uint256 minReturn'],
+      [tokenA, tokenB, amountInOverride, amountOutMin]
+    );
+    expectData = expectData.slice(2); // strip 0x
+    expectData = '0xb0431182' + expectData;
+    expect(res1).equal(expectData);
+  });
+  it('should decode and override fillOrderRFQ calldata', async function () {
+    const amountIn = 111111;
+    const amountOutMin = 100000;
+    const sig: BytesLike = '0x00';
+
+    // "d0a3b665": "fillOrderRFQ((uint256 info, address makerAsset, address takerAsset, address maker, address allowedSender, uint256 makingAmount, uint256 takingAmount) order, bytes signature, uint256 makingAmount, uint256 takingAmount)",
+    const rfq = {
+      info: amountIn,
+      makerAsset: tokenA,
+      takerAsset: tokenB,
+      maker: user,
+      allowedSender: user,
+      makingAmount: amountIn,
+      takingAmount: amountOutMin
+    };
+    let data = ethers.utils.defaultAbiCoder.encode(
+      [
+        'tuple(uint256 info, address makerAsset, address takerAsset, address maker, address allowedSender, uint256 makingAmount, uint256 takingAmount) order',
+        'bytes signature',
+        'uint256 makingAmount',
+        'uint256 takingAmount'
+      ],
+      [rfq, sig, amountIn, amountOutMin]
+    );
+    data = data.slice(2); // strip 0x
+    data = '0xd0a3b665' + data;
+    const swap: ICodec.SwapDescriptionStruct = { dex: ZERO_ADDR, data: data };
+    const res0 = await c.oneinchCodec.decodeCalldata(swap);
+
+    expect(res0[0]).equal(amountIn);
+    expect(res0.tokenIn).equal(tokenA);
+    expect(res0.tokenOut).equal(tokenB);
+
+    const amountInOverride = '123123';
+    rfq.makingAmount = 123123;
+    const res1 = await c.oneinchCodec.encodeCalldataWithOverride(data, amountInOverride, user);
+    let expectData = ethers.utils.defaultAbiCoder.encode(
+      [
+        'tuple(uint256 info, address makerAsset, address takerAsset, address maker, address allowedSender, uint256 makingAmount, uint256 takingAmount) order',
+        'bytes signature',
+        'uint256 makingAmount',
+        'uint256 takingAmount'
+      ],
+      [rfq, sig, amountInOverride, amountOutMin]
+    );
+    expectData = expectData.slice(2); // strip 0x
+    expectData = '0xd0a3b665' + expectData;
+    expect(res1).equal(expectData);
+  });
+  it('should decode and override swap calldata', async function () {
+    const amountIn = 111111;
+    const amountOutMin = 100000;
+
+    const desc = {
+      srcToken: tokenA,
+      dstToken: tokenB,
+      srcReceiver: user,
+      dstReceiver: user,
+      amount: amountIn,
+      minReturnAmount: amountOutMin,
+      flags: '0x00',
+      permit: '0x00'
+    };
+
+    // "7c025200": "swap(address caller,(address srcToken, address dstToken, address srcReceiver, address dstReceiver, uint256 amount, uint256 minReturnAmount, uint256 flags, bytes permit) desc, bytes data)",
+    let data = ethers.utils.defaultAbiCoder.encode(
+      [
+        'address caller',
+        'tuple(address srcToken, address dstToken, address srcReceiver, address dstReceiver, uint256 amount, uint256 minReturnAmount, uint256 flags, bytes permit) desc',
+        'bytes data'
+      ],
+      [user, desc, '0x00']
+    );
+    data = data.slice(2); // strip 0x
+    data = '0x7c025200' + data;
+    const swap: ICodec.SwapDescriptionStruct = { dex: ZERO_ADDR, data: data };
+    const res0 = await c.oneinchCodec.decodeCalldata(swap);
+
+    expect(res0[0]).equal(amountIn);
+    expect(res0.tokenIn).equal(tokenA);
+    expect(res0.tokenOut).equal(tokenB);
+
+    const amountInOverride = '123123';
+    desc.amount = 123123;
+    const res1 = await c.oneinchCodec.encodeCalldataWithOverride(data, amountInOverride, user);
+    let expectData = ethers.utils.defaultAbiCoder.encode(
+      [
+        'address caller',
+        'tuple(address srcToken, address dstToken, address srcReceiver, address dstReceiver, uint256 amount, uint256 minReturnAmount, uint256 flags, bytes permit) desc',
+        'bytes data'
+      ],
+      [user, desc, '0x00']
+    );
+    expectData = expectData.slice(2); // strip 0x
+    expectData = '0x7c025200' + expectData;
+    expect(res1).equal(expectData);
   });
 });

@@ -15,6 +15,8 @@ import {
   Mock1inch__factory,
   MockCurvePool__factory,
   MockUniswapV2__factory,
+  OneInchCodec,
+  OneInchCodec__factory,
   PlatypusRouter01Codec,
   PlatypusRouter01Codec__factory,
   TestERC20,
@@ -62,6 +64,7 @@ export interface CodecContracts {
   v3Codec: UniswapV3ExactInputCodec;
   curveCodec: CurvePoolCodec;
   platypusCodec: PlatypusRouter01Codec;
+  oneinchCodec: OneInchCodec;
 }
 
 export interface TokenContracts {
@@ -144,7 +147,11 @@ export async function deployCodecContracts(admin: Wallet): Promise<CodecContract
   const platypusCodec = await platypusCodecFactory.connect(admin).deploy();
   await platypusCodec.deployed();
 
-  return { v2Codec, v3Codec, curveCodec, platypusCodec };
+  const oneinchCodecFactory = (await ethers.getContractFactory('OneInchCodec')) as OneInchCodec__factory;
+  const oneinchCodec = await oneinchCodecFactory.connect(admin).deploy();
+  await oneinchCodec.deployed();
+
+  return { v2Codec, v3Codec, curveCodec, platypusCodec, oneinchCodec };
 }
 
 export async function deployChainhopContracts(
@@ -154,10 +161,9 @@ export async function deployChainhopContracts(
   feeCollector: string,
   messageBus: string,
   supportedDexList: string[],
-  supportedDexFuncs: string[],
-  externalSwapDexList: string[]
+  supportedDexFuncs: string[]
 ): Promise<ChainHopContracts> {
-  const { v2Codec, v3Codec, curveCodec } = await deployCodecContracts(admin);
+  const { v2Codec, v3Codec, curveCodec, oneinchCodec } = await deployCodecContracts(admin);
   const transferSwapperFactory = (await ethers.getContractFactory('TransferSwapper')) as TransferSwapper__factory;
   const xswap = await transferSwapperFactory
     .connect(admin)
@@ -169,12 +175,25 @@ export async function deployChainhopContracts(
       [
         'swapExactTokensForTokens(uint256,uint256,address[],address,uint256)',
         'exchange(int128,int128,uint256,uint256)',
-        'exactInput((bytes,address,uint256,uint256,uint256))'
+        'exactInput((bytes,address,uint256,uint256,uint256))',
+        'clipperSwap(address,address,uint256,uint256)',
+        'fillOrderRFQ((uint256,address,address,address,address,uint256,uint256),bytes,uint256,uint256)',
+        'swap(address,(address,address,address,address,uint256,uint256,uint256,bytes),bytes)',
+        'uniswapV3Swap(uint256,uint256,uint256[])',
+        'unoswap(address,uint256,uint256,bytes32[])'
       ],
-      [v2Codec.address, curveCodec.address, v3Codec.address],
+      [
+        v2Codec.address,
+        curveCodec.address,
+        v3Codec.address,
+        oneinchCodec.address,
+        oneinchCodec.address,
+        oneinchCodec.address,
+        oneinchCodec.address,
+        oneinchCodec.address
+      ],
       supportedDexList,
       supportedDexFuncs,
-      externalSwapDexList,
       true
     );
   await xswap.deployed();

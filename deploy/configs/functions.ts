@@ -12,6 +12,7 @@ import {
   IMetaPoolArgs,
   IPoolConfig,
   OneInchClipperSwapFunc,
+  OneInchFillOrderRFQFunc,
   OneInchSwapFunc,
   OneInchUnoswapSwapFunc,
   OneInchUnoswapV3SwapFunc
@@ -38,7 +39,8 @@ export const getSupportedOneInchFuncs = (addr: string): IDexConfig[] => {
     { address: addr, func: OneInchSwapFunc },
     { address: addr, func: OneInchClipperSwapFunc },
     { address: addr, func: OneInchUnoswapSwapFunc },
-    { address: addr, func: OneInchUnoswapV3SwapFunc }
+    { address: addr, func: OneInchUnoswapV3SwapFunc },
+    { address: addr, func: OneInchFillOrderRFQFunc }
   ];
 };
 
@@ -95,6 +97,6 @@ export const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 export const verify = async (hre: HardhatRuntimeEnvironment, deployResult: DeployResult, args?: any) => {
   return hre.run('verify:verify', {
     address: deployResult.address,
-    constructorArguments: args
+    constructorArguments: args ?? deployResult.args
   });
 };
