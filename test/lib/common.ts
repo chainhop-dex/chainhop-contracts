@@ -147,7 +147,7 @@ export async function deployCodecContracts(admin: Wallet): Promise<CodecContract
   const platypusCodec = await platypusCodecFactory.connect(admin).deploy();
   await platypusCodec.deployed();
 
-  const oneinchCodecFactory = (await ethers.getContractFactory('OneInchPoolCodec')) as OneInchCodec__factory;
+  const oneinchCodecFactory = (await ethers.getContractFactory('OneInchCodec')) as OneInchCodec__factory;
   const oneinchCodec = await oneinchCodecFactory.connect(admin).deploy();
   await oneinchCodec.deployed();
 

@@ -176,59 +176,6 @@ describe('transferWithSwap', () => {
       maxSlippage
     );
   });
-  it('should swap and directly bridge tokens to receiver with 1inch (no dst swap)', async function () {
-    const amountIn = parseUnits('100');
-    const maxSlippage = 1000000;
-    const srcSwaps = utils.build1inchSwaps(c, amountIn);
-    const expectedSendAmt = utils.slipUniV2(amountIn);
-    const feeSig = await utils.signFee(c);
-    const desc = await utils.buildTransferDesc(c, feeSig, {
-      receiver: c.sender.address,
-      maxSlippage: maxSlippage,
-      dstTransferSwapper: c.receiver.address,
-      amountIn: parseUnits('100')
-    });
-    await c.tokenA.connect(c.sender).approve(c.xswap.address, amountIn);
-    const tx = await c.xswap.connect(c.sender).transferWithSwap(desc, srcSwaps, [], { value: 1000 });
-    const expectId = utils.computeId(c.sender.address, c.sender.address, c.chainId, desc.nonce);
-    const expectXferId = utils.computeTransferId(c, { amount: expectedSendAmt, receiver: c.sender.address });
-    await expect(tx)
-      .to.emit(c.xswap, 'RequestSent')
-      .withArgs(
-        expectId,
-        expectXferId,
-        desc.dstChainId,
-        amountIn,
-        c.tokenA.address,
-        c.tokenB.address,
-        c.sender.address,
-        c.tokenB.address,
-        expectedSendAmt,
-        'cbridge'
-      );
-    const srcXferId = keccak256(
-      ['address', 'address', 'address', 'uint256', 'uint64', 'uint64', 'uint64'],
-      [
-        c.bridgeAdapter.address,
-        c.sender.address,
-        c.tokenB.address,
-        expectedSendAmt,
-        desc.dstChainId,
-        desc.nonce,
-        c.chainId
-      ]
-    );
-    await expect(tx).to.emit(c.bridge, 'Send').withArgs(
-      srcXferId,
-      c.bridgeAdapter.address,
-      c.sender.address, // sender receives bridge out token because there is no dst swap
-      c.tokenB.address,
-      expectedSendAmt,
-      desc.dstChainId,
-      desc.nonce,
-      maxSlippage
-    );
-  });
   it('should swap and transfer with Uniswap V2 (has dst swap)', async function () {
     const amountIn = parseUnits('100');
     const maxSlippage = 1000000;
