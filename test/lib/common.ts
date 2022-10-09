@@ -162,8 +162,7 @@ export async function deployChainhopContracts(
   feeCollector: string,
   messageBus: string,
   supportedDexList: string[],
-  supportedDexFuncs: string[],
-  externalSwapDexList: string[]
+  supportedDexFuncs: string[]
 ): Promise<ChainHopContracts> {
   const { v2Codec, v3Codec, curveCodec, oneinchCodec } = await deployCodecContracts(admin);
   const transferSwapperFactory = (await ethers.getContractFactory('TransferSwapper')) as TransferSwapper__factory;
@@ -187,7 +186,6 @@ export async function deployChainhopContracts(
       [v2Codec.address, curveCodec.address, v3Codec.address, oneinchCodec.address, oneinchCodec.address, oneinchCodec.address, oneinchCodec.address, oneinchCodec.address],
       supportedDexList,
       supportedDexFuncs,
-      externalSwapDexList,
       true
     );
   await xswap.deployed();

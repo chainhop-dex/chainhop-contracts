@@ -17,22 +17,12 @@ import "./DexRegistry.sol";
 contract Swapper is CodecRegistry, DexRegistry {
     using SafeERC20 for IERC20;
 
-    // Externally encoded swaps are not encoded by ChainHop's backend, and are differenciated by the target dex address.
-    mapping(address => bool) public externalSwap;
-
     constructor(
         string[] memory _funcSigs,
         address[] memory _codecs,
         address[] memory _supportedDexList,
-        string[] memory _supportedDexFuncs,
-        address[] memory _externalSwapDexList
-    ) DexRegistry(_supportedDexList, _supportedDexFuncs) CodecRegistry(_funcSigs, _codecs) {
-        for (uint256 i = 0; i < _externalSwapDexList.length; i++) {
-            _setExternalSwap(_externalSwapDexList[i], true);
-        }
-    }
-
-    event ExternalSwapUpdated(address dex, bool enabled);
+        string[] memory _supportedDexFuncs
+    ) DexRegistry(_supportedDexList, _supportedDexFuncs) CodecRegistry(_funcSigs, _codecs) {}
 
     /**
      * @dev Checks the input swaps for that tokenIn and tokenOut for every swap should be the same
@@ -95,30 +85,6 @@ contract Swapper is CodecRegistry, DexRegistry {
             uint256 balAfter = IERC20(tokenOut).balanceOf(address(this));
             sumAmtOut += balAfter - balBefore;
         }
-    }
-
-    /**
-     * @notice Executes the externally encoded swaps
-     * @dev This function is intended to be used on src chain only
-     * @dev This function immediately fails (return false) if any swaps fail. There is no "partial fill" on src chain
-     * @param _swap. this function assumes that the swaps are already sanitized
-     * @return ok whether the operation is successful
-     * @return amtOut the amount gained from swapping
-     */
-    function executeExternalSwap(
-        address tokenIn,
-        address tokenOut,
-        uint256 amountIn,
-        ICodec.SwapDescription memory _swap
-    ) internal returns (bool ok, uint256 amtOut) {
-        IERC20(tokenIn).safeIncreaseAllowance(_swap.dex, amountIn);
-        uint256 balBefore = IERC20(tokenOut).balanceOf(address(this));
-        (ok, ) = _swap.dex.call(_swap.data);
-        if (!ok) {
-            return (false, 0);
-        }
-        uint256 balAfter = IERC20(tokenOut).balanceOf(address(this));
-        amtOut = balAfter - balBefore;
     }
 
     /**
@@ -193,22 +159,5 @@ contract Swapper is CodecRegistry, DexRegistry {
         for (uint256 i = 0; i < amountIns.length; i++) {
             amountIns[i] = (_amountInOverride * amountIns[i]) / sumAmtIn;
         }
-    }
-
-    // Checks whether a swap is an "externally encoded swap"
-    function isExternalSwap(ICodec.SwapDescription memory _swap) internal view returns (bool ok) {
-        require(dexRegistry[_swap.dex][bytes4(_swap.data)], "unsupported dex");
-        return externalSwap[_swap.dex];
-    }
-
-    function setExternalSwap(address _dex, bool _enabled) external onlyOwner {
-        _setExternalSwap(_dex, _enabled);
-        emit ExternalSwapUpdated(_dex, _enabled);
-    }
-
-    function _setExternalSwap(address _dex, bool _enabled) private {
-        bool enabled = externalSwap[_dex];
-        require(enabled != _enabled, "nop");
-        externalSwap[_dex] = _enabled;
     }
 }
