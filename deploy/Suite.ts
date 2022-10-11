@@ -86,19 +86,19 @@ const deployTransferSwapper: DeployFunction = async (hre: HardhatRuntimeEnvironm
   const cbridgeArgs = [xswapAddr, config.messageBus];
   console.log(cbridgeArgs);
   supportedBridges.push('cbridge');
-  supportedBridgeAdapters.push(
-    await deploy('CBridgeAdapter', {
-      from: deployer,
-      log: true,
-      args: cbridgeArgs
-    })
-  );
+  const cbridgeAdapter = await deploy('CBridgeAdapter', {
+    from: deployer,
+    log: true,
+    args: cbridgeArgs
+  });
+  supportedBridgeAdapters.push(cbridgeAdapter);
+
   const deployerSigner = await ethers.getSigner(deployer);
   // since we used the old xswap address when checking whether adapters need to be deployed,
   // we need to update the xswap address in those skipped adapters once xswap is deployed
   if (xswapAddr != deployResult.address) {
     const factory = await ethers.getContractFactory<CBridgeAdapter__factory>('CBridgeAdapter');
-    const adapter = factory.attach(deployResult.address);
+    const adapter = factory.attach(cbridgeAdapter.address);
     await adapter.connect(deployerSigner).updateMainContract(deployResult.address);
   }
 
@@ -106,16 +106,15 @@ const deployTransferSwapper: DeployFunction = async (hre: HardhatRuntimeEnvironm
     const anyswapArgs = [xswapAddr, config.anyswapRouters];
     console.log(anyswapArgs);
     supportedBridges.push('anyswap');
-    supportedBridgeAdapters.push(
-      await deploy('AnyswapAdapter', {
-        from: deployer,
-        log: true,
-        args: anyswapArgs
-      })
-    );
+    const anyswapAdapter = await deploy('AnyswapAdapter', {
+      from: deployer,
+      log: true,
+      args: anyswapArgs
+    });
+    supportedBridgeAdapters.push(anyswapAdapter);
     if (xswapAddr != deployResult.address) {
       const factory = await ethers.getContractFactory<AnyswapAdapter__factory>('AnyswapAdapter');
-      const adapter = factory.attach(deployResult.address);
+      const adapter = factory.attach(anyswapAdapter.address);
       await adapter.connect(deployerSigner).updateMainContract(deployResult.address);
     }
   }
@@ -124,16 +123,15 @@ const deployTransferSwapper: DeployFunction = async (hre: HardhatRuntimeEnvironm
     const stargateArgs = [xswapAddr, config.stargateRouters];
     console.log(stargateArgs);
     supportedBridges.push('stargate');
-    supportedBridgeAdapters.push(
-      await deploy('StargateAdapter', {
-        from: deployer,
-        log: true,
-        args: stargateArgs
-      })
-    );
+    const stargateAdapter = await deploy('StargateAdapter', {
+      from: deployer,
+      log: true,
+      args: stargateArgs
+    });
+    supportedBridgeAdapters.push(stargateAdapter);
     if (xswapAddr != deployResult.address) {
       const factory = await ethers.getContractFactory<StargateAdapter__factory>('StargateAdapter');
-      const adapter = factory.attach(deployResult.address);
+      const adapter = factory.attach(stargateAdapter.address);
       await adapter.connect(deployerSigner).updateMainContract(deployResult.address);
     }
   }
@@ -198,7 +196,7 @@ const deployTransferSwapper: DeployFunction = async (hre: HardhatRuntimeEnvironm
     const verifications: Promise<void>[] = [];
 
     // verify newly deployed TransferSwapper
-    if (deployResult.newlyDeployed) {
+    if (!deployResult.newlyDeployed) {
       verifications.push(verify(hre, deployResult, args));
     }
     // verify newly deployed bridge adapters
