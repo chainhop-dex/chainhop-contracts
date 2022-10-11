@@ -1,8 +1,11 @@
 import * as dotenv from 'dotenv';
 import { ethers } from 'hardhat';
+import { Deployment } from 'hardhat-deploy/dist/types';
 import { DeployFunction, DeployResult } from 'hardhat-deploy/types';
 import { HardhatRuntimeEnvironment } from 'hardhat/types';
+import { AnyswapAdapter__factory, StargateAdapter__factory } from '../typechain';
 import { TransferSwapper__factory } from '../typechain/factories/TransferSwapper__factory';
+import { CBridgeAdapter__factory } from './../typechain/factories/CBridgeAdapter__factory';
 import { deploymentConfigs } from './configs/config';
 import { sleep, verify } from './configs/functions';
 import { isTestnet, testnetDeploymentConfigs } from './configs/testnetConfig';
@@ -67,13 +70,20 @@ const deployTransferSwapper: DeployFunction = async (hre: HardhatRuntimeEnvironm
     config.supportedDex.map((dex) => dex.func),
     testMode
   ];
+  let old: Deployment | undefined;
+  try {
+    old = await deployments.get('TransferSwapper');
+  } catch (e) {
+    console.log('no old transfer swapper found');
+  }
   console.log(args);
   const deployResult = await deploy('TransferSwapper', { from: deployer, log: true, args });
-
   const supportedBridges = [];
   const supportedBridgeAdapters = [];
 
-  const cbridgeArgs = [deployResult.address, config.messageBus];
+  // use old xswap addr first to avoid deploying the bridge adapters that take xswap addr as a constructor arg
+  const xswapAddr = old ? old.address : deployResult.address;
+  const cbridgeArgs = [xswapAddr, config.messageBus];
   console.log(cbridgeArgs);
   supportedBridges.push('cbridge');
   supportedBridgeAdapters.push(
@@ -83,9 +93,17 @@ const deployTransferSwapper: DeployFunction = async (hre: HardhatRuntimeEnvironm
       args: cbridgeArgs
     })
   );
+  const deployerSigner = await ethers.getSigner(deployer);
+  // since we used the old xswap address when checking whether adapters need to be deployed,
+  // we need to update the xswap address in those skipped adapters once xswap is deployed
+  if (xswapAddr != deployResult.address) {
+    const factory = await ethers.getContractFactory<CBridgeAdapter__factory>('CBridgeAdapter');
+    const adapter = factory.attach(deployResult.address);
+    await adapter.connect(deployerSigner).updateMainContract(deployResult.address);
+  }
 
   if (config.anyswapRouters) {
-    const anyswapArgs = [deployResult.address, config.anyswapRouters];
+    const anyswapArgs = [xswapAddr, config.anyswapRouters];
     console.log(anyswapArgs);
     supportedBridges.push('anyswap');
     supportedBridgeAdapters.push(
@@ -95,10 +113,15 @@ const deployTransferSwapper: DeployFunction = async (hre: HardhatRuntimeEnvironm
         args: anyswapArgs
       })
     );
+    if (xswapAddr != deployResult.address) {
+      const factory = await ethers.getContractFactory<AnyswapAdapter__factory>('AnyswapAdapter');
+      const adapter = factory.attach(deployResult.address);
+      await adapter.connect(deployerSigner).updateMainContract(deployResult.address);
+    }
   }
 
   if (config.stargateRouters) {
-    const stargateArgs = [deployResult.address, config.stargateRouters];
+    const stargateArgs = [xswapAddr, config.stargateRouters];
     console.log(stargateArgs);
     supportedBridges.push('stargate');
     supportedBridgeAdapters.push(
@@ -108,6 +131,11 @@ const deployTransferSwapper: DeployFunction = async (hre: HardhatRuntimeEnvironm
         args: stargateArgs
       })
     );
+    if (xswapAddr != deployResult.address) {
+      const factory = await ethers.getContractFactory<StargateAdapter__factory>('StargateAdapter');
+      const adapter = factory.attach(deployResult.address);
+      await adapter.connect(deployerSigner).updateMainContract(deployResult.address);
+    }
   }
 
   if (config.acrossSpokePool) {
@@ -156,7 +184,6 @@ const deployTransferSwapper: DeployFunction = async (hre: HardhatRuntimeEnvironm
 
   const xswapFactory = await ethers.getContractFactory<TransferSwapper__factory>('TransferSwapper');
   const xswap = xswapFactory.attach(deployResult.address);
-  const deployerSigner = await ethers.getSigner(deployer);
   const tx = await xswap.connect(deployerSigner).setSupportedBridges(
     supportedBridges,
     supportedBridgeAdapters.map((adapter) => adapter.address)
