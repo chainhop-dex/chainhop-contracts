@@ -286,7 +286,6 @@ export function buildTransferDesc(c: IntegrationTestContext, feeSig: string, opt
     feeSig: feeSig,
     amountIn: opts?.amountIn || parseUnits('0'),
     tokenIn: opts?.tokenIn || c.tokenA.address,
-    bridgeTokenIn: opts?.bridgeTokenIn || c.tokenB.address,
     dstTokenOut: opts?.dstTokenOut ?? c.tokenB.address,
     allowPartialFill: false,
     forward: '0x'
