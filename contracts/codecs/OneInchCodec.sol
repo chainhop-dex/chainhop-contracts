@@ -36,40 +36,40 @@ contract OneInchCodec is ICodec {
     }
 
     function decodeCalldata(ICodec.SwapDescription calldata _swap)
-        external
-        view
-        returns (
-            uint256 amountIn,
-            address tokenIn,
-            address tokenOut
-        )
+    external
+    view
+    returns (
+        uint256 amountIn,
+        address tokenIn,
+        address tokenOut
+    )
     {
         bytes4 selector = bytes4(_swap.data);
         if (selector == 0xb0431182) {
             // "b0431182": "clipperSwap(address srcToken, address dstToken, uint256 amount, uint256 minReturn)",
-            (address srcToken, address dstToken, uint256 amount, ) = abi.decode(
-                (_swap.data[4:]),
+            (address srcToken, address dstToken, uint256 amount,) = abi.decode(
+                (_swap.data[4 :]),
                 (address, address, uint256, uint256)
             );
             return (amount, srcToken, dstToken);
         } else if (selector == 0xd0a3b665) {
             // "d0a3b665": "fillOrderRFQ((uint256 info, address makerAsset, address takerAsset, address maker, address allowedSender, uint256 makingAmount, uint256 takingAmount) order, bytes signature, uint256 makingAmount, uint256 takingAmount)",
-            (OrderRFQ memory order, , , ) = abi.decode((_swap.data[4:]), (OrderRFQ, bytes, uint256, uint256));
-            return (order.makingAmount, address(order.makerAsset), address(order.takerAsset));
+            (OrderRFQ memory order, , ,) = abi.decode((_swap.data[4 :]), (OrderRFQ, bytes, uint256, uint256));
+            return (order.takingAmount, address(order.takerAsset), address(order.makerAsset));
         } else if (selector == 0x7c025200) {
             // "7c025200": "swap(address caller,(address srcToken, address dstToken, address srcReceiver, address dstReceiver, uint256 amount, uint256 minReturnAmount, uint256 flags, bytes permit) desc, bytes data)",
-            (, SwapDesc memory desc, ) = abi.decode((_swap.data[4:]), (address, SwapDesc, bytes));
+            (, SwapDesc memory desc,) = abi.decode((_swap.data[4 :]), (address, SwapDesc, bytes));
             return (desc.amount, address(desc.srcToken), address(desc.dstToken));
         } else if (selector == 0xe449022e) {
             // "e449022e": "uniswapV3Swap(uint256 amount,uint256 minReturn,uint256[] pools)",
-            (uint256 amount, , uint256[] memory pools) = abi.decode((_swap.data[4:]), (uint256, uint256, uint256[]));
-            (address srcToken, ) = decodeV3Pool(pools[0]);
+            (uint256 amount, , uint256[] memory pools) = abi.decode((_swap.data[4 :]), (uint256, uint256, uint256[]));
+            (address srcToken,) = decodeV3Pool(pools[0]);
             (, address dstToken) = decodeV3Pool(pools[pools.length - 1]);
             return (amount, srcToken, dstToken);
         } else if (selector == 0x2e95b6c8) {
             // "2e95b6c8": "unoswap(address srcToken, uint256 amount, uint256 minReturn, bytes32[] pools)"
             (address srcToken, uint256 amount, , bytes32[] memory pools) = abi.decode(
-                (_swap.data[4:]),
+                (_swap.data[4 :]),
                 (address, uint256, uint256, bytes32[])
             );
             (, address dstToken) = decodeV2Pool(uint256(pools[pools.length - 1]));
@@ -89,22 +89,22 @@ contract OneInchCodec is ICodec {
         if (selector == 0xb0431182) {
             // "b0431182": "clipperSwap(address srcToken, address dstToken, uint256 amount, uint256 minReturn)",
             (address srcToken, address dstToken, , uint256 minReturn) = abi.decode(
-                (_data[4:]),
+                (_data[4 :]),
                 (address, address, uint256, uint256)
             );
             return abi.encodeWithSelector(selector, srcToken, dstToken, _amountInOverride, minReturn);
         } else if (selector == 0xd0a3b665) {
             // "d0a3b665": "fillOrderRFQ((uint256 info, address makerAsset, address takerAsset, address maker, address allowedSender, uint256 makingAmount, uint256 takingAmount) order, bytes signature, uint256 makingAmount, uint256 takingAmount)",
-            (OrderRFQ memory order, bytes memory signature, , uint256 takingAmount) = abi.decode(
-                (_data[4:]),
+            (OrderRFQ memory order, bytes memory signature, uint256 makingAmount,) = abi.decode(
+                (_data[4 :]),
                 (OrderRFQ, bytes, uint256, uint256)
             );
-            order.makingAmount = _amountInOverride;
-            return abi.encodeWithSelector(selector, order, signature, _amountInOverride, takingAmount);
+            order.takingAmount = _amountInOverride;
+            return abi.encodeWithSelector(selector, order, signature, makingAmount, _amountInOverride);
         } else if (selector == 0x7c025200) {
             // "7c025200": "swap(address caller,(address srcToken, address dstToken, address srcReceiver, address dstReceiver, uint256 amount, uint256 minReturnAmount, uint256 flags, bytes permit) desc, bytes data)",
             (address caller, SwapDesc memory desc, bytes memory data) = abi.decode(
-                (_data[4:]),
+                (_data[4 :]),
                 (address, SwapDesc, bytes)
             );
             desc.dstReceiver = payable(_receiverOverride);
@@ -112,12 +112,12 @@ contract OneInchCodec is ICodec {
             return abi.encodeWithSelector(selector, caller, desc, data);
         } else if (selector == 0xe449022e) {
             // "e449022e": "uniswapV3Swap(uint256 amount,uint256 minReturn,uint256[] pools)",
-            (, uint256 minReturn, uint256[] memory pools) = abi.decode((_data[4:]), (uint256, uint256, uint256[]));
+            (, uint256 minReturn, uint256[] memory pools) = abi.decode((_data[4 :]), (uint256, uint256, uint256[]));
             return abi.encodeWithSelector(selector, _amountInOverride, minReturn, pools);
         } else if (selector == 0x2e95b6c8) {
             // "2e95b6c8": "unoswap(address srcToken, uint256 amount, uint256 minReturn, bytes32[] pools)"
             (address srcToken, , uint256 minReturn, bytes32[] memory pools) = abi.decode(
-                (_data[4:]),
+                (_data[4 :]),
                 (address, uint256, uint256, bytes32[])
             );
             return abi.encodeWithSelector(selector, srcToken, _amountInOverride, minReturn, pools);
