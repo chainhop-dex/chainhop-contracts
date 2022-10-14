@@ -141,10 +141,7 @@ contract TransferSwapper is
         require(_srcSwaps.length != 0 || (_desc.amountIn != 0 && _desc.tokenIn != address(0)), "nop");
         // swapping on the dst chain requires message passing. only integrated with cbridge for now
         bytes32 bridgeProviderHash = keccak256(bytes(_desc.bridgeProvider));
-        require(
-            (_dstSwaps.length == 0 && _desc.forward.length == 0) || bridgeProviderHash == CBRIDGE_PROVIDER_HASH,
-            "bridge does not support msg"
-        );
+        require((_dstSwaps.length == 0 && _desc.forward.length == 0) || bridgeProviderHash == CBRIDGE_PROVIDER_HASH, "bridge does not support msg");
 
         IBridgeAdapter bridge = bridges[bridgeProviderHash];
         // if not DirectSwap, the bridge provider should be a valid one
@@ -207,9 +204,7 @@ contract TransferSwapper is
         uint256 _amountOut
     ) private {
         // fund is directly to user if there is no swaps needed on the destination chain
-        address bridgeOutReceiver = (_dstSwaps.length > 0 || _desc.forward.length > 0)
-            ? _desc.dstTransferSwapper
-            : _desc.receiver;
+        address bridgeOutReceiver = (_dstSwaps.length > 0 || _desc.forward.length > 0) ? _desc.dstTransferSwapper : _desc.receiver;
         bytes memory bridgeResp;
         {
             _verifyFee(_desc, _amountIn, srcToken);
@@ -418,7 +413,10 @@ contract TransferSwapper is
         );
     }
 
-    function _encodeRequestMessage(bytes32 _id, address _receiver) internal pure returns (bytes memory message) {
+    function _encodeRequestMessage(
+        bytes32 _id,
+        address _receiver
+    ) internal pure returns (bytes memory message) {
         ICodec.SwapDescription[] memory emptySwaps;
         bytes memory empty;
         message = abi.encode(
