@@ -36,7 +36,7 @@ contract OneInchCodec is ICodec {
     }
 
     function decodeCalldata(ICodec.SwapDescription calldata _swap)
-    external
+        external
     view
     returns (
         uint256 amountIn,
@@ -69,7 +69,7 @@ contract OneInchCodec is ICodec {
         } else if (selector == 0x2e95b6c8) {
             // "2e95b6c8": "unoswap(address srcToken, uint256 amount, uint256 minReturn, bytes32[] pools)"
             (address srcToken, uint256 amount, , bytes32[] memory pools) = abi.decode(
-                (_swap.data[4 :]),
+                (_swap.data[4:]),
                 (address, uint256, uint256, bytes32[])
             );
             (, address dstToken) = decodeV2Pool(uint256(pools[pools.length - 1]));

@@ -9,6 +9,7 @@ import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "./lib/Types.sol";
 import "./lib/MessageSenderLib.sol";
 import "./lib/MessageReceiverApp.sol";
+import "./lib/Pauser.sol";
 import "./BridgeRegistry.sol";
 import "./FeeOperator.sol";
 import "./SigVerifier.sol";
@@ -22,7 +23,15 @@ import "./interfaces/ICodec.sol";
  * @title An app that enables swapping on a chain, transferring to another chain and swapping
  * another time on the destination chain before sending the result tokens to a user
  */
-contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperator, ReentrancyGuard, BridgeRegistry {
+contract TransferSwapper is
+    MessageReceiverApp,
+    Swapper,
+    SigVerifier,
+    FeeOperator,
+    ReentrancyGuard,
+    BridgeRegistry,
+    Pauser
+{
     using SafeERC20 for IERC20;
     using ECDSA for bytes32;
 
@@ -126,7 +135,7 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         Types.TransferDescription calldata _desc,
         ICodec.SwapDescription[] calldata _srcSwaps,
         ICodec.SwapDescription[] calldata _dstSwaps
-    ) external payable nonReentrant {
+    ) external payable nonReentrant whenNotPaused {
         // a request needs to incur a swap, a transfer, or both. otherwise it's a nop and we revert early to save gas
         require(_srcSwaps.length != 0 || _desc.dstChainId != uint64(block.chainid), "nop");
         require(_srcSwaps.length != 0 || (_desc.amountIn != 0 && _desc.tokenIn != address(0)), "nop");
@@ -249,7 +258,7 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         uint64, // _srcChainId
         bytes memory _message,
         address _executor
-    ) external payable override onlyMessageBus nonReentrant returns (ExecutionStatus) {
+    ) external payable override onlyMessageBus nonReentrant whenNotPaused returns (ExecutionStatus) {
         Types.Request memory m = abi.decode((_message), (Types.Request));
 
         // handle the case where amount received is not enough to pay fee
@@ -326,7 +335,7 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         uint64, // _srcChainId
         bytes memory _message,
         address // _executor
-    ) external payable override onlyMessageBus nonReentrant returns (ExecutionStatus) {
+    ) external payable override onlyMessageBus nonReentrant whenNotPaused returns (ExecutionStatus) {
         Types.Request memory m = abi.decode((_message), (Types.Request));
         _wrapBridgeOutToken(_token, _amount);
         uint256 refundAmount = _amount - m.fee; // no need to check amount >= fee as it's already checked before
@@ -349,7 +358,7 @@ contract TransferSwapper is MessageReceiverApp, Swapper, SigVerifier, FeeOperato
         uint256 _amount,
         bytes calldata _message,
         address // _executor
-    ) external payable override onlyMessageBus nonReentrant returns (ExecutionStatus) {
+    ) external payable override onlyMessageBus nonReentrant whenNotPaused returns (ExecutionStatus) {
         return _refund(_token, _amount, _message);
     }
 

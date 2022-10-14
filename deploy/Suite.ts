@@ -171,7 +171,7 @@ const deployTransferSwapper: DeployFunction = async (hre: HardhatRuntimeEnvironm
     const verifications: Promise<void>[] = [];
 
     // verify newly deployed TransferSwapper
-    if (deployResult.newlyDeployed) {
+    if (!deployResult.newlyDeployed) {
       verifications.push(verify(hre, deployResult, args));
     }
     // verify newly deployed bridge adapters

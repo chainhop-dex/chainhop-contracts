@@ -2,8 +2,8 @@ import { keccak256 } from '@ethersproject/solidity';
 import { BigNumber, BigNumberish } from 'ethers';
 import { parseUnits } from 'ethers/lib/utils';
 import { ethers } from 'hardhat';
-import { Types } from '../../typechain/TransferSwapper';
 import { ICodec } from '../../typechain';
+import { Types } from '../../typechain/TransferSwapper';
 import { CURVE_SLIPPAGE, UINT64_MAX, UNISWAP_V2_SLIPPAGE, ZERO_ADDR } from './constants';
 import { ChainhopFixture, IntegrationTestContext } from './fixtures';
 
@@ -54,7 +54,7 @@ export function encodeMessage(
 ): string {
   const encoded = ethers.utils.defaultAbiCoder.encode(
     ['(bytes32, (address dex, bytes data)[], address, bool, uint256, bool, bytes)'],
-    [[id, swaps, receiver, nativeOut, fee, allowPartialFill, "0x"]]
+    [[id, swaps, receiver, nativeOut, fee, allowPartialFill, '0x']]
   );
   return encoded;
 }
@@ -131,16 +131,16 @@ export function buildUniV2Swap(
 }
 
 export function build1inchSwap(
-    dex: string,
-    amountIn: BigNumber,
-    amountOutMin: BigNumber,
-    tokenIn: string,
-    tokenOut: string,
-    to: string
+  dex: string,
+  amountIn: BigNumber,
+  amountOutMin: BigNumber,
+  tokenIn: string,
+  tokenOut: string,
+  to: string
 ): ICodec.SwapDescriptionStruct {
   let data = ethers.utils.defaultAbiCoder.encode(
-      ['uint256', 'uint256', 'address','address', 'address'],
-      [amountIn, amountOutMin, to, tokenIn, tokenOut]
+    ['uint256', 'uint256', 'address', 'address', 'address'],
+    [amountIn, amountOutMin, to, tokenIn, tokenOut]
   );
   data = data.slice(2); // strip 0x
   data = '0xeab90da6' + data; // prepend selector
@@ -195,7 +195,11 @@ export function buildUniV2Swaps(c: ChainhopFixture & MockV2Address, amountIn: Bi
   return swaps;
 }
 
-export function build1inchSwaps(c: ChainhopFixture & Mock1inchAddress, amountIn: BigNumber, opts?: OneinchSwapsOverride) {
+export function build1inchSwaps(
+  c: ChainhopFixture & Mock1inchAddress,
+  amountIn: BigNumber,
+  opts?: OneinchSwapsOverride
+) {
   const amountOutMin = opts?.amountOutMin ?? slipUniV2(amountIn);
   const tokenIn = opts?.tokenIn ?? c.tokenA.address;
   const tokenOut = opts?.tokenOut ?? c.tokenB.address;
@@ -267,7 +271,7 @@ export function buildTransferDesc(c: IntegrationTestContext, feeSig: string, opt
   const fee = opts?.fee ?? parseUnits('1');
   const feeDeadline = opts?.feeDeadline ?? BigNumber.from(Math.floor(Date.now() / 1000 + 1200));
   const nonce = 1;
-  let bridgeParams = ethers.utils.defaultAbiCoder.encode(
+  const bridgeParams = ethers.utils.defaultAbiCoder.encode(
     ['uint256', 'uint32', 'address', 'uint64'],
     [BridgeType.Liquidity, opts?.maxSlippage ?? 1000000, opts?.wrappedBridgeToken || ZERO_ADDR, nonce]
   );
@@ -277,7 +281,7 @@ export function buildTransferDesc(c: IntegrationTestContext, feeSig: string, opt
     dstChainId: dstChainId,
     dstTransferSwapper: opts?.dstTransferSwapper ?? c.receiver.address,
     nonce: nonce,
-    bridgeProvider: opts?.bridgeProvider ?? "cbridge",
+    bridgeProvider: opts?.bridgeProvider ?? 'cbridge',
     bridgeParams: bridgeParams,
     nativeIn: opts?.nativeIn ?? false,
     nativeOut: opts?.nativeOut ?? false,
