@@ -95,8 +95,19 @@ export const getSpecialMetaPoolCodecConfig = (chainId: number): ICodecConfig => 
 export const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 export const verify = async (hre: HardhatRuntimeEnvironment, deployResult: DeployResult, args?: any) => {
-  return hre.run('verify:verify', {
-    address: deployResult.address,
-    constructorArguments: args ?? deployResult.args
-  });
+  console.log('verifying contract ' + deployResult.address);
+  try {
+    return hre
+      .run('verify:verify', {
+        address: deployResult.address,
+        constructorArguments: args ?? deployResult.args
+      })
+      .then(() => console.log(deployResult + ' verified'));
+  } catch (e: any) {
+    if (e.message.toLowerCase().includes('already verified')) {
+      console.log(deployResult.address + ' already verified');
+    } else {
+      console.log(e);
+    }
+  }
 };

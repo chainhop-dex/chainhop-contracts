@@ -1,8 +1,8 @@
 import * as dotenv from 'dotenv';
 import { DeployFunction } from 'hardhat-deploy/types';
 import { HardhatRuntimeEnvironment } from 'hardhat/types';
-import { isTestnet, testnetDeploymentConfigs } from '../configs/testnetConfig';
 import { deploymentConfigs } from '../configs/config';
+import { isTestnet, testnetDeploymentConfigs } from '../configs/testnetConfig';
 
 dotenv.config();
 
@@ -17,10 +17,7 @@ const deployFunc: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   await deploy('StargateAdapter', {
     from: deployer,
     log: true,
-    args: [
-      config.transferSwapper,
-      config.stargateRouters
-    ]
+    args: [config.transferSwapper, config.stargateRouters]
   });
 };
 
