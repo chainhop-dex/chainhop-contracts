@@ -141,7 +141,10 @@ contract TransferSwapper is
         require(_srcSwaps.length != 0 || (_desc.amountIn != 0 && _desc.tokenIn != address(0)), "nop");
         // swapping on the dst chain requires message passing. only integrated with cbridge for now
         bytes32 bridgeProviderHash = keccak256(bytes(_desc.bridgeProvider));
-        require((_dstSwaps.length == 0 && _desc.forward.length == 0) || bridgeProviderHash == CBRIDGE_PROVIDER_HASH, "bridge does not support msg");
+        require(
+            (_dstSwaps.length == 0 && _desc.forward.length == 0) || bridgeProviderHash == CBRIDGE_PROVIDER_HASH,
+            "bridge does not support msg"
+        );
 
         IBridgeAdapter bridge = bridges[bridgeProviderHash];
         // if not DirectSwap, the bridge provider should be a valid one
@@ -204,7 +207,9 @@ contract TransferSwapper is
         uint256 _amountOut
     ) private {
         // fund is directly to user if there is no swaps needed on the destination chain
-        address bridgeOutReceiver = (_dstSwaps.length > 0 || _desc.forward.length > 0) ? _desc.dstTransferSwapper : _desc.receiver;
+        address bridgeOutReceiver = (_dstSwaps.length > 0 || _desc.forward.length > 0)
+            ? _desc.dstTransferSwapper
+            : _desc.receiver;
         bytes memory bridgeResp;
         {
             _verifyFee(_desc, _amountIn, srcToken);
@@ -258,7 +263,10 @@ contract TransferSwapper is
         uint64, // _srcChainId
         bytes memory _message,
         address _executor
-    ) external payable override onlyMessageBus nonReentrant whenNotPaused returns (ExecutionStatus) {
+    ) external payable override onlyMessageBus nonReentrant returns (ExecutionStatus) {
+        if (paused()) {
+            return ExecutionStatus.Retry;
+        }
         Types.Request memory m = abi.decode((_message), (Types.Request));
 
         // handle the case where amount received is not enough to pay fee
@@ -335,7 +343,10 @@ contract TransferSwapper is
         uint64, // _srcChainId
         bytes memory _message,
         address // _executor
-    ) external payable override onlyMessageBus nonReentrant whenNotPaused returns (ExecutionStatus) {
+    ) external payable override onlyMessageBus nonReentrant returns (ExecutionStatus) {
+        if (paused()) {
+            return ExecutionStatus.Retry;
+        }
         Types.Request memory m = abi.decode((_message), (Types.Request));
         _wrapBridgeOutToken(_token, _amount);
         uint256 refundAmount = _amount - m.fee; // no need to check amount >= fee as it's already checked before
@@ -353,39 +364,25 @@ contract TransferSwapper is
      * @param _amount the amount of token received by this contract
      * @return ok whether the processing is successful
      */
-    function executeMessageWithTransferRefund(
-        address _token,
-        uint256 _amount,
-        bytes calldata _message,
-        address // _executor
-    ) external payable override onlyMessageBus nonReentrant whenNotPaused returns (ExecutionStatus) {
-        return _refund(_token, _amount, _message);
-    }
-
-    function _refund(
-        address _token,
-        uint256 _amount,
-        bytes calldata _message
-    ) private returns (ExecutionStatus) {
-        Types.Request memory m = abi.decode((_message), (Types.Request));
-        _wrapBridgeOutToken(_token, _amount);
-        _sendToken(_token, _amount, m.receiver, false);
-        emit RequestDone(m.id, 0, _amount, _token, m.fee, Types.RequestStatus.Fallback, bytes(""));
-        return ExecutionStatus.Success;
-    }
-
     function executeMessageWithTransferRefundFromAdapter(
         address _token,
         uint256 _amount,
         bytes calldata _message,
         address // _executor
     ) external payable nonReentrant returns (ExecutionStatus) {
+        if (paused()) {
+            return ExecutionStatus.Retry;
+        }
         if (_token != nativeWrap) {
             IERC20(_token).safeTransferFrom(msg.sender, address(this), _amount);
         } else {
             require(msg.value >= _amount, "no native transferred in");
         }
-        return _refund(_token, _amount, _message);
+        Types.Request memory m = abi.decode((_message), (Types.Request));
+        _wrapBridgeOutToken(_token, _amount);
+        _sendToken(_token, _amount, m.receiver, false);
+        emit RequestDone(m.id, 0, _amount, _token, m.fee, Types.RequestStatus.Fallback, bytes(""));
+        return ExecutionStatus.Success;
     }
 
     /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
@@ -413,10 +410,7 @@ contract TransferSwapper is
         );
     }
 
-    function _encodeRequestMessage(
-        bytes32 _id,
-        address _receiver
-    ) internal pure returns (bytes memory message) {
+    function _encodeRequestMessage(bytes32 _id, address _receiver) internal pure returns (bytes memory message) {
         ICodec.SwapDescription[] memory emptySwaps;
         bytes memory empty;
         message = abi.encode(
