@@ -10,24 +10,17 @@ import "../interfaces/IBridgeAdapter.sol";
 import "../interfaces/IBridgeStargate.sol";
 import "../interfaces/ITransferSwapper.sol";
 import "../interfaces/IWETH.sol";
+import "../lib/NativeWrap.sol";
 
-contract StargateAdapter is IBridgeAdapter, Ownable {
+contract StargateAdapter is IBridgeAdapter, NativeWrap {
     using SafeERC20 for IERC20;
-    
-    address public mainContract;
+
     mapping(address => bool) public supportedRouters;
     mapping(bytes32 => bool) public transfers;
 
-    event MainContractUpdated(address mainContract);
     event SupportedRouterUpdated(address router, bool enabled);
 
-    modifier onlyMainContract() {
-        require(msg.sender == mainContract, "caller is not main contract");
-        _;
-    }
-
-    constructor(address _mainContract, address[] memory _routers) {
-        mainContract = _mainContract;
+    constructor(address _nativeWrap, address[] memory _routers) NativeWrap(_nativeWrap) {
         for (uint256 i = 0; i < _routers.length; i++) {
             require(_routers[i] != address(0), "nop");
             supportedRouters[_routers[i]] = true;
@@ -52,10 +45,10 @@ contract StargateAdapter is IBridgeAdapter, Ownable {
         address _token,
         bytes memory _bridgeParams,
         bytes memory //_requestMessage // Not used for now, as stargate messaging is not supported in this version
-    ) external payable onlyMainContract returns (bytes memory bridgeResp) {
+    ) external payable returns (bytes memory bridgeResp) {
         StargateParams memory params = abi.decode((_bridgeParams), (StargateParams));
         require(supportedRouters[params.router], "illegal router");
-        
+
         bytes32 transferId = keccak256(
             abi.encodePacked(_receiver, _token, _amount, _dstChainId, params.nonce, uint64(block.chainid))
         );
@@ -67,31 +60,32 @@ contract StargateAdapter is IBridgeAdapter, Ownable {
     }
 
     function swap(
-        address _token, 
+        address _token,
         address _receiver,
         uint256 _amount,
-        StargateParams memory params) private returns (uint64 outboundNonce) {
+        StargateParams memory params
+    ) private returns (uint64 outboundNonce) {
         IBridgeStargate router = IBridgeStargate(params.router);
-        ITransferSwapper main = ITransferSwapper(mainContract);
-        if (_token == main.nativeWrap()) {
+        if (_token == nativeWrap) {
             IWETH(_token).withdraw(_amount);
             router.swapETH{value: msg.value + _amount}(
-                params.stargateDstChainId, 
-                payable(mainContract),
-                abi.encodePacked(_receiver), 
-                _amount, 
-                params.minReceivedAmt);
+                params.stargateDstChainId,
+                payable(address(0)),
+                abi.encodePacked(_receiver),
+                _amount,
+                params.minReceivedAmt
+            );
         } else {
             IERC20(_token).safeApprove(params.router, _amount);
             router.swap{value: msg.value}(
-                params.stargateDstChainId, 
-                params.srcPoolId, 
-                params.dstPoolId, 
-                payable(mainContract), // default to refund to main contract
+                params.stargateDstChainId,
+                params.srcPoolId,
+                params.dstPoolId,
+                payable(address(0)),
                 _amount,
-                params.minReceivedAmt, 
-                IBridgeStargate.lzTxObj(0, 0, "0x"), 
-                abi.encodePacked(_receiver), 
+                params.minReceivedAmt,
+                IBridgeStargate.lzTxObj(0, 0, "0x"),
+                abi.encodePacked(_receiver),
                 bytes("") // not supported additional msg in this version
             );
             IERC20(_token).safeApprove(params.router, 0);
@@ -99,18 +93,16 @@ contract StargateAdapter is IBridgeAdapter, Ownable {
 
         // query current nonce
         address stargateInternalBridge;
-        if (_token == main.nativeWrap()) {
+        if (_token == nativeWrap) {
             stargateInternalBridge = IBridgeStargate(router.stargateRouter()).bridge();
         } else {
             stargateInternalBridge = router.bridge();
         }
         address layerZeroEndpoint = IStargateInternalBridge(stargateInternalBridge).layerZeroEndpoint();
-        outboundNonce = ILayerZeroEndpoint(layerZeroEndpoint).getOutboundNonce(params.stargateDstChainId, stargateInternalBridge);
-    }
-
-    function updateMainContract(address _mainContract) external onlyOwner {
-        mainContract = _mainContract;
-        emit MainContractUpdated(_mainContract);
+        outboundNonce = ILayerZeroEndpoint(layerZeroEndpoint).getOutboundNonce(
+            params.stargateDstChainId,
+            stargateInternalBridge
+        );
     }
 
     function setSupportedRouter(address _router, bool _enabled) external onlyOwner {
@@ -119,7 +111,4 @@ contract StargateAdapter is IBridgeAdapter, Ownable {
         supportedRouters[_router] = _enabled;
         emit SupportedRouterUpdated(_router, _enabled);
     }
-
-    // This is needed to receive ETH when calling `IWETH.withdraw`
-    receive() external payable {}
 }

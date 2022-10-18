@@ -105,9 +105,7 @@ export async function deployBridgeContracts(admin: Wallet, weth: string): Promis
   await messageBus.setFeePerByte(1);
 
   const bridgeAdapterFactory = (await ethers.getContractFactory('CBridgeAdapter')) as CBridgeAdapter__factory;
-  const bridgeAdapter = await bridgeAdapterFactory
-    .connect(admin)
-    .deploy('0x0000000000000000000000000000000000000000', messageBus.address);
+  const bridgeAdapter = await bridgeAdapterFactory.connect(admin).deploy(messageBus.address);
   await bridgeAdapter.deployed();
 
   return { bridge, bridgeAdapter, messageBus };

@@ -24,8 +24,7 @@ contract CBridgeAdapter is MessageReceiverApp, IBridgeAdapter {
         _;
     }
 
-    constructor(address _mainContract, address _messageBus) {
-        mainContract = _mainContract;
+    constructor(address _messageBus) {
         messageBus = _messageBus;
     }
 
