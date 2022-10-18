@@ -144,6 +144,7 @@ const deployTransferSwapper: DeployFunction = async (hre: HardhatRuntimeEnvironm
     });
     const hopArgs = [tokens, bridges, config.isL1, config.nativeWrap];
     console.log(hopArgs);
+    supportedBridges.push('hop');
     supportedBridgeAdapters.push(
       await deploy('HopAdapter', {
         from: deployer,
