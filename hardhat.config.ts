@@ -187,7 +187,7 @@ const config: HardhatUserConfig = {
     polygon: {
       url: polygonEndpoint,
       accounts: [`0x${polygonPrivateKey}`],
-      gasPrice: 50000000000
+      gasPrice: 176591248443
     },
     fantom: {
       url: fantomEndpoint,

@@ -70,7 +70,7 @@ contract StargateAdapter is IBridgeAdapter, NativeWrap {
             IWETH(_token).withdraw(_amount);
             router.swapETH{value: msg.value + _amount}(
                 params.stargateDstChainId,
-                payable(address(0)),
+                payable(_receiver),
                 abi.encodePacked(_receiver),
                 _amount,
                 params.minReceivedAmt
@@ -81,7 +81,7 @@ contract StargateAdapter is IBridgeAdapter, NativeWrap {
                 params.stargateDstChainId,
                 params.srcPoolId,
                 params.dstPoolId,
-                payable(address(0)),
+                payable(_receiver),
                 _amount,
                 params.minReceivedAmt,
                 IBridgeStargate.lzTxObj(0, 0, "0x"),

@@ -5,7 +5,7 @@ import { HardhatRuntimeEnvironment } from 'hardhat/types';
 import { TransferSwapper__factory } from '../typechain/factories/TransferSwapper__factory';
 import { CBridgeAdapter__factory } from './../typechain/factories/CBridgeAdapter__factory';
 import { deploymentConfigs } from './configs/config';
-import { sleep, verify } from './configs/functions';
+import { sleep } from './configs/functions';
 import { isTestnet, testnetDeploymentConfigs } from './configs/testnetConfig';
 import { ICodecConfig } from './configs/types';
 
@@ -165,28 +165,22 @@ const deployTransferSwapper: DeployFunction = async (hre: HardhatRuntimeEnvironm
   tx.wait();
   console.log(`setSupportedBridges: tx ${tx.hash} mined`);
 
-  console.log('sleeping 15 seconds before verifying contract');
-  await sleep(15000);
-  const verifications: Promise<void>[] = [];
+  // console.log('sleeping 15 seconds before verifying contract');
+  // await sleep(15000);
+  // const verifications: Promise<void>[] = [];
 
-  // verify newly deployed TransferSwapper
-  if (deployResult.newlyDeployed) {
-    verifications.push(verify(hre, deployResult, args));
-  }
-  // verify newly deployed bridge adapters
-  supportedBridgeAdapters.forEach((bridgeAdapter) => {
-    if (bridgeAdapter.newlyDeployed) {
-      verifications.push(verify(hre, bridgeAdapter));
-    }
-  });
-  // verify newly deployed codecs
-  codecDeployResults.forEach((codecDeployment) => {
-    if (codecDeployment.newlyDeployed) {
-      verifications.push(verify(hre, codecDeployment));
-    }
-  });
+  // // verify newly deployed TransferSwapper
+  // verifications.push(verify(hre, deployResult, args));
+  // // verify newly deployed bridge adapters
+  // supportedBridgeAdapters.forEach((bridgeAdapter) => {
+  //   verifications.push(verify(hre, bridgeAdapter));
+  // });
+  // // verify newly deployed codecs
+  // codecDeployResults.forEach((codecDeployment) => {
+  //   verifications.push(verify(hre, codecDeployment));
+  // });
 
-  await Promise.all(verifications);
+  // await Promise.all(verifications);
 };
 
 deployTransferSwapper.tags = ['Suite'];
