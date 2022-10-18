@@ -6,7 +6,6 @@ import { TransferSwapper__factory } from '../../typechain';
 import { deploymentConfigs } from '../configs/config';
 import { verify } from '../configs/functions';
 import { isTestnet, testnetDeploymentConfigs } from '../configs/testnetConfig';
-import { AnyswapAdapter__factory } from './../../typechain/factories/AnyswapAdapter__factory';
 
 dotenv.config();
 
@@ -31,17 +30,10 @@ const deployFunc: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
 
   const xswapFactory = await ethers.getContractFactory<TransferSwapper__factory>('TransferSwapper');
   const main = xswapFactory.attach(xswap.address);
-  let tx = await main.connect(deployerSigner).setSupportedBridges(['anyswap'], [result.address]);
+  const tx = await main.connect(deployerSigner).setSupportedBridges(['anyswap'], [result.address]);
   console.log('setSupportedBridges: tx', tx.hash);
   await tx.wait(5);
   console.log(`setSupportedBridges: tx ${tx.hash} done`);
-
-  const factory = await ethers.getContractFactory<AnyswapAdapter__factory>('AnyswapAdapter');
-  const adapter = factory.attach(result.address);
-  tx = await adapter.connect(deployerSigner).updateMainContract(xswap.address);
-  console.log('updateMainContract for anyswap adapter: tx', tx.hash);
-  await tx.wait(5);
-  console.log(`updateMainContract for anyswap adapter: tx ${tx.hash} done`);
 
   await verify(hre, result, args);
 };
