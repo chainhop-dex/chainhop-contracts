@@ -94,8 +94,8 @@ const deployTransferSwapper: DeployFunction = async (hre: HardhatRuntimeEnvironm
         args: anyswapArgs
       })
     );
+    await sleep(1000);
   }
-
   if (config.stargateRouters) {
     const stargateArgs = [config.nativeWrap, config.stargateRouters];
     console.log(stargateArgs);
@@ -107,8 +107,8 @@ const deployTransferSwapper: DeployFunction = async (hre: HardhatRuntimeEnvironm
         args: stargateArgs
       })
     );
+    await sleep(1000);
   }
-
   if (config.acrossSpokePool) {
     const acrossArgs = [config.acrossSpokePool];
     console.log(acrossArgs);
@@ -120,8 +120,8 @@ const deployTransferSwapper: DeployFunction = async (hre: HardhatRuntimeEnvironm
         args: acrossArgs
       })
     );
+    await sleep(1000);
   }
-
   if (config.hyphenLiquidityPool) {
     const hyphenArgs = [config.hyphenLiquidityPool, config.nativeWrap];
     console.log(hyphenArgs);
@@ -133,8 +133,8 @@ const deployTransferSwapper: DeployFunction = async (hre: HardhatRuntimeEnvironm
         args: hyphenArgs
       })
     );
+    await sleep(1000);
   }
-
   if (config.hopBridges) {
     const tokens: string[] = [];
     const bridges: string[] = [];
@@ -151,6 +151,7 @@ const deployTransferSwapper: DeployFunction = async (hre: HardhatRuntimeEnvironm
         args: hopArgs
       })
     );
+    await sleep(1000);
   }
 
   const xswapFactory = await ethers.getContractFactory<TransferSwapper__factory>('TransferSwapper');
