@@ -93,6 +93,7 @@ export const PlatypusRouter01Codec: ICodecConfig = {
 };
 
 export const OneInchCodecs: ICodecConfig[] = [
+  { name: 'OneInchCodec', func: OneInchSwapFunc },
   { name: 'OneInchCodec', func: OneInchClipperSwapFunc },
   { name: 'OneInchCodec', func: OneInchUnoswapSwapFunc },
   { name: 'OneInchCodec', func: OneInchUnoswapV3SwapFunc },
