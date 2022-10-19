@@ -225,7 +225,7 @@ export const deploymentConfigs: IConfig = {
       '0x9b17baadf0f21f03e35249e0e59723f34994f806',
       '0xb0731d50c681c45856bfc3f7539d5f61d4be81d8'
     ],
-    stargateRouters: ['0xB0D502E938ed5f4df2E681fE6E419ff29631d62b', '0xB49c4e680174E331CB0A7fF3Ab58afC9738d5F8b'],
+    stargateRouters: ['0x45a01e4e04f14f7a4a6702c74187c5f6222033cd'],
     hyphenLiquidityPool: '0x2A5c2568b10A0E826BfA892Cf21BA7218310180b'
   }
 };
