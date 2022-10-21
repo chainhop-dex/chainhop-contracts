@@ -31,9 +31,11 @@ contract HopAdapter is IBridgeAdapter, NativeWrap {
     }
 
     struct BridgeParams {
-        uint256 amountOutMin;
-        uint256 deadline;
         uint256 bonderFee;
+        uint256 deadline;
+        uint256 amountOutMin;
+        uint256 dstDeadline;
+        uint256 dstAmountOutMin;
     }
 
     function bridge(
@@ -82,8 +84,8 @@ contract HopAdapter is IBridgeAdapter, NativeWrap {
                 p.bonderFee,
                 p.amountOutMin,
                 p.deadline,
-                p.amountOutMin,
-                p.deadline
+                p.dstAmountOutMin,
+                p.dstDeadline
             );
         }
         return bridgeResp;
