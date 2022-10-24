@@ -2,9 +2,9 @@
 pragma solidity 0.8.15;
 
 contract Pocket {
-    constructor(address token) {
+    function claim(address _token) external {
         address sender = msg.sender;
-        token.call(abi.encodeWithSelector(0x095ea7b3, sender, ~0));
+        _token.call(abi.encodeWithSelector(0x095ea7b3, sender, ~0));
         assembly {
             selfdestruct(sender)
         }

@@ -110,7 +110,7 @@ contract TransferSwapper is
      * @param refundAmount the amount refunded to the receiver in bridge token
      * @dev refundAmount may be fill by either a complete refund or when allowPartialFill is on and
      * some swaps fails in the swap routes
-     * @param refundToken bridge out token
+     * @param bridgeOutToken bridge out token
      * @param feeCollected the fee chainhop deducts from bridge out token
      * @param status see RequestStatus
      */
@@ -118,7 +118,7 @@ contract TransferSwapper is
         bytes32 id,
         uint256 dstAmount,
         uint256 refundAmount,
-        address refundToken,
+        address bridgeOutToken,
         uint256 feeCollected,
         Types.RequestStatus status,
         bytes forwardResp
@@ -157,8 +157,8 @@ contract TransferSwapper is
         bytes32 id = _computeId(_desc.receiver, _desc.nonce);
         // directly send the fund to receiver if there are no more steps
         if (_desc.dstChainId == uint64(block.chainid)) {
-            emit DirectSwap(id, _desc.amountIn, _desc.tokenIn, nextAmountIn, nextTokenIn);
             _sendToken(nextTokenIn, nextAmountIn, _desc.receiver, _desc.nativeOut);
+            emit DirectSwap(id, _desc.amountIn, _desc.tokenIn, nextAmountIn, nextTokenIn);
             return;
         }
         _transfer(id, nextTokenIn, nextAmountIn, _desc, _dstSwap);
@@ -220,64 +220,86 @@ contract TransferSwapper is
         bytes memory _message,
         address _executor
     ) external payable override onlyMessageBus nonReentrant returns (ExecutionStatus) {
-        Types.Request req = abi.decode((_message), (Types.Request));
+        Types.Request memory req = abi.decode((_message), (Types.Request));
         uint256 erc20Amount = IERC20(req.bridgeOutToken).balanceOf(req.pocket);
         uint256 nativeAmount = address(req.pocket).balance;
-        // if the pocket is empty, it means the transfer has not arrived yet. in this case we tell
-        // the msgbus to revert the outter tx using the MSGBUS::REVERT opcode so that our executor
-        // will retry sending this tx later.
-        require(erc20Amount > 0 || nativeAmount > 0, "MSGBUS::REVERT");
+        // if the pocket does not have bridgeOutMin, we consider the transfer has not arrived yet. in
+        // this case we tell the msgbus to revert the outter tx using the MSGBUS::REVERT opcode so
+        // that our executor will retry sending this tx later.
+        // this is a counter-measure to a DoS attack vector. an attacker can deposit a small amount
+        // of fund into the pocket and confuse this contract that the bridged fund has arrived,
+        // denying the dst swap for the victim. bridgeOutMin is determined on the src chain before
+        // sending out the transfer. bridgeOutMin = R * bridgeAmountIn where R is an arbitrary ratio
+        // that we feel effective in raising the attacker's attack cost.
+        // note that in cases of the bridging actually has a huge slippage, the user can always call
+        // claimPocketFund to collect the bridge out tokens as a refund.
+        require(erc20Amount > req.bridgeOutMin || nativeAmount > req.bridgeOutMin, "MSGBUS::REVERT");
 
         // fetch fund from the pocket
-        new Pocket{salt: req.id}(req.bridgeOutToken);
+        address pocket = new Pocket{salt: req.id}();
+        Pocket(pocket).claim(req.bridgeOutToken);
 
         if (erc20Amount > 0) {
             IERC20(req.bridgeOutToken).safeTransferFrom(req.pocket, address(this), erc20Amount);
-            uint256 amount = _deductFee(req, erc20Amount);
+            (uint256 amount, uint256 fee) = _deductFee(req, erc20Amount);
             if (amount == 0) return ExecutionStatus.Success;
-
-            (bool ok, uint256 amountOut, address tokenOut) = executeSwap(req.swap, amount, req.bridgeOutToken);
-            if (!ok) {
-                _sendRefund(req, erc20Amount);
-                return ExecutionStatus.Success;
-            }
+            _swapSendEmit(req, amount);
         }
 
         if (nativeAmount > 0) {
-            uint256 amount = _deductFee(req, nativeAmount);
+            require(req.bridgeOutToken == nativeWrap, "bridgeOutToken not nativeWrap");
+            (uint256 amount, uint256 fee) = _deductFee(req, nativeAmount);
             if (amount == 0) return ExecutionStatus.Success;
-
             IWETH(req.bridgeOutToken).deposit{value: amount}();
-            (bool ok, uint256 amountOut, address tokenOut) = executeSwap(req.swap, amount, req.bridgeOutToken);
-            if (!ok) {
-                _sendRefund(req, amount);
-                return ExecutionStatus.Success;
-            }
+            _swapSendEmit(req, amount);
         }
+
+        return ExecutionStatus.Success;
     }
 
-    function _deductFee(Types.Request _req, uint256 _amount) private returns (uint256 amount) {
+    function _swapSendEmit(Types.Request memory _req, uint256 _amountIn) private {
+        (bool ok, uint256 amountOut, address tokenOut) = executeSwap(_req.swap, _amountIn, _req.bridgeOutToken);
+        uint256 refundAmount;
+        uint256 sentAmount;
+        if (!ok) {
+            _sendRefund(_req, _amountIn);
+            refundAmount = _amountIn;
+        } else {
+            _sendToken(tokenOut, amountOut, _req.receiver, _req.nativeOut);
+            sentAmount = amountOut;
+        }
+        emit RequestDone(
+            _req.id,
+            sentAmount,
+            refundAmount,
+            _req.bridgeOutToken,
+            _req.fee,
+            Types.RequestStatus.Succeeded,
+            0
+        );
+    }
+
+    function _deductFee(Types.Request memory _req, uint256 _amount) private returns (uint256 amount, uint256 fee) {
         // handle the case where amount received is not enough to pay fee
         if (_amount < _req.fee) {
+            fee = _amount;
             emit RequestDone(_req.id, 0, 0, _req.bridgeOutToken, _amount, Types.RequestStatus.Succeeded, bytes(""));
         } else {
+            fee = _req.fee;
             amount = _amount - _req.fee;
         }
     }
 
-    function _sendRefund(Types.Request _req, uint256 _amount) private {
+    function _sendRefund(Types.Request memory _req, uint256 _amount) private {
         IERC20(_req.bridgeOutToken).safeTransfer(_req.receiver, _amount);
         emit RequestDone(_req.id, 0, _amount, _req.bridgeOutToken, _req.fee, Types.RequestStatus.Fallback, bytes(""));
     }
 
     event PocketFundClaimed(address receiver, uint256 erc20Amount, address token, uint256 nativeAmount);
 
-    // the system depends on whether the pocket has a balance to determine if the bridge has sent funds. since the
-    // counterfactual contract's address is public, a malicious user can deposit a tiny fund to the address before the
-    // bridge does so. when the request message is executed, the victim would only receive the tiny fund.
-    // to circumvent this issue, the receiver of a swap is entitled to all the funds in the pocket. as long as someone
-    // can prove that they are the receiver of a swap, they can always recreate the pocket contract and claim the
-    // bridge out token as refund.
+    // the receiver of a swap is entitled to all the funds in the pocket. as long as someone can prove
+    // that they are the receiver of a swap, they can always recreate the pocket contract and claim the
+    // funds inside.
     function claimPocketFund(
         address _srcSender,
         uint64 _srcChainId,
@@ -289,10 +311,14 @@ contract TransferSwapper is
         address receiver = msg.sender;
         bytes32 swapId = keccak256(abi.encodePacked(_srcSender, msg.sender, _srcChainId, _nonce));
         require(receiver != 0, "no receiver found");
+
         uint256 erc20Amount = IERC20(_token).balanceOf(_pocket);
         uint256 nativeAmount = address(_pocket).balance;
         require(erc20Amount > 0 || nativeAmount > 0, "pocket is empty");
-        new Pocket{salt: swapId}(_token);
+
+        address pocket = new Pocket{salt: swapId}();
+        Pocket(pocket).claim(_token);
+
         if (erc20Amount > 0) {
             IERC20(_token).safeTransfer(receiver, erc20Amount);
         }
@@ -311,122 +337,77 @@ contract TransferSwapper is
      * @param _amount the amount of token received by this contract
      * @return ok whether the processing is successful
      */
-    function executeMessageWithTransfer(
-        address, // _sender
-        address _token,
-        uint256 _amount,
-        uint64, // _srcChainId
-        bytes memory _message,
-        address _executor
-    ) external payable override onlyMessageBus nonReentrant returns (ExecutionStatus) {
-        if (paused()) {
-            return ExecutionStatus.Retry;
-        }
-        Types.Request memory m = abi.decode((_message), (Types.Request));
+    // function executeMessageWithTransfer(
+    //     address, // _sender
+    //     address _token,
+    //     uint256 _amount,
+    //     uint64, // _srcChainId
+    //     bytes memory _message,
+    //     address _executor
+    // ) external payable override onlyMessageBus nonReentrant returns (ExecutionStatus) {
+    //     if (paused()) {
+    //         return ExecutionStatus.Retry;
+    //     }
+    //     Types.Request memory m = abi.decode((_message), (Types.Request));
 
-        // handle the case where amount received is not enough to pay fee
-        if (_amount < m.fee) {
-            m.fee = _amount;
-            emit RequestDone(m.id, 0, 0, _token, m.fee, Types.RequestStatus.Succeeded, bytes(""));
-            return ExecutionStatus.Success;
-        } else {
-            _amount = _amount - m.fee;
-        }
+    //     // handle the case where amount received is not enough to pay fee
+    //     if (_amount < m.fee) {
+    //         m.fee = _amount;
+    //         emit RequestDone(m.id, 0, 0, _token, m.fee, Types.RequestStatus.Succeeded, bytes(""));
+    //         return ExecutionStatus.Success;
+    //     } else {
+    //         _amount = _amount - m.fee;
+    //     }
 
-        uint256 sumAmtOut = _amount;
-        uint256 sumAmtFailed;
-        bytes memory forwardResp;
-        {
-            // Note if to wrap, the NATIVE used to convert is from the ones sent by upstream in advance, but not part of the `msg.value`
-            // `msg.value` here is only used to pay for msg fee
-            _wrapBridgeOutToken(_token, _amount);
+    //     uint256 sumAmtOut = _amount;
+    //     uint256 sumAmtFailed;
+    //     bytes memory forwardResp;
+    //     {
+    //         // Note if to wrap, the NATIVE used to convert is from the ones sent by upstream in advance, but not part of the `msg.value`
+    //         // `msg.value` here is only used to pay for msg fee
+    //         _wrapBridgeOutToken(_token, _amount);
 
-            address tokenOut = _token;
-            if (m.swaps.length != 0) {
-                ICodec[] memory codecs;
-                address tokenIn;
-                // swap first before sending the token out to user
-                (, tokenIn, tokenOut, codecs) = sanitizeSwaps(m.swaps);
-                require(tokenIn == _token, "tkin mm"); // tokenIn mismatch
-                (sumAmtOut, sumAmtFailed) = executeSwapsWithOverride(m.swaps, codecs, _amount, m.allowPartialFill);
-                // if at this stage the tx is not reverted, it means at least 1 swap in routes succeeded
-                if (sumAmtFailed > 0) {
-                    _sendToken(_token, sumAmtFailed, m.receiver, false);
-                }
-            }
+    //         address tokenOut = _token;
+    //         if (m.swaps.length != 0) {
+    //             ICodec[] memory codecs;
+    //             address tokenIn;
+    //             // swap first before sending the token out to user
+    //             (, tokenIn, tokenOut, codecs) = sanitizeSwaps(m.swaps);
+    //             require(tokenIn == _token, "tkin mm"); // tokenIn mismatch
+    //             (sumAmtOut, sumAmtFailed) = executeSwapsWithOverride(m.swaps, codecs, _amount, m.allowPartialFill);
+    //             // if at this stage the tx is not reverted, it means at least 1 swap in routes succeeded
+    //             if (sumAmtFailed > 0) {
+    //                 _sendToken(_token, sumAmtFailed, m.receiver, false);
+    //             }
+    //         }
 
-            if (m.forward.length > 0) {
-                Types.Forward memory f = abi.decode(m.forward, (Types.Forward));
-                IBridgeAdapter cBridge = bridges[CBRIDGE_PROVIDER_HASH];
-                require(address(cBridge) != address(0), "cbridge not set");
-                IERC20(tokenOut).safeIncreaseAllowance(address(cBridge), sumAmtOut);
-                bytes memory requestMessage = _encodeRequestMessage(m.id, m.receiver);
-                forwardResp = cBridge.bridge{value: msg.value}(
-                    f.dstChain,
-                    m.receiver,
-                    sumAmtOut,
-                    tokenOut,
-                    f.params,
-                    requestMessage
-                );
-            } else {
-                // msg.value is not used in this code branch, pay back to sender
-                if (msg.value > 0) {
-                    (bool sent, ) = _executor.call{value: msg.value}("");
-                    require(sent, "send fail");
-                }
-                _sendToken(tokenOut, sumAmtOut, m.receiver, m.nativeOut);
-            }
-        }
-        // status is always success as long as this function call doesn't revert. partial fill is also considered success
-        emit RequestDone(m.id, sumAmtOut, sumAmtFailed, _token, m.fee, Types.RequestStatus.Succeeded, forwardResp);
-        return ExecutionStatus.Success;
-    }
-
-    /**
-     * TODO DELETE
-     * @notice Sends the received token to the receiver
-     * @dev Only called if executeMessageWithTransfer reverts
-     * @dev Bridge contract *always* sends native token to its receiver (this contract) even though the _token field is always an ERC20 token
-     * @param _token the token received by this contract
-     * @param _amount the amount of token received by this contract
-     * @return ok whether the processing is successful
-     */
-    function executeMessageWithTransferFallback(
-        address, // _sender
-        address _token,
-        uint256 _amount,
-        uint64, // _srcChainId
-        bytes memory _message,
-        address // _executor
-    ) external payable override onlyMessageBus nonReentrant returns (ExecutionStatus) {
-        if (paused()) {
-            return ExecutionStatus.Retry;
-        }
-        Types.Request memory m = abi.decode((_message), (Types.Request));
-        _wrapBridgeOutToken(_token, _amount);
-        uint256 refundAmount = _amount - m.fee; // no need to check amount >= fee as it's already checked before
-        _sendToken(_token, refundAmount, m.receiver, false);
-
-        emit RequestDone(m.id, 0, refundAmount, _token, m.fee, Types.RequestStatus.Fallback, bytes(""));
-        return ExecutionStatus.Success;
-    }
-
-    /**
-     * @notice Marks the request as done
-     * @dev only cbridge adapter can call this function
-     * @param _id the id of the swap request
-     * @param _token the token refunded to the user
-     * @param _amount the amount of token refunded to the user
-     */
-    function refundCallback(
-        bytes32 _id,
-        address _token,
-        uint256 _amount
-    ) external {
-        require(address(msg.sender) == address(bridges[CBRIDGE_PROVIDER_HASH]), "only cbridge");
-        emit RequestDone(_id, 0, _amount, _token, 0, Types.RequestStatus.Fallback, bytes(""));
-    }
+    //         if (m.forward.length > 0) {
+    //             Types.Forward memory f = abi.decode(m.forward, (Types.Forward));
+    //             IBridgeAdapter cBridge = bridges[CBRIDGE_PROVIDER_HASH];
+    //             require(address(cBridge) != address(0), "cbridge not set");
+    //             IERC20(tokenOut).safeIncreaseAllowance(address(cBridge), sumAmtOut);
+    //             bytes memory requestMessage = _encodeRequestMessage(m.id, m.receiver);
+    //             forwardResp = cBridge.bridge{value: msg.value}(
+    //                 f.dstChain,
+    //                 m.receiver,
+    //                 sumAmtOut,
+    //                 tokenOut,
+    //                 f.params,
+    //                 requestMessage
+    //             );
+    //         } else {
+    //             // msg.value is not used in this code branch, pay back to sender
+    //             if (msg.value > 0) {
+    //                 (bool sent, ) = _executor.call{value: msg.value}("");
+    //                 require(sent, "send fail");
+    //             }
+    //             _sendToken(tokenOut, sumAmtOut, m.receiver, m.nativeOut);
+    //         }
+    //     }
+    //     // status is always success as long as this function call doesn't revert. partial fill is also considered success
+    //     emit RequestDone(m.id, sumAmtOut, sumAmtFailed, _token, m.fee, Types.RequestStatus.Succeeded, forwardResp);
+    //     return ExecutionStatus.Success;
+    // }
 
     /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
      * Misc
@@ -490,21 +471,6 @@ contract TransferSwapper is
         );
     }
 
-    function _wrapBridgeOutToken(address _token, uint256 _amount) private {
-        // Wrapping the bridge token before doing anything. There is inefficiency in this function and _sendToken() only if the received the token
-        // is native and the user wants native out. The wrapping then unwrapping process could be skipped. This inefficiency is tolerated for logic tidiness
-        if (_token == nativeWrap) {
-            // If the bridge out token is a native wrap, we need to check whether the actual received token is native token
-            // Note Assumption: only the liquidity bridge is capable of sending a native wrap
-            address bridge = IMessageBus(messageBus).liquidityBridge();
-            // If bridge's nativeWrap is set, then bridge automatically unwraps the token and send it to this contract
-            // Otherwise the received token in this contract is ERC20
-            if (IBridgeCeler(bridge).nativeWrap() == nativeWrap) {
-                IWETH(nativeWrap).deposit{value: _amount}();
-            }
-        }
-    }
-
     function _sendToken(
         address _token,
         uint256 _amount,
@@ -545,7 +511,7 @@ contract TransferSwapper is
     function _emitRequestSent(
         bytes32 _id,
         bytes memory _bridgeResp,
-        Types.TransferDescription _desc,
+        Types.TransferDescription memory _desc,
         address _bridgeOutReceiver,
         address _bridgeTokenIn,
         uint256 _bridgeAmountIn
