@@ -14,6 +14,7 @@ import "./BridgeRegistry.sol";
 import "./FeeOperator.sol";
 import "./SigVerifier.sol";
 import "./Swapper.sol";
+import "./Pocket.sol";
 import "./interfaces/IBridgeAdapter.sol";
 import "./interfaces/ICodec.sol";
 
@@ -133,119 +134,173 @@ contract TransferSwapper is
      */
     function transferWithSwap(
         Types.TransferDescription calldata _desc,
-        ICodec.SwapDescription[] calldata _srcSwaps,
-        ICodec.SwapDescription[] calldata _dstSwaps
+        ICodec.SwapDescription calldata _srcSwap,
+        ICodec.SwapDescription calldata _dstSwap
     ) external payable nonReentrant whenNotPaused {
         // a request needs to incur a swap, a transfer, or both. otherwise it's a nop and we revert early to save gas
-        require(_srcSwaps.length != 0 || _desc.dstChainId != uint64(block.chainid), "nop");
-        require(_srcSwaps.length != 0 || (_desc.amountIn != 0 && _desc.tokenIn != address(0)), "nop");
-        // swapping on the dst chain requires message passing. only integrated with cbridge for now
-        bytes32 bridgeProviderHash = keccak256(bytes(_desc.bridgeProvider));
-        require(
-            (_dstSwaps.length == 0 && _desc.forward.length == 0) || bridgeProviderHash == CBRIDGE_PROVIDER_HASH,
-            "bridge does not support msg"
-        );
+        require(_srcSwap.dex != address(0) || _desc.dstChainId != uint64(block.chainid), "nop");
+        require(_srcSwap.dex != address(0) || (_desc.amountIn != 0 && _desc.tokenIn != address(0)), "nop");
 
-        IBridgeAdapter bridge = bridges[bridgeProviderHash];
+        IBridgeAdapter bridge = bridges[keccak256(bytes(_desc.bridgeProvider))];
         // if not DirectSwap, the bridge provider should be a valid one
         require(_desc.dstChainId == uint64(block.chainid) || address(bridge) != address(0), "unsupported bridge");
 
-        uint256 amountIn = _desc.amountIn;
-        ICodec[] memory codecs;
+        _pullFund(_desc.tokenIn, _desc.amountIn, _desc.nativeIn);
 
-        address srcToken = _desc.tokenIn;
-        address bridgeToken = _desc.tokenIn;
-        if (_srcSwaps.length != 0) {
-            (amountIn, srcToken, bridgeToken, codecs) = sanitizeSwaps(_srcSwaps);
+        uint256 nextAmountIn = _desc.amountIn;
+        address nextTokenIn = _desc.tokenIn;
+        if (_srcSwap.dex != address(0)) {
+            bool success;
+            (success, nextAmountIn, nextTokenIn) = executeSwap(_srcSwap, _desc.amountIn, _desc.tokenIn);
+            require(success, "swap fail");
         }
-        if (_desc.nativeIn) {
-            require(srcToken == nativeWrap, "tkin no nativeWrap");
-            require(msg.value >= amountIn, "insfcnt amt"); // insufficient amount
-            IWETH(nativeWrap).deposit{value: amountIn}();
-        } else {
-            IERC20(srcToken).safeTransferFrom(msg.sender, address(this), amountIn);
-        }
-
-        _swapAndSend(srcToken, bridgeToken, amountIn, _desc, _srcSwaps, _dstSwaps, codecs);
-    }
-
-    function _swapAndSend(
-        address srcToken,
-        address bridgeToken,
-        uint256 _amountIn,
-        Types.TransferDescription memory _desc,
-        ICodec.SwapDescription[] memory _srcSwaps,
-        ICodec.SwapDescription[] memory _dstSwaps,
-        ICodec[] memory _codecs
-    ) private {
-        // swap if needed
-        uint256 amountOut = _amountIn;
-        if (_srcSwaps.length != 0) {
-            bool ok;
-            (ok, amountOut) = executeSwaps(_srcSwaps, _codecs);
-            require(ok, "swap fail");
-        }
-
         bytes32 id = _computeId(_desc.receiver, _desc.nonce);
-        // direct send if needed
+        // directly send the fund to receiver if there are no more steps
         if (_desc.dstChainId == uint64(block.chainid)) {
-            emit DirectSwap(id, _amountIn, srcToken, amountOut, bridgeToken);
-            _sendToken(bridgeToken, amountOut, _desc.receiver, _desc.nativeOut);
+            emit DirectSwap(id, _desc.amountIn, _desc.tokenIn, nextAmountIn, nextTokenIn);
+            _sendToken(nextTokenIn, nextAmountIn, _desc.receiver, _desc.nativeOut);
             return;
         }
-
-        _transfer(id, srcToken, bridgeToken, _desc, _dstSwaps, _amountIn, amountOut);
+        _transfer(id, nextTokenIn, nextAmountIn, _desc, _dstSwap);
     }
 
     function _transfer(
         bytes32 _id,
-        address srcToken,
-        address bridgeToken,
+        address _bridgeTokenIn,
+        uint256 _bridgeAmountIn,
         Types.TransferDescription memory _desc,
-        ICodec.SwapDescription[] memory _dstSwaps,
-        uint256 _amountIn,
-        uint256 _amountOut
+        ICodec.SwapDescription memory _dstSwap
     ) private {
-        // fund is directly to user if there is no swaps needed on the destination chain
-        address bridgeOutReceiver = (_dstSwaps.length > 0 || _desc.forward.length > 0)
-            ? _desc.dstTransferSwapper
-            : _desc.receiver;
+        // fund is directly to user if there is no swaps needed on the destination chain. otherwise, it's sent
+        // to a "pocket" contract addr to temporarily hold the fund before it is used for swapping.
+        address bridgeOutReceiver = (_dstSwap.length > 0 || _desc.forward.length > 0) ? _desc.pocket : _desc.receiver;
+        require(bridgeOutReceiver != address(0), "receiver is 0");
+
+        uint256 refundMsgFee = 0;
         bytes memory bridgeResp;
+
+        // send funds through the bridge of choice
         {
-            _verifyFee(_desc, _amountIn, srcToken);
-            uint256 msgFee = msg.value;
-            if (_desc.nativeIn) {
-                msgFee = msg.value - _amountIn;
+            _verifyFee(_desc, _desc.amountIn, _desc.tokenIn);
+            bytes32 bridgeHash = keccak256(bytes(_desc.bridgeProvider));
+            IBridgeAdapter bridge = bridges[bridgeHash];
+            if (bridgeHash == CBRIDGE_PROVIDER_HASH) {
+                refundMsgFee = IMessageBus(messageBus).calcFee(abi.encode(bridge));
             }
-            IBridgeAdapter bridge = bridges[keccak256(bytes(_desc.bridgeProvider))];
-            IERC20(bridgeToken).safeIncreaseAllowance(address(bridge), _amountOut);
-            bytes memory requestMessage = _encodeRequestMessage(_id, _desc, _dstSwaps);
-            bridgeResp = bridge.bridge{value: msgFee}(
+            IERC20(_bridgeTokenIn).safeIncreaseAllowance(address(bridge), _bridgeAmountIn);
+            bridgeResp = bridge.bridge{value: refundMsgFee}(
                 _desc.dstChainId,
                 bridgeOutReceiver,
-                _amountOut,
-                bridgeToken,
-                _desc.bridgeParams,
-                requestMessage
+                _bridgeAmountIn,
+                _bridgeTokenIn,
+                _desc.bridgeParams
             );
         }
-        emit RequestSent(
-            _id,
-            bridgeResp,
-            _desc.dstChainId,
-            _amountIn,
-            srcToken,
-            _desc.dstTokenOut,
-            bridgeOutReceiver,
-            bridgeToken,
-            _amountOut,
-            _desc.bridgeProvider
-        );
+
+        // send a message separately containing the swap instruction
+        {
+            uint256 msgFee = msg.value - refundMsgFee;
+            if (_desc.nativeIn) {
+                msgFee = msg.value - refundMsgFee - _desc.amountIn;
+            }
+            bytes memory req = _encodeRequestMessage(_id, _desc, _dstSwap);
+            MessageSenderLib.sendMessage(_desc.dstTransferSwapper, _desc.dstChainId, req, messageBus, msgFee);
+        }
+
+        _emitRequestSent(_id, bridgeResp, _desc, bridgeOutReceiver, _bridgeTokenIn, _bridgeAmountIn);
     }
 
     /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
      * Destination chain functions
      * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+    function executeMessage(
+        address, // _sender
+        uint64, // _srcChainId
+        bytes memory _message,
+        address _executor
+    ) external payable override onlyMessageBus nonReentrant returns (ExecutionStatus) {
+        Types.Request req = abi.decode((_message), (Types.Request));
+        uint256 erc20Amount = IERC20(req.bridgeOutToken).balanceOf(req.pocket);
+        uint256 nativeAmount = address(req.pocket).balance;
+        // if the pocket is empty, it means the transfer has not arrived yet. in this case we tell
+        // the msgbus to revert the outter tx using the MSGBUS::REVERT opcode so that our executor
+        // will retry sending this tx later.
+        require(erc20Amount > 0 || nativeAmount > 0, "MSGBUS::REVERT");
+
+        // fetch fund from the pocket
+        new Pocket{salt: req.id}(req.bridgeOutToken);
+
+        if (erc20Amount > 0) {
+            IERC20(req.bridgeOutToken).safeTransferFrom(req.pocket, address(this), erc20Amount);
+            uint256 amount = _deductFee(req, erc20Amount);
+            if (amount == 0) return ExecutionStatus.Success;
+
+            (bool ok, uint256 amountOut, address tokenOut) = executeSwap(req.swap, amount, req.bridgeOutToken);
+            if (!ok) {
+                _sendRefund(req, erc20Amount);
+                return ExecutionStatus.Success;
+            }
+        }
+
+        if (nativeAmount > 0) {
+            uint256 amount = _deductFee(req, nativeAmount);
+            if (amount == 0) return ExecutionStatus.Success;
+
+            IWETH(req.bridgeOutToken).deposit{value: amount}();
+            (bool ok, uint256 amountOut, address tokenOut) = executeSwap(req.swap, amount, req.bridgeOutToken);
+            if (!ok) {
+                _sendRefund(req, amount);
+                return ExecutionStatus.Success;
+            }
+        }
+    }
+
+    function _deductFee(Types.Request _req, uint256 _amount) private returns (uint256 amount) {
+        // handle the case where amount received is not enough to pay fee
+        if (_amount < _req.fee) {
+            emit RequestDone(_req.id, 0, 0, _req.bridgeOutToken, _amount, Types.RequestStatus.Succeeded, bytes(""));
+        } else {
+            amount = _amount - _req.fee;
+        }
+    }
+
+    function _sendRefund(Types.Request _req, uint256 _amount) private {
+        IERC20(_req.bridgeOutToken).safeTransfer(_req.receiver, _amount);
+        emit RequestDone(_req.id, 0, _amount, _req.bridgeOutToken, _req.fee, Types.RequestStatus.Fallback, bytes(""));
+    }
+
+    event PocketFundClaimed(address receiver, uint256 erc20Amount, address token, uint256 nativeAmount);
+
+    // the system depends on whether the pocket has a balance to determine if the bridge has sent funds. since the
+    // counterfactual contract's address is public, a malicious user can deposit a tiny fund to the address before the
+    // bridge does so. when the request message is executed, the victim would only receive the tiny fund.
+    // to circumvent this issue, the receiver of a swap is entitled to all the funds in the pocket. as long as someone
+    // can prove that they are the receiver of a swap, they can always recreate the pocket contract and claim the
+    // bridge out token as refund.
+    function claimPocketFund(
+        address _srcSender,
+        uint64 _srcChainId,
+        uint64 _nonce,
+        address _pocket,
+        address _token
+    ) external {
+        // only the designated receiver of a swap can claim funds from the designated pocket of a swap
+        address receiver = msg.sender;
+        bytes32 swapId = keccak256(abi.encodePacked(_srcSender, msg.sender, _srcChainId, _nonce));
+        require(receiver != 0, "no receiver found");
+        uint256 erc20Amount = IERC20(_token).balanceOf(_pocket);
+        uint256 nativeAmount = address(_pocket).balance;
+        require(erc20Amount > 0 || nativeAmount > 0, "pocket is empty");
+        new Pocket{salt: swapId}(_token);
+        if (erc20Amount > 0) {
+            IERC20(_token).safeTransfer(receiver, erc20Amount);
+        }
+        if (nativeAmount > 0) {
+            receiver.call{value: nativeAmount, gas: 50000}("");
+        }
+        emit PocketFundClaimed(receiver, erc20Amount, _token, nativeAmount);
+    }
 
     /**
      * @notice Executes a swap if needed, then sends the output token to the receiver
@@ -329,6 +384,7 @@ contract TransferSwapper is
     }
 
     /**
+     * TODO DELETE
      * @notice Sends the received token to the receiver
      * @dev Only called if executeMessageWithTransfer reverts
      * @dev Bridge contract *always* sends native token to its receiver (this contract) even though the _token field is always an ERC20 token
@@ -357,37 +413,38 @@ contract TransferSwapper is
     }
 
     /**
-     * @notice Used to trigger refund when bridging fails due to large slippage
-     * @dev only MessageBus can call this function, this requires the user to get sigs of the message from SGN
-     * @dev Bridge contract *always* sends native token to its receiver (this contract) even though the _token field is always an ERC20 token
-     * @param _token the token received by this contract
-     * @param _amount the amount of token received by this contract
-     * @return ok whether the processing is successful
+     * @notice Marks the request as done
+     * @dev only cbridge adapter can call this function
+     * @param _id the id of the swap request
+     * @param _token the token refunded to the user
+     * @param _amount the amount of token refunded to the user
      */
-    function executeMessageWithTransferRefundFromAdapter(
+    function refundCallback(
+        bytes32 _id,
         address _token,
-        uint256 _amount,
-        bytes calldata _message,
-        address // _executor
-    ) external payable nonReentrant returns (ExecutionStatus) {
-        if (paused()) {
-            return ExecutionStatus.Retry;
-        }
-        if (_token != nativeWrap) {
-            IERC20(_token).safeTransferFrom(msg.sender, address(this), _amount);
-        } else {
-            require(msg.value >= _amount, "no native transferred in");
-        }
-        Types.Request memory m = abi.decode((_message), (Types.Request));
-        _wrapBridgeOutToken(_token, _amount);
-        _sendToken(_token, _amount, m.receiver, false);
-        emit RequestDone(m.id, 0, _amount, _token, m.fee, Types.RequestStatus.Fallback, bytes(""));
-        return ExecutionStatus.Success;
+        uint256 _amount
+    ) external {
+        require(address(msg.sender) == address(bridges[CBRIDGE_PROVIDER_HASH]), "only cbridge");
+        emit RequestDone(_id, 0, _amount, _token, 0, Types.RequestStatus.Fallback, bytes(""));
     }
 
     /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
      * Misc
      * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+    function _pullFund(
+        address _token,
+        uint256 _amount,
+        bool _nativeIn
+    ) private {
+        if (_nativeIn) {
+            require(_token == nativeWrap, "tokenIn not nativeWrap");
+            require(msg.value >= _amount, "insufficient native amount");
+            IWETH(nativeWrap).deposit{value: _amount}();
+        } else {
+            IERC20(_token).safeTransferFrom(msg.sender, address(this), _amount);
+        }
+    }
+
     function _computeId(address _receiver, uint64 _nonce) private view returns (bytes32) {
         return keccak256(abi.encodePacked(msg.sender, _receiver, uint64(block.chainid), _nonce));
     }
@@ -395,32 +452,39 @@ contract TransferSwapper is
     function _encodeRequestMessage(
         bytes32 _id,
         Types.TransferDescription memory _desc,
-        ICodec.SwapDescription[] memory _swaps
+        ICodec.SwapDescription memory _swaps,
+        address _bridgeOutToken,
+        uint256 _bridgeOutMin
     ) internal pure returns (bytes memory message) {
         message = abi.encode(
             Types.Request({
                 id: _id,
                 swaps: _swaps,
                 receiver: _desc.receiver,
+                bridgeOutToken: _bridgeOutToken,
                 nativeOut: _desc.nativeOut,
                 fee: _desc.fee,
-                allowPartialFill: _desc.allowPartialFill,
+                bridgeOutMin: _bridgeOutMin,
                 forward: _desc.forward
             })
         );
     }
 
-    function _encodeRequestMessage(bytes32 _id, address _receiver) internal pure returns (bytes memory message) {
-        ICodec.SwapDescription[] memory emptySwaps;
+    function _encodeRequestMessage(
+        bytes32 _id,
+        address _receiver,
+        address _bridgeOutToken
+    ) internal pure returns (bytes memory message) {
+        ICodec.SwapDescription memory emptySwaps;
         bytes memory empty;
         message = abi.encode(
             Types.Request({
                 id: _id,
                 swaps: emptySwaps,
                 receiver: _receiver,
+                bridgeOutToken: _bridgeOutToken,
                 nativeOut: false,
                 fee: 0,
-                allowPartialFill: false,
                 forward: empty
             })
         );
@@ -476,6 +540,28 @@ contract TransferSwapper is
         bytes32 signHash = hash.toEthSignedMessageHash();
         verifySig(signHash, _desc.feeSig);
         require(_desc.feeDeadline > block.timestamp, "deadline exceeded");
+    }
+
+    function _emitRequestSent(
+        bytes32 _id,
+        bytes memory _bridgeResp,
+        Types.TransferDescription _desc,
+        address _bridgeOutReceiver,
+        address _bridgeTokenIn,
+        uint256 _bridgeAmountIn
+    ) private {
+        emit RequestSent(
+            _id,
+            _bridgeResp,
+            _desc.dstChainId,
+            _desc.amountIn,
+            _desc.tokenIn,
+            _desc.dstTokenOut,
+            _bridgeOutReceiver,
+            _bridgeTokenIn,
+            _bridgeAmountIn,
+            _desc.bridgeProvider
+        );
     }
 
     function setNativeWrap(address _nativeWrap) external onlyOwner {

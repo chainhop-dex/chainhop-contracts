@@ -30,8 +30,7 @@ contract AcrossAdapter is IBridgeAdapter, Ownable {
         address _receiver,
         uint256 _amount,
         address _token,
-        bytes memory _bridgeParams,
-        bytes memory //_requestMessage
+        bytes memory _bridgeParams
     ) external payable returns (bytes memory bridgeResp) {
         BridgeParams memory params = abi.decode(_bridgeParams, (BridgeParams));
         IERC20(_token).safeTransferFrom(msg.sender, address(this), _amount);

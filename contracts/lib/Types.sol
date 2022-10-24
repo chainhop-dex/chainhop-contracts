@@ -24,9 +24,11 @@ library Types {
         bytes32 id; // see _computeId()
         ICodec.SwapDescription[] swaps; // the swaps need to happen on the destination chain
         address receiver; // see TransferDescription.receiver
+        address bridgeOutToken;
         bool nativeOut; // see TransferDescription.nativeOut
         uint256 fee; // see TransferDescription.fee
-        bool allowPartialFill; // see TransferDescription.allowPartialFill
+        // used as a counter measure to the DoS attack vector described in TransferSwapper
+        uint256 bridgeOutMin;
         // sets if another cbridge hop is required on the chain, abi.encode(Forward)
         bytes forward;
     }
@@ -38,11 +40,14 @@ library Types {
     }
 
     struct TransferDescription {
-        address receiver; // The receiving party (the user) of the final output token
-        uint64 dstChainId; // Destination chain id
-        // The address of the TransferSwapper on the destination chain.
-        // Ignored if there is no swaps on the destination chain.
+        // The receiving party (the user) of the final output token
+        address receiver;
+        // TransferSwapper's addr on the dst chain
         address dstTransferSwapper;
+        // the pocket is the address of a counterfactual contract on the dst chain
+        // if there is dst swaps, then a pocket address must be specified.
+        address pocket;
+        uint64 dstChainId; // Destination chain id
         // A number unique enough to be used in request ID generation.
         uint64 nonce;
         // bridge provider identifier
@@ -57,13 +62,9 @@ library Types {
         // sig of sha3("executor fee", srcChainId, dstChainId, amountIn, tokenIn, feeDeadline, fee)
         // see _verifyFee()
         bytes feeSig;
-        // IMPORTANT: amountIn & tokenIn is completely ignored if src chain has a swap
         uint256 amountIn;
         address tokenIn;
         address dstTokenOut; // the final output token, emitted in event for display purpose only
-        // in case of multi route swaps, whether to allow the successful swaps to go through
-        // and sending the amountIn of the failed swaps back to user
-        bool allowPartialFill;
         // sets if another cbridge hop is required on the dst chain, abi.encode(Forward)
         bytes forward;
     }

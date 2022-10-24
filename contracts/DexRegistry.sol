@@ -3,13 +3,14 @@
 pragma solidity >=0.8.15;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "./interfaces/ICodec.sol";
 
 /**
  * @title Manages a list supported dex
  * @author Padoriku
  */
 abstract contract DexRegistry is Ownable {
-    event SupportedDexUpdated(address dex, bytes4 selector, bool enabled);
+    event DexCodecUpdated(address dex, bytes4 selector, address codec);
 
     // supported swap functions
     // 0x3df02124 exchange(int128,int128,uint256,uint256)
@@ -22,31 +23,41 @@ abstract contract DexRegistry is Ownable {
     // 0x2e95b6c8 unoswap(address,uint256,uint256,bytes32[])
     // 0x7c025200 swap(address,(address,address,address,address,uint256,uint256,uint256,bytes),bytes)
     // 0xd0a3b665 fillOrderRFQ((uint256,address,address,address,address,uint256,uint256),bytes,uint256,uint256)
-    mapping(address => mapping(bytes4 => bool)) public dexRegistry;
+    mapping(address => mapping(bytes4 => address)) public dexFunc2Codec;
 
-    constructor(address[] memory _supportedDexList, string[] memory _supportedFuncs) {
-        for (uint256 i = 0; i < _supportedDexList.length; i++) {
-            bytes4 selector = bytes4(keccak256(bytes(_supportedFuncs[i])));
-            _setSupportedDex(_supportedDexList[i], selector, true);
+    constructor(
+        address[] memory _dexList,
+        string[] memory _funcs,
+        address[] memory _codecs
+    ) {
+        require(_dexList.length == _funcs.length && _dexList.length == _codecs.length, "len mm");
+        for (uint256 i = 0; i < _dexList.length; i++) {
+            bytes4 selector = bytes4(keccak256(bytes(_funcs[i])));
+            _setDexCodec(_dexList[i], selector, _codecs[i]);
         }
     }
 
-    function setSupportedDex(
+    function setDexCodec(
         address _dex,
         bytes4 _selector,
-        bool _enabled
+        address _codec
     ) external onlyOwner {
-        _setSupportedDex(_dex, _selector, _enabled);
-        emit SupportedDexUpdated(_dex, _selector, _enabled);
+        _setDexCodec(_dex, _selector, _codec);
+        emit DexCodecUpdated(_dex, _selector, _codec);
     }
 
-    function _setSupportedDex(
+    function _setDexCodec(
         address _dex,
         bytes4 _selector,
-        bool _enabled
+        address _codec
     ) private {
-        bool enabled = dexRegistry[_dex][_selector];
-        require(enabled != _enabled, "nop");
-        dexRegistry[_dex][_selector] = _enabled;
+        address codec = dexFunc2Codec[_dex][_selector];
+        require(codec != _codec, "nop");
+        dexFunc2Codec[_dex][_selector] = _codec;
+    }
+
+    function getCodec(address _dex, bytes4 _selector) internal view returns (ICodec) {
+        require(dexFunc2Codec[_dex][_selector], "unsupported dex");
+        return ICodec(dexFunc2Codec[_dex][_selector]);
     }
 }

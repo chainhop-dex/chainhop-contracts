@@ -8,16 +8,15 @@ interface ITransferSwapper {
     function nativeWrap() external view returns (address);
 
     /**
-     * @notice Called by MessageBus (MessageBusReceiver) to process refund of the original transfer from this contract
-     * @param _token The token address of the original transfer
-     * @param _amount The amount of the original transfer
-     * @param _message The same message associated with the original transfer
-     * @param _executor Address who called the MessageBus execution function
+     * @notice Marks the request as done
+     * @dev only cbridge adapter can call this function
+     * @param _id the id of the swap request
+     * @param _token the token refunded to the user
+     * @param _amount the amount of token refunded to the user
      */
-    function executeMessageWithTransferRefundFromAdapter(
+    function refundCallback(
+        bytes32 _id,
         address _token,
-        uint256 _amount,
-        bytes calldata _message,
-        address _executor
-    ) external payable returns (IMessageReceiverApp.ExecutionStatus);
+        uint256 _amount
+    ) external;
 }

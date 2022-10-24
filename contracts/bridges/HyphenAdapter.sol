@@ -28,8 +28,7 @@ contract HyphenAdapter is IBridgeAdapter, NativeWrap {
         address _receiver,
         uint256 _amount,
         address _token,
-        bytes memory, // _bridgeParams
-        bytes memory // _requestMessage
+        bytes memory // _bridgeParams
     ) external payable returns (bytes memory bridgeResp) {
         IERC20(_token).safeTransferFrom(msg.sender, address(this), _amount);
         if (_token == nativeWrap) {
