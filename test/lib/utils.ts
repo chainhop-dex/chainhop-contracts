@@ -16,10 +16,16 @@ export enum BridgeType {
   PegBurnV2
 }
 
-export function slip(amount: BigNumber, perc: number): BigNumber {
+export function slip(amount: BigNumberish, perc: number): BigNumber {
   const percent = 100 - perc;
-  return amount.mul(parseUnits(percent.toString(), 4)).div(parseUnits('100', 4));
+  const amt = BigNumber.from(amount);
+  return amt.mul(parseUnits(percent.toString(), 4)).div(parseUnits('100', 4));
 }
+
+export const defaultFee = parseUnits('1');
+export const defaultAmountIn = parseUnits('100');
+export const defaultBridgeOutMin = slip(defaultAmountIn, 50);
+export const defaultMaxSlippage = 1000000;
 
 export function slipUniV2(amount: BigNumber) {
   return slip(amount, UNISWAP_V2_SLIPPAGE);
@@ -44,17 +50,40 @@ export function hex2Bytes(hexString: string): number[] {
   return result;
 }
 
+export interface BridgeOpts {
+  pocket?: string;
+  bridgeOutToken?: string;
+  bridgeOutFallbackToken?: string;
+  feeInBridgeOutToken?: BigNumber;
+  feeInBridgeOutFallbackToken?: BigNumber;
+  bridgeOutMin?: BigNumber;
+  bridgeOutFallbackMin?: BigNumber;
+}
+
 export function encodeMessage(
   id: string,
-  swaps: ICodec.SwapDescriptionStruct[],
+  swap: ICodec.SwapDescriptionStruct,
   receiver: string,
   nativeOut: boolean,
-  fee: BigNumber,
-  allowPartialFill = false
+  o?: BridgeOpts
 ): string {
   const encoded = ethers.utils.defaultAbiCoder.encode(
-    ['(bytes32, (address dex, bytes data)[], address, bool, uint256, bool, bytes)'],
-    [[id, swaps, receiver, nativeOut, fee, allowPartialFill, '0x']]
+    ['(bytes32, (address dex, bytes data), address, address, bool, address, address, uint256, uint256, uint256, uint256)'],
+    [
+      [
+        id,
+        swap,
+        receiver,
+        o?.pocket ?? ZERO_ADDR,
+        nativeOut,
+        o?.bridgeOutToken ?? ZERO_ADDR,
+        o?.bridgeOutFallbackToken ?? ZERO_ADDR,
+        o?.feeInBridgeOutToken ?? defaultFee,
+        o?.feeInBridgeOutFallbackToken ?? defaultFee,
+        o?.bridgeOutMin ?? 0,
+        o?.bridgeOutFallbackMin ?? 0
+      ]
+    ]
   );
   return encoded;
 }
@@ -72,13 +101,22 @@ export interface ComputeTranferIdOverride {
 }
 
 export function computeTransferId(c: IntegrationTestContext, o?: ComputeTranferIdOverride) {
-  const sender = c.bridgeAdapter.address;
+  const sender = c.cbridgeAdapter.address;
   const receiver = o?.receiver ?? c.receiver.address;
-  const token = o?.token ?? c.tokenB.address;
-  const amount = o?.amount ?? parseUnits('100');
+  const token = o?.token ?? c.tokenA.address;
+  const amount = o?.amount ?? defaultAmountIn;
   const dstChainId = o?.dstChainId ?? c.chainId + 1;
   const nonce = 1;
   const srcChainId = o?.srcChainId ?? c.chainId;
+  console.log('[sender, receiver, token, amount, dstChainId, nonce, srcChainId]', [
+    sender,
+    receiver,
+    token,
+    amount.toString(),
+    dstChainId,
+    nonce,
+    srcChainId
+  ]);
   return keccak256(
     ['address', 'address', 'address', 'uint256', 'uint64', 'uint64', 'uint64'],
     [sender, receiver, token, amount, dstChainId, nonce, srcChainId]
@@ -91,7 +129,8 @@ export interface FeeSigOverride {
   amountIn?: BigNumber;
   tokenIn?: string;
   feeDeadline?: BigNumber;
-  fee?: BigNumber;
+  feeInBridgeOutToken?: BigNumber;
+  feeInBridgeOutFallbackToken?: BigNumber;
 }
 
 export async function signFee(c: IntegrationTestContext, opts?: FeeSigOverride) {
@@ -100,67 +139,14 @@ export async function signFee(c: IntegrationTestContext, opts?: FeeSigOverride) 
   const amountIn = opts?.amountIn ?? parseUnits('100');
   const tokenIn = opts?.tokenIn ?? c.tokenA.address;
   const feeDeadline = opts?.feeDeadline ?? BigNumber.from(Math.floor(Date.now() / 1000 + 1200));
-  const fee = opts?.fee ?? parseUnits('1');
+  const feeInBridgeOutToken = opts?.feeInBridgeOutToken ?? defaultFee;
+  const feeInBridgeOutFallbackToken = opts?.feeInBridgeOutFallbackToken ?? defaultFee;
   const hash = keccak256(
-    ['string', 'uint64', 'uint64', 'uint256', 'address', 'uint256', 'uint256'],
-    ['executor fee', srcChainId, dstChainId, amountIn, tokenIn, feeDeadline, fee]
+    ['string', 'uint64', 'uint64', 'uint256', 'address', 'uint256', 'uint256', 'uint256'],
+    ['executor fee', srcChainId, dstChainId, amountIn, tokenIn, feeDeadline, feeInBridgeOutToken, feeInBridgeOutFallbackToken]
   );
   const signData = hex2Bytes(hash);
   return c.signer.signMessage(signData);
-}
-
-// 0x3df02124 exchange(int128,int128,uint256,uint256)
-// 0x38ed1739 swapExactTokensForTokens(uint256,uint256,address[],address,uint256)
-// 0x41060ae0 exactInputSingle(address,address,uint24,address,uint256,uint256,uint256,uint160)
-
-export function buildUniV2Swap(
-  dex: string,
-  amountIn: BigNumber,
-  amountOutMin: BigNumber,
-  tokenIn: string,
-  tokenOut: string,
-  to: string
-): ICodec.SwapDescriptionStruct {
-  let data = ethers.utils.defaultAbiCoder.encode(
-    ['uint256', 'uint256', 'address[]', 'address', 'uint256'],
-    [amountIn, amountOutMin, [tokenIn, tokenOut], to, UINT64_MAX]
-  );
-  data = data.slice(2); // strip 0x
-  data = '0x38ed1739' + data; // prepend selector
-  return { dex, data };
-}
-
-export function build1inchSwap(
-  dex: string,
-  amountIn: BigNumber,
-  amountOutMin: BigNumber,
-  tokenIn: string,
-  tokenOut: string,
-  to: string
-): ICodec.SwapDescriptionStruct {
-  let data = ethers.utils.defaultAbiCoder.encode(
-    ['uint256', 'uint256', 'address', 'address', 'address'],
-    [amountIn, amountOutMin, to, tokenIn, tokenOut]
-  );
-  data = data.slice(2); // strip 0x
-  data = '0xeab90da6' + data; // prepend selector
-  return { dex, data };
-}
-
-export interface UniV2SwapsOverride {
-  amountOutMin?: BigNumber;
-  tokenIn?: string;
-  tokenOut?: string;
-  to?: string;
-  num?: number;
-}
-
-export interface OneinchSwapsOverride {
-  amountOutMin?: BigNumber;
-  tokenIn?: string;
-  tokenOut?: string;
-  to?: string;
-  num?: number;
 }
 
 interface MockV2Address {
@@ -175,58 +161,48 @@ interface Mock1inchAddress {
   };
 }
 
-interface MockCurveAddress {
-  mockCurve: {
-    address: string;
-  };
+export const emptySwap: ICodec.SwapDescriptionStruct = { dex: ZERO_ADDR, data: '0x', amountOutMin: 0 };
+
+export interface UniV2SwapsOverride {
+  amountOutMin?: BigNumber;
+  tokenIn?: string;
+  tokenOut?: string;
+  to?: string;
 }
 
-export function buildUniV2Swaps(c: ChainhopFixture & MockV2Address, amountIn: BigNumber, opts?: UniV2SwapsOverride) {
+export function buildUniV2Swap(c: ChainhopFixture & MockV2Address, amountIn: BigNumber, opts?: UniV2SwapsOverride) {
   const amountOutMin = opts?.amountOutMin ?? slipUniV2(amountIn);
   const tokenIn = opts?.tokenIn ?? c.tokenA.address;
   const tokenOut = opts?.tokenOut ?? c.tokenB.address;
   const to = opts?.to ?? c.xswap.address;
-  const num = opts?.num ?? 1;
-  const swaps: ICodec.SwapDescriptionStruct[] = [];
-  const swap = buildUniV2Swap(c.mockV2.address, amountIn, amountOutMin, tokenIn, tokenOut, to);
-  for (let i = 0; i < num; i++) {
-    swaps.push(swap);
-  }
-  return swaps;
-}
-
-export function build1inchSwaps(
-  c: ChainhopFixture & Mock1inchAddress,
-  amountIn: BigNumber,
-  opts?: OneinchSwapsOverride
-) {
-  const amountOutMin = opts?.amountOutMin ?? slipUniV2(amountIn);
-  const tokenIn = opts?.tokenIn ?? c.tokenA.address;
-  const tokenOut = opts?.tokenOut ?? c.tokenB.address;
-  const to = opts?.to ?? c.xswap.address;
-  const num = opts?.num ?? 1;
-  const swaps: ICodec.SwapDescriptionStruct[] = [];
-  const swap = build1inchSwap(c.mock1inch.address, amountIn, amountOutMin, tokenIn, tokenOut, to);
-  for (let i = 0; i < num; i++) {
-    swaps.push(swap);
-  }
-  return swaps;
-}
-
-export function buildCurveSwap(
-  dex: string,
-  amountIn: BigNumber,
-  amountOutMin: BigNumber,
-  i: number,
-  j: number
-): ICodec.SwapDescriptionStruct {
   let data = ethers.utils.defaultAbiCoder.encode(
-    ['uint128', 'uint128', 'uint256', 'uint256'],
-    [i, j, amountIn, amountOutMin]
+    ['uint256', 'uint256', 'address[]', 'address', 'uint256'],
+    [amountIn, amountOutMin, [tokenIn, tokenOut], to, UINT64_MAX]
   );
   data = data.slice(2); // strip 0x
-  data = '0x3df02124' + data; // prepend selector
-  return { dex, data };
+  data = '0x38ed1739' + data; // prepend selector
+  return { dex: c.mockV2.address, data, amountOutMin: amountOutMin };
+}
+
+export interface OneinchSwapsOverride {
+  amountOutMin?: BigNumber;
+  tokenIn?: string;
+  tokenOut?: string;
+  to?: string;
+}
+
+export function build1inchSwap(c: ChainhopFixture & Mock1inchAddress, amountIn: BigNumber, opts?: OneinchSwapsOverride) {
+  const amountOutMin = opts?.amountOutMin ?? slipUniV2(amountIn);
+  const tokenIn = opts?.tokenIn ?? c.tokenA.address;
+  const tokenOut = opts?.tokenOut ?? c.tokenB.address;
+  const to = opts?.to ?? c.xswap.address;
+  let data = ethers.utils.defaultAbiCoder.encode(
+    ['uint256', 'uint256', 'address', 'address', 'address'],
+    [amountIn, amountOutMin, to, tokenIn, tokenOut]
+  );
+  data = data.slice(2); // strip 0x
+  data = '0xeab90da6' + data; // prepend selector
+  return { dex: c.mock1inch.address, data, amountOutMin: '0' };
 }
 export interface CurveSwapsOverride {
   amountOutMin?: BigNumber;
@@ -234,65 +210,71 @@ export interface CurveSwapsOverride {
   tokenOut?: string;
 }
 
-export function buildCurveSwaps(c: ChainhopFixture & MockCurveAddress, amountIn: BigNumber, o?: CurveSwapsOverride) {
-  const tokenIndices = {
-    [c.tokenA.address]: 0,
-    [c.tokenB.address]: 1,
-    [c.weth.address]: 2
-  };
-  const amountOutMin = o?.amountOutMin ?? slipCurve(amountIn);
-  const tokenIn = o?.tokenIn ?? c.tokenA.address;
-  const tokenOut = o?.tokenOut ?? c.tokenB.address;
-  return [buildCurveSwap(c.mockCurve.address, amountIn, amountOutMin, tokenIndices[tokenIn], tokenIndices[tokenOut])];
-}
-
 export interface TransferDescOpts {
+  // TransferDescription
   receiver?: string;
-  dstChainId?: number;
   dstTransferSwapper?: string;
+  pocket?: string;
+  dstChainId?: number;
   bridgeProvider?: string;
-  fee?: BigNumber;
-  feeDeadline?: BigNumber;
-  feeSig?: string;
-  amountIn?: BigNumber;
-  tokenIn?: string;
-  bridgeTokenIn?: string;
-  wrappedBridgeToken?: string;
+  bridgeOutToken?: string;
+  bridgeOutFallbackToken?: string;
+  bridgeOutMin?: string;
+  bridgeOutFallbackMin?: string;
   nativeIn?: boolean;
   nativeOut?: boolean;
+  feeInBridgeOutToken?: BigNumberish;
+  feeInBridgeOutFallbackToken?: BigNumberish;
+  feeDeadline?: BigNumberish;
+  feeSig?: string;
+  amountIn?: BigNumberish;
+  tokenIn?: string;
   dstTokenOut?: string;
-  allowPartialFill?: boolean;
+  // cbridge adapter params
+  wrappedBridgeToken?: string;
   maxSlippage?: number;
 }
 
 export function buildTransferDesc(c: IntegrationTestContext, feeSig: string, opts?: TransferDescOpts) {
   const dstChainId = opts?.dstChainId ?? c.chainId + 1;
 
-  const fee = opts?.fee ?? parseUnits('1');
+  const fee = opts?.feeInBridgeOutToken ?? defaultFee;
   const feeDeadline = opts?.feeDeadline ?? BigNumber.from(Math.floor(Date.now() / 1000 + 1200));
   const nonce = 1;
   const bridgeParams = ethers.utils.defaultAbiCoder.encode(
     ['uint256', 'uint32', 'address', 'uint64'],
-    [BridgeType.Liquidity, opts?.maxSlippage ?? 1000000, opts?.wrappedBridgeToken || ZERO_ADDR, nonce]
+    [BridgeType.Liquidity, opts?.maxSlippage ?? defaultMaxSlippage, opts?.wrappedBridgeToken || ZERO_ADDR, nonce]
   );
 
+  const amountIn = opts?.amountIn || defaultAmountIn;
+
+  // defaults
+  // token in - tokenA
+  // bridge in - tokenB
+  // bridge out - tokenC
+  // bridge out fallback - tokenD
+  // dst out - tokenE
   const desc: Types.TransferDescriptionStruct = {
     receiver: opts?.receiver ?? c.receiver.address,
-    dstChainId: dstChainId,
     dstTransferSwapper: opts?.dstTransferSwapper ?? c.receiver.address,
+    pocket: opts?.pocket ?? ZERO_ADDR,
+    dstChainId: dstChainId,
     nonce: nonce,
     bridgeProvider: opts?.bridgeProvider ?? 'cbridge',
     bridgeParams: bridgeParams,
+    bridgeOutToken: opts?.bridgeOutToken ?? c.tokenB.address,
+    bridgeOutFallbackToken: opts?.bridgeOutFallbackToken ?? c.tokenA.address,
+    bridgeOutMin: opts?.bridgeOutMin ?? defaultBridgeOutMin,
+    bridgeOutFallbackMin: opts?.bridgeOutFallbackMin ?? defaultBridgeOutMin,
     nativeIn: opts?.nativeIn ?? false,
     nativeOut: opts?.nativeOut ?? false,
-    fee: fee,
+    feeInBridgeOutToken: opts?.feeInBridgeOutToken ?? fee,
+    feeInBridgeOutFallbackToken: opts?.feeInBridgeOutFallbackToken ?? fee,
     feeDeadline: feeDeadline,
     feeSig: feeSig,
-    amountIn: opts?.amountIn || parseUnits('0'),
+    amountIn: amountIn,
     tokenIn: opts?.tokenIn || c.tokenA.address,
-    dstTokenOut: opts?.dstTokenOut ?? c.tokenB.address,
-    allowPartialFill: false,
-    forward: '0x'
+    dstTokenOut: opts?.dstTokenOut ?? c.tokenB.address
   };
 
   return desc;

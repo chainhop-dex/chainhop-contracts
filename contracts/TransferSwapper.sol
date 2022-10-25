@@ -77,7 +77,6 @@ contract TransferSwapper is
     ) external payable nonReentrant whenNotPaused {
         // a request needs to incur a swap, a transfer, or both. otherwise it's a nop and we revert early to save gas
         require(_srcSwap.dex != address(0) || _desc.dstChainId != uint64(block.chainid), "nop");
-        require(_srcSwap.dex != address(0) || (_desc.amountIn != 0 && _desc.tokenIn != address(0)), "nop");
 
         IBridgeAdapter bridge = bridges[keccak256(bytes(_desc.bridgeProvider))];
         // if not DirectSwap, the bridge provider should be a valid one
@@ -118,29 +117,28 @@ contract TransferSwapper is
         bytes memory bridgeResp;
 
         // send funds through the bridge of choice
-        {
-            _verifyFee(_desc, _desc.amountIn, _desc.tokenIn);
-            bytes32 bridgeHash = keccak256(bytes(_desc.bridgeProvider));
-            IBridgeAdapter bridge = bridges[bridgeHash];
-            if (bridgeHash == CBRIDGE_PROVIDER_HASH) {
-                // special handling for dealing with cbridge's refund mechnism: always send a message
-                // that contains only the receiver addr along with the transfer. this way when refund
-                // happens we can execute the executeMessageWithTransferRefund function in cbridge
-                // adapter to refund to the receiver
-                refundMsgFee = IMessageBus(messageBus).calcFee(abi.encode(_desc.receiver));
-            }
-            IERC20(_bridgeTokenIn).safeIncreaseAllowance(address(bridge), _bridgeAmountIn);
-            bridgeResp = bridge.bridge{value: refundMsgFee}(
-                _desc.dstChainId,
-                bridgeOutReceiver,
-                _bridgeAmountIn,
-                _bridgeTokenIn,
-                _desc.bridgeParams
-            );
+        bytes32 bridgeHash = keccak256(bytes(_desc.bridgeProvider));
+        IBridgeAdapter bridge = bridges[bridgeHash];
+        if (bridgeHash == CBRIDGE_PROVIDER_HASH) {
+            // special handling for dealing with cbridge's refund mechnism: always send a message
+            // that contains only the receiver addr along with the transfer. this way when refund
+            // happens we can execute the executeMessageWithTransferRefund function in cbridge
+            // adapter to refund to the receiver
+            refundMsgFee = IMessageBus(messageBus).calcFee(abi.encode(_desc.receiver));
         }
+        IERC20(_bridgeTokenIn).safeIncreaseAllowance(address(bridge), _bridgeAmountIn);
+        bridgeResp = bridge.bridge{value: refundMsgFee}(
+            _desc.dstChainId,
+            bridgeOutReceiver,
+            _bridgeAmountIn,
+            _bridgeTokenIn,
+            _desc.bridgeParams
+        );
 
         // send a message separately containing the swap instruction
-        {
+        if (_dstSwap.dex != address(0)) {
+            // since dst swap requires message execution, we need to check fee sig here
+            _verifyFee(_desc, _desc.amountIn, _desc.tokenIn);
             uint256 msgFee = msg.value - refundMsgFee;
             if (_desc.nativeIn) {
                 msgFee = msg.value - refundMsgFee - _desc.amountIn;
@@ -361,6 +359,7 @@ contract TransferSwapper is
         if (amountOut < _swap.amountOutMin) {
             return (false, 0, tokenOut);
         }
+        return (true, amountOut, tokenOut);
     }
 
     function _encodeRequestMessage(

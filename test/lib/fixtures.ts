@@ -62,30 +62,53 @@ export const chainhopFixture = async ([admin]: Wallet[]): Promise<IntegrationTes
   const signer = accounts[0];
   const feeCollector = accounts[1];
   const chainId = (await ethers.provider.getNetwork()).chainId;
+  const { v2Codec, v3Codec, curveCodec, oneinchCodec } = await deployCodecContracts(admin);
 
   const chainhop = await deployChainhopContracts(
     admin,
     tokens.weth.address,
     signer.address,
     feeCollector.address,
-    bridge.messageBus.address,
-    [dex.mockV2.address, dex.mockCurve.address, dex.mock1inch.address],
-    [
-      'swapExactTokensForTokens(uint256,uint256,address[],address,uint256)',
-      'exchange(int128,int128,uint256,uint256)',
-      'swap(uint256,uint256,address,address,address)'
-    ]
+    bridge.messageBus.address
   );
 
-  await bridge.bridgeAdapter.updateMainContract(chainhop.xswap.address);
-  await chainhop.xswap.setSupportedBridges(['cbridge'], [bridge.bridgeAdapter.address]);
+  const funcs = [
+    'swapExactTokensForTokens(uint256,uint256,address[],address,uint256)',
+    'exchange(int128,int128,uint256,uint256)',
+    'clipperSwap(address,address,uint256,uint256)',
+    'fillOrderRFQ((uint256,address,address,address,address,uint256,uint256),bytes,uint256,uint256)',
+    'swap(address,(address,address,address,address,uint256,uint256,uint256,bytes),bytes)',
+    'uniswapV3Swap(uint256,uint256,uint256[])',
+    'unoswap(address,uint256,uint256,bytes32[])'
+  ];
+  const codecs = [
+    v2Codec.address,
+    curveCodec.address,
+    v3Codec.address,
+    oneinchCodec.address,
+    oneinchCodec.address,
+    oneinchCodec.address,
+    oneinchCodec.address,
+    oneinchCodec.address
+  ];
+  const dexList = [
+    dex.mockV2.address,
+    dex.mockCurve.address,
+    dex.mock1inch.address,
+    dex.mock1inch.address,
+    dex.mock1inch.address,
+    dex.mock1inch.address,
+    dex.mock1inch.address
+  ];
+
+  await chainhop.xswap.setDexCodec(dexList, funcs, codecs);
+  await chainhop.xswap.setSupportedBridges(['cbridge'], [chainhop.cbridgeAdapter.address]);
   await fundTokens(tokens, dex.mockCurve.address);
   await fundTokens(tokens, dex.mockV2.address);
   await fundTokens(tokens, dex.mock1inch.address);
   await tokens.weth.deposit({ value: parseUnits('20') });
 
   return {
-    ...bridge,
     ...bridge,
     ...chainhop,
     ...tokens,
@@ -107,20 +130,24 @@ export const benchmarkFixture = async ([admin]: Wallet[]): Promise<BenchmarkFixt
   const signer = accounts[0];
   const feeCollector = accounts[1];
   const chainId = (await ethers.provider.getNetwork()).chainId;
+  const { v2Codec } = await deployCodecContracts(admin);
 
   const chainhop = await deployChainhopContracts(
     admin,
     tokens.weth.address,
     signer.address,
     feeCollector.address,
-    bridge.messageBus.address,
-    [dex.mockV2.address],
-    ['swapExactTokensForTokens(uint256,uint256,address[],address,uint256)']
+    bridge.messageBus.address
   );
-  await bridge.bridgeAdapter.updateMainContract(chainhop.xswap.address);
-  await chainhop.xswap.setSupportedBridges(['cbridge'], [bridge.bridgeAdapter.address]);
+
+  const dexList = [dex.mockV2.address];
+  const funcs = ['swapExactTokensForTokens(uint256,uint256,address[],address,uint256)'];
+  const codecs = [v2Codec.address];
+
+  await chainhop.xswap.setDexCodec(dexList, funcs, codecs);
+  await chainhop.xswap.setSupportedBridges(['cbridge'], [chainhop.cbridgeAdapter.address]);
   await fundTokens(tokens, dex.mockV2.address);
   await tokens.weth.deposit({ value: parseUnits('20') });
 
-  return { ...bridge, ...bridge, ...chainhop, ...tokens, ...dex, admin, accounts, signer, feeCollector, chainId };
+  return { ...bridge, ...chainhop, ...tokens, ...dex, admin, accounts, signer, feeCollector, chainId };
 };

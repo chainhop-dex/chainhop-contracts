@@ -32,3 +32,5 @@ export const userPrivKeys = [
   '0x0f072d61ec1b47e8f09c20e935d942c291d3229932ab1560cc567e32c2f87e94',
   '0xee15c0525cc1f3292e9905d36f78a9ad48551e365174e351ad867c0bb4f54d9e'
 ];
+
+export const pocketAddr = '0x62755b3461348afA014f7dB75F05d8F3C3d3924E'; // fake
