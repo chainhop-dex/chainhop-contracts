@@ -9,6 +9,10 @@ abstract contract MessageBusAddress is Ownable {
 
     address public messageBus;
 
+    constructor(address _messageBus) {
+        messageBus = _messageBus;
+    }
+
     function setMessageBus(address _messageBus) public onlyOwner {
         messageBus = _messageBus;
         emit MessageBusUpdated(messageBus);

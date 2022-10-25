@@ -15,10 +15,10 @@ abstract contract BridgeRegistry is Ownable {
     mapping(bytes32 => IBridgeAdapter) public bridges;
 
     // to disable a bridge, set the bridge addr of the corresponding provider to address(0)
-    function setSupportedBridges(
-        string[] calldata _bridgeProviders,
-        address[] calldata _bridgeAdapters
-    ) external onlyOwner {
+    function setSupportedBridges(string[] calldata _bridgeProviders, address[] calldata _bridgeAdapters)
+        external
+        onlyOwner
+    {
         require(_bridgeProviders.length == _bridgeAdapters.length, "params size mismatch");
         for (uint256 i = 0; i < _bridgeProviders.length; i++) {
             bridges[keccak256(bytes(_bridgeProviders[i]))] = IBridgeAdapter(_bridgeAdapters[i]);

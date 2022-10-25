@@ -9,7 +9,11 @@ abstract contract MessageReceiverApp is IMessageReceiverApp, MessageBusAddress {
     // testMode is used for the ease of testing functions with the "onlyMessageBus" modifier.
     // WARNING: when testMode is true, ANYONE can call executeMessageXXX functions
     // this variable can only be set during contract construction and is always not set on mainnets
-    bool public testMode;
+    bool public immutable testMode;
+
+    constructor(bool _testMode, address _msgbus) MessageBusAddress(_msgbus) {
+        testMode = _testMode;
+    }
 
     modifier onlyMessageBus() {
         if (!testMode) {

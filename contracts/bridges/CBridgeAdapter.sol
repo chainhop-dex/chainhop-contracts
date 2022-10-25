@@ -19,9 +19,10 @@ import "../interfaces/IWETH.sol";
 contract CBridgeAdapter is MessageReceiverApp, IBridgeAdapter, NativeWrap, Pauser {
     using SafeERC20 for IERC20;
 
-    constructor(address _nativeWrap, address _messageBus) NativeWrap(_nativeWrap) {
-        messageBus = _messageBus;
-    }
+    constructor(address _nativeWrap, address _messageBus)
+        NativeWrap(_nativeWrap)
+        MessageReceiverApp(false, _messageBus)
+    {}
 
     struct CBridgeParams {
         // type of the bridge in cBridge to use (i.e. liquidity bridge, pegged token bridge, etc.)
