@@ -37,12 +37,6 @@ library Types {
         bytes forward;
     }
 
-    struct Forward {
-        uint64 dstChain;
-        // abi encoded cbridge params
-        bytes params;
-    }
-
     struct TransferDescription {
         // The receiving party (the user) of the final output token
         address receiver;
@@ -88,7 +82,5 @@ library Types {
         uint256 amountIn;
         address tokenIn;
         address dstTokenOut; // the final output token, emitted in event for display purpose only
-        // sets if another cbridge hop is required on the dst chain, abi.encode(Forward)
-        bytes forward;
     }
 }

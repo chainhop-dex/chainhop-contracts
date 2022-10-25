@@ -15,12 +15,13 @@ import "./lib/NativeWrap.sol";
 import "./interfaces/IBridgeAdapter.sol";
 import "./interfaces/ICodec.sol";
 import "./interfaces/ITransferSwapperEvents.sol";
+import "./interfaces/IWETH.sol";
 
 import "./BridgeRegistry.sol";
 import "./FeeOperator.sol";
 import "./SigVerifier.sol";
-import "./Swapper.sol";
 import "./Pocket.sol";
+import "./DexRegistry.sol";
 
 /**
  * @author Chainhop Dex Team
@@ -169,24 +170,22 @@ contract TransferSwapper is
         uint256 erc20Amount = IERC20(req.bridgeOutToken).balanceOf(req.pocket);
         uint256 nativeAmount = address(req.pocket).balance;
 
-        {
-            // if the pocket does not have bridgeOutMin, we consider the transfer not arrived yet. in
-            // this case we tell the msgbus to revert the outter tx using the MSGBUS::REVERT opcode so
-            // that our executor will retry sending this tx later.
-            // this is a counter-measure to a DoS attack vector. an attacker can deposit a small amount
-            // of fund into the pocket and confuse this contract that the bridged fund has arrived,
-            // denying the dst swap for the victim. bridgeOutMin is determined by the server before
-            // sending out the transfer. bridgeOutMin = R * bridgeAmountIn where R is an arbitrary ratio
-            // that we feel effective in raising the attacker's attack cost.
-            // note that in cases where the bridging actually has a huge slippage, the user can always call
-            // claimPocketFund to collect the bridge out tokens as a refund.
-            require(
-                erc20Amount > req.bridgeOutMin ||
-                    nativeAmount > req.bridgeOutMin ||
-                    fallbackAmount > req.bridgeOutFallbackMin,
-                "MSGBUS::REVERT"
-            );
-        }
+        // if the pocket does not have bridgeOutMin, we consider the transfer not arrived yet. in
+        // this case we tell the msgbus to revert the outter tx using the MSGBUS::REVERT opcode so
+        // that our executor will retry sending this tx later.
+        // this is a counter-measure to a DoS attack vector. an attacker can deposit a small amount
+        // of fund into the pocket and confuse this contract that the bridged fund has arrived,
+        // denying the dst swap for the victim. bridgeOutMin is determined by the server before
+        // sending out the transfer. bridgeOutMin = R * bridgeAmountIn where R is an arbitrary ratio
+        // that we feel effective in raising the attacker's attack cost.
+        // note that in cases where the bridging actually has a huge slippage, the user can always call
+        // claimPocketFund to collect the bridge out tokens as a refund.
+        require(
+            erc20Amount > req.bridgeOutMin ||
+                nativeAmount > req.bridgeOutMin ||
+                fallbackAmount > req.bridgeOutFallbackMin,
+            "MSGBUS::REVERT"
+        );
 
         if (fallbackAmount > 0) {
             _claimPocketFund(req.bridgeOutFallbackToken, req.id);
@@ -448,96 +447,4 @@ contract TransferSwapper is
             _desc.bridgeProvider
         );
     }
-
-    // function executeMessageWithTransfer(
-    //     address, // _sender
-    //     address _token,
-    //     uint256 _amount,
-    //     uint64, // _srcChainId
-    //     bytes memory _message,
-    //     address _executor
-    // ) external payable override onlyMessageBus nonReentrant returns (ExecutionStatus) {
-    //     if (paused()) {
-    //         return ExecutionStatus.Retry;
-    //     }
-    //     Types.Request memory m = abi.decode((_message), (Types.Request));
-
-    //     // handle the case where amount received is not enough to pay fee
-    //     if (_amount < m.fee) {
-    //         m.fee = _amount;
-    //         emit RequestDone(m.id, 0, 0, _token, m.fee, Types.RequestStatus.Succeeded, bytes(""));
-    //         return ExecutionStatus.Success;
-    //     } else {
-    //         _amount = _amount - m.fee;
-    //     }
-
-    //     uint256 sumAmtOut = _amount;
-    //     uint256 sumAmtFailed;
-    //     bytes memory forwardResp;
-    //     {
-    //         // Note if to wrap, the NATIVE used to convert is from the ones sent by upstream in advance, but not part of the `msg.value`
-    //         // `msg.value` here is only used to pay for msg fee
-    //         _wrapBridgeOutToken(_token, _amount);
-
-    //         address tokenOut = _token;
-    //         if (m.swaps.length != 0) {
-    //             ICodec[] memory codecs;
-    //             address tokenIn;
-    //             // swap first before sending the token out to user
-    //             (, tokenIn, tokenOut, codecs) = sanitizeSwaps(m.swaps);
-    //             require(tokenIn == _token, "tkin mm"); // tokenIn mismatch
-    //             (sumAmtOut, sumAmtFailed) = executeSwapsWithOverride(m.swaps, codecs, _amount, m.allowPartialFill);
-    //             // if at this stage the tx is not reverted, it means at least 1 swap in routes succeeded
-    //             if (sumAmtFailed > 0) {
-    //                 _sendToken(_token, sumAmtFailed, m.receiver, false);
-    //             }
-    //         }
-
-    //         if (m.forward.length > 0) {
-    //             Types.Forward memory f = abi.decode(m.forward, (Types.Forward));
-    //             IBridgeAdapter cBridge = bridges[CBRIDGE_PROVIDER_HASH];
-    //             require(address(cBridge) != address(0), "cbridge not set");
-    //             IERC20(tokenOut).safeIncreaseAllowance(address(cBridge), sumAmtOut);
-    //             bytes memory requestMessage = _encodeRequestMessage(m.id, m.receiver);
-    //             forwardResp = cBridge.bridge{value: msg.value}(
-    //                 f.dstChain,
-    //                 m.receiver,
-    //                 sumAmtOut,
-    //                 tokenOut,
-    //                 f.params,
-    //                 requestMessage
-    //             );
-    //         } else {
-    //             // msg.value is not used in this code branch, pay back to sender
-    //             if (msg.value > 0) {
-    //                 (bool sent, ) = _executor.call{value: msg.value}("");
-    //                 require(sent, "send fail");
-    //             }
-    //             _sendToken(tokenOut, sumAmtOut, m.receiver, m.nativeOut);
-    //         }
-    //     }
-    //     // status is always success as long as this function call doesn't revert. partial fill is also considered success
-    //     emit RequestDone(m.id, sumAmtOut, sumAmtFailed, _token, m.fee, Types.RequestStatus.Succeeded, forwardResp);
-    //     return ExecutionStatus.Success;
-    // }
-
-    // function _encodeRequestMessage(
-    //     bytes32 _id,
-    //     address _receiver,
-    //     address _bridgeOutToken
-    // ) internal pure returns (bytes memory message) {
-    //     ICodec.SwapDescription memory emptySwaps;
-    //     bytes memory empty;
-    //     message = abi.encode(
-    //         Types.Request({
-    //             id: _id,
-    //             swaps: emptySwaps,
-    //             receiver: _receiver,
-    //             bridgeOutToken: _bridgeOutToken,
-    //             nativeOut: false,
-    //             fee: 0,
-    //             forward: empty
-    //         })
-    //     );
-    // }
 }
