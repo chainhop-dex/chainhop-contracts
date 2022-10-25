@@ -111,9 +111,7 @@ contract TransferSwapper is
     ) private {
         // fund is directly to user if there is no swaps needed on the destination chain. otherwise, it's sent
         // to a "pocket" contract addr to temporarily hold the fund before it is used for swapping.
-        address bridgeOutReceiver = (_dstSwap.dex != address(0) || _desc.forward.length > 0)
-            ? _desc.pocket
-            : _desc.receiver;
+        address bridgeOutReceiver = (_dstSwap.dex != address(0)) ? _desc.pocket : _desc.receiver;
         require(bridgeOutReceiver != address(0), "receiver is 0");
 
         uint256 refundMsgFee = 0;
@@ -382,8 +380,7 @@ contract TransferSwapper is
                 feeInBridgeOutToken: _desc.feeInBridgeOutToken,
                 feeInBridgeOutFallbackToken: _desc.feeInBridgeOutFallbackToken,
                 bridgeOutMin: _desc.bridgeOutMin,
-                bridgeOutFallbackMin: _desc.bridgeOutFallbackMin,
-                forward: _desc.forward
+                bridgeOutFallbackMin: _desc.bridgeOutFallbackMin
             })
         );
     }

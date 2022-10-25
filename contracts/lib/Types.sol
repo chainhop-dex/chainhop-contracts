@@ -33,8 +33,6 @@ library Types {
         // used as a counter measure to the DoS attack vector described in TransferSwapper
         uint256 bridgeOutMin;
         uint256 bridgeOutFallbackMin;
-        // sets if another cbridge hop is required on the chain, abi.encode(Forward)
-        bytes forward;
     }
 
     struct TransferDescription {
