@@ -4,6 +4,7 @@ import { parseUnits } from 'ethers/lib/utils';
 import { ethers } from 'hardhat';
 import { ICodec } from '../../typechain';
 import { Types } from '../../typechain/TransferSwapper';
+import { Pocket__factory } from './../../typechain/factories/Pocket__factory';
 import { CURVE_SLIPPAGE, UINT64_MAX, UNISWAP_V2_SLIPPAGE, ZERO_ADDR } from './constants';
 import { ChainhopFixture, IntegrationTestContext } from './fixtures';
 
@@ -25,7 +26,9 @@ export function slip(amount: BigNumberish, perc: number): BigNumber {
 export const defaultFee = parseUnits('1');
 export const defaultAmountIn = parseUnits('100');
 export const defaultBridgeOutMin = slip(defaultAmountIn, 50);
+export const defaultNonce = 1;
 export const defaultMaxSlippage = 1000000;
+export const defaultDeadline = BigNumber.from(Math.floor(Date.now() / 1000 + 1200));
 
 export function slipUniV2(amount: BigNumber) {
   return slip(amount, UNISWAP_V2_SLIPPAGE);
@@ -54,10 +57,10 @@ export interface BridgeOpts {
   pocket?: string;
   bridgeOutToken?: string;
   bridgeOutFallbackToken?: string;
-  feeInBridgeOutToken?: BigNumber;
-  feeInBridgeOutFallbackToken?: BigNumber;
-  bridgeOutMin?: BigNumber;
-  bridgeOutFallbackMin?: BigNumber;
+  feeInBridgeOutToken?: BigNumberish;
+  feeInBridgeOutFallbackToken?: BigNumberish;
+  bridgeOutMin?: BigNumberish;
+  bridgeOutFallbackMin?: BigNumberish;
 }
 
 export function encodeMessage(
@@ -79,13 +82,18 @@ export function encodeMessage(
         o?.bridgeOutToken ?? ZERO_ADDR,
         o?.bridgeOutFallbackToken ?? ZERO_ADDR,
         o?.feeInBridgeOutToken ?? defaultFee,
-        o?.feeInBridgeOutFallbackToken ?? defaultFee,
+        o?.feeInBridgeOutFallbackToken ?? ZERO_ADDR,
         o?.bridgeOutMin ?? 0,
         o?.bridgeOutFallbackMin ?? 0
       ]
     ]
   );
   return encoded;
+}
+
+export function getPocketAddr(id: string, dstTransferSwapper: string) {
+  const codeHash = keccak256(['bytes'], [Pocket__factory.bytecode]);
+  return ethers.utils.getCreate2Address(dstTransferSwapper, id, codeHash);
 }
 
 export function computeId(sender: string, receiver: string, srcChainId: number, nonce: BigNumberish): string {
@@ -128,22 +136,22 @@ export interface FeeSigOverride {
   dstChainId?: number;
   amountIn?: BigNumber;
   tokenIn?: string;
-  feeDeadline?: BigNumber;
+  deadline?: BigNumber;
   feeInBridgeOutToken?: BigNumber;
   feeInBridgeOutFallbackToken?: BigNumber;
 }
 
-export async function signFee(c: IntegrationTestContext, opts?: FeeSigOverride) {
+export async function signQuote(c: IntegrationTestContext, opts?: FeeSigOverride) {
   const srcChainId = opts?.srcChainId ?? c.chainId;
   const dstChainId = opts?.dstChainId ?? c.chainId + 1;
   const amountIn = opts?.amountIn ?? parseUnits('100');
   const tokenIn = opts?.tokenIn ?? c.tokenA.address;
-  const feeDeadline = opts?.feeDeadline ?? BigNumber.from(Math.floor(Date.now() / 1000 + 1200));
+  const deadline = opts?.deadline ?? defaultDeadline;
   const feeInBridgeOutToken = opts?.feeInBridgeOutToken ?? defaultFee;
   const feeInBridgeOutFallbackToken = opts?.feeInBridgeOutFallbackToken ?? defaultFee;
   const hash = keccak256(
     ['string', 'uint64', 'uint64', 'uint256', 'address', 'uint256', 'uint256', 'uint256'],
-    ['executor fee', srcChainId, dstChainId, amountIn, tokenIn, feeDeadline, feeInBridgeOutToken, feeInBridgeOutFallbackToken]
+    ['chainhop quote', srcChainId, dstChainId, amountIn, tokenIn, deadline, feeInBridgeOutToken, feeInBridgeOutFallbackToken]
   );
   const signData = hex2Bytes(hash);
   return c.signer.signMessage(signData);
@@ -225,8 +233,8 @@ export interface TransferDescOpts {
   nativeOut?: boolean;
   feeInBridgeOutToken?: BigNumberish;
   feeInBridgeOutFallbackToken?: BigNumberish;
-  feeDeadline?: BigNumberish;
-  feeSig?: string;
+  deadline?: BigNumberish;
+  quoteSig?: string;
   amountIn?: BigNumberish;
   tokenIn?: string;
   dstTokenOut?: string;
@@ -235,11 +243,11 @@ export interface TransferDescOpts {
   maxSlippage?: number;
 }
 
-export function buildTransferDesc(c: IntegrationTestContext, feeSig: string, opts?: TransferDescOpts) {
+export function buildTransferDesc(c: IntegrationTestContext, quoteSig: string, opts?: TransferDescOpts) {
   const dstChainId = opts?.dstChainId ?? c.chainId + 1;
 
   const fee = opts?.feeInBridgeOutToken ?? defaultFee;
-  const feeDeadline = opts?.feeDeadline ?? BigNumber.from(Math.floor(Date.now() / 1000 + 1200));
+  const deadline = opts?.deadline ?? defaultDeadline;
   const nonce = 1;
   const bridgeParams = ethers.utils.defaultAbiCoder.encode(
     ['uint256', 'uint32', 'address', 'uint64'],
@@ -270,8 +278,8 @@ export function buildTransferDesc(c: IntegrationTestContext, feeSig: string, opt
     nativeOut: opts?.nativeOut ?? false,
     feeInBridgeOutToken: opts?.feeInBridgeOutToken ?? fee,
     feeInBridgeOutFallbackToken: opts?.feeInBridgeOutFallbackToken ?? fee,
-    feeDeadline: feeDeadline,
-    feeSig: feeSig,
+    deadline: deadline,
+    quoteSig: quoteSig,
     amountIn: amountIn,
     tokenIn: opts?.tokenIn || c.tokenA.address,
     dstTokenOut: opts?.dstTokenOut ?? c.tokenB.address

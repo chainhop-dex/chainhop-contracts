@@ -23,6 +23,8 @@ import "./SigVerifier.sol";
 import "./Pocket.sol";
 import "./DexRegistry.sol";
 
+import "hardhat/console.sol";
+
 /**
  * @author Chainhop Dex Team
  * @author Padoriku
@@ -95,7 +97,7 @@ contract TransferSwapper is
         // directly send the fund to receiver if there are no more steps
         if (_desc.dstChainId == uint64(block.chainid)) {
             _sendToken(nextTokenIn, nextAmountIn, _desc.receiver, _desc.nativeOut);
-            _emitSrcExecuted(_desc, id, nextAmountIn, nextTokenIn, address(0), bytes(""));
+            _emitSrcExecuted(_desc, id, nextAmountIn, nextTokenIn, "", address(0), bytes(""));
             return;
         }
         _transfer(id, nextTokenIn, nextAmountIn, _desc, _dstSwap);
@@ -146,7 +148,15 @@ contract TransferSwapper is
             MessageSenderLib.sendMessage(_desc.dstTransferSwapper, _desc.dstChainId, req, messageBus, msgFee);
         }
 
-        _emitSrcExecuted(_desc, _id, _bridgeAmountIn, _bridgeTokenIn, bridgeOutReceiver, bridgeResp);
+        _emitSrcExecuted(
+            _desc,
+            _id,
+            _bridgeAmountIn,
+            _bridgeTokenIn,
+            _desc.bridgeProvider,
+            bridgeOutReceiver,
+            bridgeResp
+        );
     }
 
     /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
@@ -161,9 +171,16 @@ contract TransferSwapper is
     ) external payable override onlyMessageBus nonReentrant returns (ExecutionStatus) {
         Types.Request memory req = abi.decode((_message), (Types.Request));
 
-        uint256 fallbackAmount = IERC20(req.bridgeOutFallbackToken).balanceOf(req.pocket); // e.g. hToken/anyToken
+        uint256 fallbackAmount;
+        if (req.bridgeOutFallbackToken != address(0)) {
+            fallbackAmount = IERC20(req.bridgeOutFallbackToken).balanceOf(req.pocket); // e.g. hToken/anyToken
+        }
         uint256 erc20Amount = IERC20(req.bridgeOutToken).balanceOf(req.pocket);
         uint256 nativeAmount = address(req.pocket).balance;
+
+        console.log("fallbackAmount", fallbackAmount);
+        console.log("erc20Amount", erc20Amount);
+        console.log("nativeAmount", nativeAmount);
 
         // if the pocket does not have bridgeOutMin, we consider the transfer not arrived yet. in
         // this case we tell the msgbus to revert the outter tx using the MSGBUS::REVERT opcode so
@@ -183,31 +200,40 @@ contract TransferSwapper is
         );
 
         if (fallbackAmount > 0) {
-            _claimPocketFund(req.bridgeOutFallbackToken, req.id);
-            IERC20(req.bridgeOutToken).safeTransferFrom(req.pocket, address(this), fallbackAmount);
-            (uint256 amount, uint256 realizedFee) = _deductFee(req, req.feeInBridgeOutFallbackToken, fallbackAmount);
-            if (amount == 0) return ExecutionStatus.Success;
-            IERC20(req.bridgeOutFallbackToken).safeTransfer(req.receiver, fallbackAmount);
+            _claimPocketFund(req.id, req.bridgeOutFallbackToken, fallbackAmount);
+            (uint256 amount, uint256 realizedFee) = _deductFee(req.feeInBridgeOutFallbackToken, fallbackAmount);
+            console.log("amount", amount);
+            console.log("realizedFee", realizedFee);
+            if (amount == 0) {
+                emit DstExecuted(req.id, 0, 0, req.bridgeOutFallbackToken, 0, Types.RequestStatus.Succeeded, bytes(""));
+                return ExecutionStatus.Success;
+            }
+            IERC20(req.bridgeOutFallbackToken).safeTransfer(req.receiver, amount);
             emit DstExecuted(
                 req.id,
                 0,
-                fallbackAmount,
+                amount,
                 req.bridgeOutFallbackToken,
                 realizedFee,
                 Types.RequestStatus.Fallback,
                 bytes("")
             );
         } else if (erc20Amount > 0) {
-            _claimPocketFund(req.bridgeOutToken, req.id);
-            IERC20(req.bridgeOutToken).safeTransferFrom(req.pocket, address(this), erc20Amount);
-            (uint256 amount, uint256 realizedFee) = _deductFee(req, req.feeInBridgeOutToken, erc20Amount);
-            if (amount == 0) return ExecutionStatus.Success;
+            _claimPocketFund(req.id, req.bridgeOutToken, erc20Amount);
+            (uint256 amount, uint256 realizedFee) = _deductFee(req.feeInBridgeOutToken, erc20Amount);
+            if (amount == 0) {
+                emit DstExecuted(req.id, 0, 0, req.bridgeOutToken, 0, Types.RequestStatus.Succeeded, bytes(""));
+                return ExecutionStatus.Success;
+            }
             _swapAndSend(req, amount, realizedFee);
         } else if (nativeAmount > 0) {
-            _claimPocketFund(req.bridgeOutToken, req.id);
+            _claimPocketFund(req.id, req.bridgeOutToken, nativeAmount);
             require(req.bridgeOutToken == nativeWrap, "bridgeOutToken not nativeWrap");
-            (uint256 amount, uint256 realizedFee) = _deductFee(req, req.feeInBridgeOutToken, nativeAmount);
-            if (amount == 0) return ExecutionStatus.Success;
+            (uint256 amount, uint256 realizedFee) = _deductFee(req.feeInBridgeOutToken, nativeAmount);
+            if (amount == 0) {
+                emit DstExecuted(req.id, 0, 0, req.bridgeOutToken, 0, Types.RequestStatus.Succeeded, bytes(""));
+                return ExecutionStatus.Success;
+            }
             IWETH(req.bridgeOutToken).deposit{value: amount}();
             _swapAndSend(req, amount, realizedFee);
         }
@@ -240,15 +266,10 @@ contract TransferSwapper is
         );
     }
 
-    function _deductFee(
-        Types.Request memory _req,
-        uint256 _fee,
-        uint256 _amount
-    ) private returns (uint256 amount, uint256 fee) {
+    function _deductFee(uint256 _fee, uint256 _amount) private pure returns (uint256 amount, uint256 fee) {
         // handle the case where amount received is not enough to pay fee
         if (_amount < _fee) {
             fee = _amount;
-            emit DstExecuted(_req.id, 0, 0, _req.bridgeOutToken, _amount, Types.RequestStatus.Succeeded, bytes(""));
         } else {
             fee = _fee;
             amount = _amount - _fee;
@@ -273,7 +294,7 @@ contract TransferSwapper is
         uint256 nativeAmount = address(_pocket).balance;
         require(erc20Amount > 0 || nativeAmount > 0, "pocket is empty");
 
-        _claimPocketFund(_token, id);
+        _claimPocketFund(id, _token, erc20Amount);
 
         if (erc20Amount > 0) {
             IERC20(_token).safeTransfer(receiver, erc20Amount);
@@ -285,11 +306,15 @@ contract TransferSwapper is
         emit PocketFundClaimed(receiver, erc20Amount, _token, nativeAmount);
     }
 
-    function _claimPocketFund(address _token, bytes32 _id) private {
+    function _claimPocketFund(
+        bytes32 _id,
+        address _token,
+        uint256 _amount
+    ) private {
         // fetch fund from the pocket
         Pocket pocket = new Pocket{salt: _id}();
         // this claims both _token and native
-        pocket.claim(_token);
+        pocket.claim(_token, _amount);
     }
 
     /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
@@ -394,7 +419,6 @@ contract TransferSwapper is
                 _desc.dstChainId,
                 _desc.amountIn,
                 _desc.tokenIn,
-                _desc.dstTokenOut,
                 _desc.deadline,
                 _desc.feeInBridgeOutToken,
                 _desc.feeInBridgeOutFallbackToken
@@ -410,6 +434,7 @@ contract TransferSwapper is
         bytes32 _id,
         uint256 _srcAmountOut,
         address _srcTokenOut,
+        string memory _bridgeProvider,
         address _bridgeOutReceiver,
         bytes memory _bridgeResp
     ) private {
@@ -421,7 +446,7 @@ contract TransferSwapper is
             _srcAmountOut,
             _srcTokenOut,
             _desc.dstTokenOut,
-            _desc.bridgeProvider,
+            _bridgeProvider,
             _bridgeOutReceiver,
             _bridgeResp
         );

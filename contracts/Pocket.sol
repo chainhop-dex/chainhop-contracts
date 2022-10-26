@@ -10,9 +10,9 @@ pragma solidity 0.8.15;
 // message is executed on the dst chain and TransferSwapper deploys this pocket contract that claims
 // the fund.
 contract Pocket {
-    function claim(address _token) external {
+    function claim(address _token, uint256 _amt) external {
         address sender = msg.sender;
-        _token.call(abi.encodeWithSelector(0x095ea7b3, sender, ~0));
+        _token.call(abi.encodeWithSelector(0xa9059cbb, sender, _amt));
         assembly {
             // selfdestruct sends all native balance to sender
             selfdestruct(sender)

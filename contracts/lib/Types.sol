@@ -33,6 +33,16 @@ library Types {
         uint256 bridgeOutFallbackMin;
     }
 
+    struct Receiver {
+        // The receiving party (the user) of the final output token
+        address receiver;
+        // The following fields are optional and are only used when the user wants to receive the output
+        // token on another chain
+        uint64 forwardChainId;
+        string forwardBridgeProvider;
+        bytes forwardBridgeParams;
+    }
+
     struct TransferDescription {
         // The receiving party (the user) of the final output token
         address receiver;
