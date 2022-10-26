@@ -8,8 +8,6 @@ import "../interfaces/ICodec.sol";
 library Types {
     /**
      * @notice Denotes the status of a cross-chain transfer/swap request
-     * @dev Partially filled requests are considered 'Succeeded'. There is no 'Failed' state as
-     * it's only possible if everything reverts and there is no successful transaction
      * @param Null An empty status that should never be reached
      * @param Succeeded Transfer/swap has succeeded and funds are received by the receiver
      * @param Fallback Request fails at the bridge or at dst swap, bridgeInToken/bridgeOutToken is refunded
@@ -73,10 +71,10 @@ library Types {
         // chainhop charges
         uint256 feeInBridgeOutFallbackToken;
         // the unix timestamp before which the fee is valid
-        uint256 feeDeadline;
-        // sig of sha3("executor fee", srcChainId, dstChainId, amountIn, tokenIn, feeDeadline, feeInBridgeOutToken, feeInBridgeOutFallbackToken)
-        // see _verifyFee()
-        bytes feeSig;
+        uint256 deadline;
+        // sig of sha3("executor fee", srcChainId, dstChainId, amountIn, tokenIn, deadline, feeInBridgeOutToken, feeInBridgeOutFallbackToken)
+        // see _verifyQuote()
+        bytes quoteSig;
         uint256 amountIn;
         address tokenIn;
         address dstTokenOut; // the final output token, emitted in event for display purpose only

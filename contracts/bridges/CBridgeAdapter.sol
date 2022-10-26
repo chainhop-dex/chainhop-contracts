@@ -12,7 +12,6 @@ import "../lib/MessageReceiverApp.sol";
 import "../lib/NativeWrap.sol";
 import "../lib/Types.sol";
 import "../interfaces/IBridgeAdapter.sol";
-import "../interfaces/ITransferSwapper.sol";
 import "../interfaces/IIntermediaryOriginalToken.sol";
 import "../interfaces/IWETH.sol";
 

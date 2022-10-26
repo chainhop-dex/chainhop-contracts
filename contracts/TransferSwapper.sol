@@ -95,7 +95,7 @@ contract TransferSwapper is
         // directly send the fund to receiver if there are no more steps
         if (_desc.dstChainId == uint64(block.chainid)) {
             _sendToken(nextTokenIn, nextAmountIn, _desc.receiver, _desc.nativeOut);
-            emit DirectSwap(id, _desc.amountIn, _desc.tokenIn, nextAmountIn, nextTokenIn);
+            _emitSrcExecuted(_desc, id, nextAmountIn, nextTokenIn, address(0), bytes(""));
             return;
         }
         _transfer(id, nextTokenIn, nextAmountIn, _desc, _dstSwap);
@@ -108,8 +108,8 @@ contract TransferSwapper is
         Types.TransferDescription memory _desc,
         ICodec.SwapDescription memory _dstSwap
     ) private {
-        // fund is directly to user if there is no swaps needed on the destination chain. otherwise, it's sent
-        // to a "pocket" contract addr to temporarily hold the fund before it is used for swapping.
+        // fund is directly sent to user if there is no swaps needed on the destination chain. otherwise,
+        // it's sent to a "pocket" contract addr to temporarily hold the fund before it is used for swapping.
         address bridgeOutReceiver = (_dstSwap.dex != address(0)) ? _desc.pocket : _desc.receiver;
         require(bridgeOutReceiver != address(0), "receiver is 0");
 
@@ -120,10 +120,10 @@ contract TransferSwapper is
         bytes32 bridgeHash = keccak256(bytes(_desc.bridgeProvider));
         IBridgeAdapter bridge = bridges[bridgeHash];
         if (bridgeHash == CBRIDGE_PROVIDER_HASH) {
-            // special handling for dealing with cbridge's refund mechnism: always send a message
-            // that contains only the receiver addr along with the transfer. this way when refund
-            // happens we can execute the executeMessageWithTransferRefund function in cbridge
-            // adapter to refund to the receiver
+            // special handling for dealing with cbridge's refund mechnism: cbridge adapter always
+            // sends a message that contains only the receiver addr along with the transfer. this way
+            // when refund happens we can execute the executeMessageWithTransferRefund function in
+            // cbridge adapter to refund to the receiver
             refundMsgFee = IMessageBus(messageBus).calcFee(abi.encode(_desc.receiver));
         }
         IERC20(_bridgeTokenIn).safeIncreaseAllowance(address(bridge), _bridgeAmountIn);
@@ -137,8 +137,7 @@ contract TransferSwapper is
 
         // send a message separately containing the swap instruction
         if (_dstSwap.dex != address(0)) {
-            // since dst swap requires message execution, we need to check fee sig here
-            _verifyFee(_desc, _desc.amountIn, _desc.tokenIn);
+            _verifySig(_desc);
             uint256 msgFee = msg.value - refundMsgFee;
             if (_desc.nativeIn) {
                 msgFee = msg.value - refundMsgFee - _desc.amountIn;
@@ -147,7 +146,7 @@ contract TransferSwapper is
             MessageSenderLib.sendMessage(_desc.dstTransferSwapper, _desc.dstChainId, req, messageBus, msgFee);
         }
 
-        _emitRequestSent(_id, bridgeResp, _desc, bridgeOutReceiver, _bridgeTokenIn, _bridgeAmountIn);
+        _emitSrcExecuted(_desc, _id, _bridgeAmountIn, _bridgeTokenIn, bridgeOutReceiver, bridgeResp);
     }
 
     /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
@@ -189,7 +188,7 @@ contract TransferSwapper is
             (uint256 amount, uint256 realizedFee) = _deductFee(req, req.feeInBridgeOutFallbackToken, fallbackAmount);
             if (amount == 0) return ExecutionStatus.Success;
             IERC20(req.bridgeOutFallbackToken).safeTransfer(req.receiver, fallbackAmount);
-            emit RequestDone(
+            emit DstExecuted(
                 req.id,
                 0,
                 fallbackAmount,
@@ -222,15 +221,15 @@ contract TransferSwapper is
         uint256 _realizedFee
     ) private returns (uint256 sentAmount, uint256 refundAmount) {
         (bool ok, uint256 amountOut, address tokenOut) = _executeSwap(_req.swap, _amountIn, _req.bridgeOutToken);
-        // RequestStatus status
         if (!ok) {
-            _sendRefund(_req, _amountIn);
+            // swap failed, send refund
+            IERC20(_req.bridgeOutToken).safeTransfer(_req.receiver, _amountIn);
             refundAmount = _amountIn;
         } else {
             _sendToken(tokenOut, amountOut, _req.receiver, _req.nativeOut);
             sentAmount = amountOut;
         }
-        emit RequestDone(
+        emit DstExecuted(
             _req.id,
             sentAmount,
             refundAmount,
@@ -249,24 +248,11 @@ contract TransferSwapper is
         // handle the case where amount received is not enough to pay fee
         if (_amount < _fee) {
             fee = _amount;
-            emit RequestDone(_req.id, 0, 0, _req.bridgeOutToken, _amount, Types.RequestStatus.Succeeded, bytes(""));
+            emit DstExecuted(_req.id, 0, 0, _req.bridgeOutToken, _amount, Types.RequestStatus.Succeeded, bytes(""));
         } else {
             fee = _fee;
             amount = _amount - _fee;
         }
-    }
-
-    function _sendRefund(Types.Request memory _req, uint256 _amount) private {
-        IERC20(_req.bridgeOutToken).safeTransfer(_req.receiver, _amount);
-        emit RequestDone(
-            _req.id,
-            0,
-            _amount,
-            _req.bridgeOutToken,
-            _req.feeInBridgeOutToken,
-            Types.RequestStatus.Fallback,
-            bytes("")
-        );
     }
 
     // the receiver of a swap is entitled to all the funds in the pocket. as long as someone can prove
@@ -391,7 +377,7 @@ contract TransferSwapper is
         bool _nativeOut
     ) private {
         if (_nativeOut) {
-            require(_token == nativeWrap, "tk no native");
+            require(_token == nativeWrap, "token is not nativeWrap");
             IWETH(nativeWrap).withdraw(_amount);
             (bool sent, ) = _receiver.call{value: _amount, gas: 50000}("");
             require(sent, "send fail");
@@ -400,47 +386,44 @@ contract TransferSwapper is
         }
     }
 
-    function _verifyFee(
-        Types.TransferDescription memory _desc,
-        uint256 _amountIn,
-        address _tokenIn
-    ) private view {
+    function _verifySig(Types.TransferDescription memory _desc) private view {
         bytes32 hash = keccak256(
             abi.encodePacked(
-                "executor fee",
+                "chainhop quote",
                 uint64(block.chainid),
                 _desc.dstChainId,
-                _amountIn,
-                _tokenIn,
-                _desc.feeDeadline,
+                _desc.amountIn,
+                _desc.tokenIn,
+                _desc.dstTokenOut,
+                _desc.deadline,
                 _desc.feeInBridgeOutToken,
                 _desc.feeInBridgeOutFallbackToken
             )
         );
         bytes32 signHash = hash.toEthSignedMessageHash();
-        verifySig(signHash, _desc.feeSig);
-        require(_desc.feeDeadline > block.timestamp, "deadline exceeded");
+        verifySig(signHash, _desc.quoteSig);
+        require(_desc.deadline > block.timestamp, "deadline exceeded");
     }
 
-    function _emitRequestSent(
-        bytes32 _id,
-        bytes memory _bridgeResp,
+    function _emitSrcExecuted(
         Types.TransferDescription memory _desc,
+        bytes32 _id,
+        uint256 _srcAmountOut,
+        address _srcTokenOut,
         address _bridgeOutReceiver,
-        address _bridgeTokenIn,
-        uint256 _bridgeAmountIn
+        bytes memory _bridgeResp
     ) private {
-        emit RequestSent(
+        emit SrcExecuted(
             _id,
-            _bridgeResp,
             _desc.dstChainId,
             _desc.amountIn,
             _desc.tokenIn,
+            _srcAmountOut,
+            _srcTokenOut,
             _desc.dstTokenOut,
+            _desc.bridgeProvider,
             _bridgeOutReceiver,
-            _bridgeTokenIn,
-            _bridgeAmountIn,
-            _desc.bridgeProvider
+            _bridgeResp
         );
     }
 }

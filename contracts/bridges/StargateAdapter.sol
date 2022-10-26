@@ -8,7 +8,6 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 
 import "../interfaces/IBridgeAdapter.sol";
 import "../interfaces/IBridgeStargate.sol";
-import "../interfaces/ITransferSwapper.sol";
 import "../interfaces/IWETH.sol";
 import "../lib/NativeWrap.sol";
 
