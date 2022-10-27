@@ -91,7 +91,7 @@ contract TransferSwapper is
             (success, nextAmountIn, nextTokenIn) = _executeSwap(_srcSwap, _desc.amountIn, _desc.tokenIn);
             require(success, "swap fail");
         }
-        bytes32 id = _computeId(_desc.receiver, _desc.nonce);
+        bytes32 id = _computeId(_desc);
         // directly send the fund to receiver if there are no more steps
         if (_desc.dstChainId == uint64(block.chainid)) {
             _sendToken(nextTokenIn, nextAmountIn, _desc.receiver, _desc.nativeOut);
@@ -294,7 +294,7 @@ contract TransferSwapper is
     ) external {
         // only the designated receiver of a swap can claim funds from the designated pocket of a swap
         address receiver = msg.sender;
-        bytes32 id = keccak256(abi.encodePacked(_srcSender, msg.sender, _srcChainId, _nonce));
+        bytes32 id = keccak256(abi.encodePacked(_srcSender, msg.sender, _srcChainId, uint64(block.chainid), _nonce));
 
         Pocket pocket = new Pocket{salt: id}();
         uint256 erc20Amount = IERC20(_token).balanceOf(address(pocket));
@@ -331,8 +331,11 @@ contract TransferSwapper is
         }
     }
 
-    function _computeId(address _receiver, uint64 _nonce) private view returns (bytes32) {
-        return keccak256(abi.encodePacked(msg.sender, _receiver, uint64(block.chainid), _nonce));
+    function _computeId(Types.TransferDescription memory _desc) private view returns (bytes32) {
+        return
+            keccak256(
+                abi.encodePacked(msg.sender, _desc.receiver, uint64(block.chainid), _desc.dstChainId, _desc.nonce)
+            );
     }
 
     function _executeSwap(

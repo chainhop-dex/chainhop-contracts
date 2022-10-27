@@ -70,7 +70,7 @@ describe('transferWithSwap', () => {
     });
     await c.tokenA.connect(c.sender).approve(c.xswap.address, amountIn);
     const tx = await c.xswap.connect(c.sender).transferWithSwap(desc, utils.emptySwap, dstSwaps, { value: 1000 });
-    const expectId = utils.computeId(c.sender.address, c.receiver.address, c.chainId, desc.nonce);
+    const expectId = utils.computeId(c);
     const pocket = utils.getPocketAddr(expectId, c.receiver.address);
     const expectXferId = utils.computeTransferId(c, {
       token: c.tokenA.address,
@@ -100,7 +100,7 @@ describe('transferWithSwap', () => {
     });
     await c.tokenA.connect(c.sender).approve(c.xswap.address, amountIn);
     const tx = await c.xswap.connect(c.sender).transferWithSwap(desc, srcSwap, utils.emptySwap, { value: 1000 });
-    const expectId = utils.computeId(c.sender.address, c.receiver.address, c.chainId, desc.nonce);
+    const expectId = utils.computeId(c);
     const expectAmountOut = utils.slipUniV2(amountIn);
     const expectXferId = utils.computeTransferId(c, {
       amount: expectAmountOut,
@@ -133,7 +133,7 @@ describe('transferWithSwap', () => {
 
     await c.tokenA.connect(c.sender).approve(c.xswap.address, amountIn);
     const tx = await c.xswap.connect(c.sender).transferWithSwap(desc, srcSwap, dstSwap, { value: 1000 });
-    const expectId = utils.computeId(c.sender.address, c.receiver.address, c.chainId, desc.nonce);
+    const expectId = utils.computeId(c);
     const pocket = utils.getPocketAddr(expectId, c.receiver.address);
     const expectXferId = utils.computeTransferId(c, { amount: expectedBridgeOutAmt, receiver: pocket, token: c.tokenB.address });
 
@@ -188,7 +188,7 @@ describe('transferWithSwap', () => {
     });
     await c.tokenA.connect(c.sender).approve(c.xswap.address, amountIn);
     const tx = await c.xswap.connect(c.sender).transferWithSwap(desc, utils.emptySwap, utils.emptySwap, { value: 1000 });
-    const expectId = utils.computeId(c.sender.address, c.receiver.address, c.chainId, desc.nonce);
+    const expectId = utils.computeId(c);
     const expectXferId = utils.computeTransferId(c, {
       amount: amountIn,
       token: c.wrappedBridgeToken.address
@@ -218,7 +218,7 @@ describe('transferWithSwap', () => {
       nativeIn: true
     });
     const tx = await c.xswap.connect(c.sender).transferWithSwap(desc, srcSwap, utils.emptySwap, { value: amountIn.add(1000) });
-    const expectId = utils.computeId(c.sender.address, c.receiver.address, c.chainId, desc.nonce);
+    const expectId = utils.computeId(c);
     const expectAmountOut = utils.slipUniV2(amountIn);
     const expectXferId = utils.computeTransferId(c, {
       amount: expectAmountOut,
@@ -248,7 +248,7 @@ describe('transferWithSwap', () => {
     });
     await c.tokenA.connect(c.sender).approve(c.xswap.address, amountIn);
     const tx = await c.xswap.connect(c.sender).transferWithSwap(desc, srcSwap, utils.emptySwap);
-    const expectId = utils.computeId(c.sender.address, c.receiver.address, c.chainId, desc.nonce);
+    const expectId = utils.computeId(c, true);
     const expectAmountOut = utils.slipUniV2(amountIn);
     await expect(tx)
       .to.emit(c.xswap, 'SrcExecuted')
@@ -267,7 +267,7 @@ describe('transferWithSwap', () => {
     });
 
     const tx = await c.xswap.connect(c.sender).transferWithSwap(desc, srcSwap, utils.emptySwap, { value: amountIn });
-    const expectId = utils.computeId(c.sender.address, c.receiver.address, c.chainId, desc.nonce);
+    const expectId = utils.computeId(c, true);
     const expectAmountOut = utils.slipUniV2(amountIn);
     await expect(tx)
       .to.emit(c.xswap, 'SrcExecuted')
@@ -283,7 +283,7 @@ describe('executeMessage', function () {
   it('should revert if pocket does not have enough fund', async function () {
     const amountIn = utils.defaultAmountIn;
     const swap = utils.buildUniV2Swap(c, amountIn, { amountOutMin: amountIn });
-    const id = utils.computeId(c.sender.address, c.receiver.address, c.chainId, utils.defaultNonce);
+    const id = utils.computeId(c);
     const pocket = utils.getPocketAddr(id, c.xswap.address);
     const msg = utils.encodeMessage(id, swap, c.receiver.address, false, {
       bridgeOutToken: c.tokenA.address,
@@ -297,7 +297,7 @@ describe('executeMessage', function () {
   it('should refund if it receives fallback token', async function () {
     const amountIn = utils.defaultAmountIn;
     const swap = utils.buildUniV2Swap(c, amountIn);
-    const id = utils.computeId(c.sender.address, c.receiver.address, c.chainId, utils.defaultNonce);
+    const id = utils.computeId(c);
     const pocket = utils.getPocketAddr(id, c.xswap.address);
     const refundAmount = amountIn.sub(utils.defaultFee);
     const msg = utils.encodeMessage(id, swap, c.receiver.address, false, {
@@ -312,7 +312,7 @@ describe('executeMessage', function () {
   it('should refund if swap fails', async function () {
     const amountIn = utils.defaultAmountIn;
     const swap = utils.buildUniV2Swap(c, amountIn, { amountOutMin: amountIn });
-    const id = utils.computeId(c.sender.address, c.receiver.address, c.chainId, utils.defaultNonce);
+    const id = utils.computeId(c);
     const pocket = utils.getPocketAddr(id, c.xswap.address);
     const msg = utils.encodeMessage(id, swap, c.receiver.address, false, {
       bridgeOutToken: c.tokenA.address,
@@ -327,7 +327,7 @@ describe('executeMessage', function () {
   it('should collect all fallback amount as fee if fallback amount <= fee', async function () {
     const amountIn = utils.defaultFee.sub(1);
     const swap = utils.buildUniV2Swap(c, amountIn);
-    const id = utils.computeId(c.sender.address, c.receiver.address, c.chainId, utils.defaultNonce);
+    const id = utils.computeId(c);
     const pocket = utils.getPocketAddr(id, c.xswap.address);
     const msg = utils.encodeMessage(id, swap, c.receiver.address, false, {
       bridgeOutToken: c.tokenA.address,
@@ -342,7 +342,7 @@ describe('executeMessage', function () {
   it('should collect all received amount as fee if amount <= fee', async function () {
     const amountIn = utils.defaultFee.sub(1);
     const swap = utils.buildUniV2Swap(c, amountIn);
-    const id = utils.computeId(c.sender.address, c.receiver.address, c.chainId, utils.defaultNonce);
+    const id = utils.computeId(c);
     const pocket = utils.getPocketAddr(id, c.xswap.address);
     const msg = utils.encodeMessage(id, swap, c.receiver.address, false, {
       bridgeOutToken: c.tokenA.address,
@@ -358,7 +358,7 @@ describe('executeMessage', function () {
     const amountIn = utils.defaultAmountIn;
     const amountInSubFee = amountIn.sub(utils.defaultFee);
     const swap = utils.buildUniV2Swap(c, amountInSubFee);
-    const id = utils.computeId(c.sender.address, c.receiver.address, c.chainId, utils.defaultNonce);
+    const id = utils.computeId(c);
     const pocket = utils.getPocketAddr(id, c.xswap.address);
     const msg = utils.encodeMessage(id, swap, c.receiver.address, false, {
       bridgeOutToken: c.tokenA.address,
@@ -375,7 +375,7 @@ describe('executeMessage', function () {
     const fee = parseUnits('0.01');
     const amountInSubFee = amountIn.sub(fee);
     const swap = utils.buildUniV2Swap(c, amountInSubFee, { tokenIn: c.weth.address });
-    const id = utils.computeId(c.sender.address, c.receiver.address, c.chainId, utils.defaultNonce);
+    const id = utils.computeId(c);
     const pocket = utils.getPocketAddr(id, c.xswap.address);
     const msg = utils.encodeMessage(id, swap, c.receiver.address, false, {
       bridgeOutToken: c.weth.address,
@@ -393,7 +393,7 @@ describe('executeMessage', function () {
     const fee = parseUnits('0.01');
     const amountInSubFee = amountIn.sub(fee);
     const swap = utils.buildUniV2Swap(c, amountInSubFee, { tokenOut: c.weth.address });
-    const id = utils.computeId(c.sender.address, c.receiver.address, c.chainId, utils.defaultNonce);
+    const id = utils.computeId(c);
     const pocket = utils.getPocketAddr(id, c.xswap.address);
     const msg = utils.encodeMessage(id, swap, c.receiver.address, true, {
       bridgeOutToken: c.tokenA.address,
@@ -414,7 +414,7 @@ describe('fee', function () {
     const fee = parseUnits('0.01');
     const amountInSubFee = amountIn.sub(fee);
     const swap = utils.buildUniV2Swap(c, amountInSubFee, { tokenOut: c.weth.address });
-    const id = utils.computeId(c.sender.address, c.receiver.address, c.chainId, utils.defaultNonce);
+    const id = utils.computeId(c);
     const pocket = utils.getPocketAddr(id, c.xswap.address);
     const msg = utils.encodeMessage(id, swap, c.receiver.address, true, {
       bridgeOutToken: c.tokenA.address,
@@ -434,7 +434,7 @@ describe('fee', function () {
     const fee = parseUnits('0.01');
     const amountInSubFee = amountIn.sub(fee);
     const swap = utils.buildUniV2Swap(c, amountInSubFee, { tokenIn: c.weth.address });
-    const id = utils.computeId(c.sender.address, c.receiver.address, c.chainId, utils.defaultNonce);
+    const id = utils.computeId(c);
     const pocket = utils.getPocketAddr(id, c.xswap.address);
     const msg = utils.encodeMessage(id, swap, c.receiver.address, false, {
       bridgeOutToken: c.weth.address,
@@ -464,12 +464,22 @@ describe('claimPocketFund', function () {
     await expect(tx).to.revertedWith('pocket is empty');
   });
   it('should claim erc20 token', async function () {
-    const srcChainId = 1;
     const claimAmount = utils.defaultAmountIn;
-    const id = utils.computeId(c.sender.address, c.receiver.address, srcChainId, utils.defaultNonce);
+    const id = utils.computeId(c, true);
     const pocket = utils.getPocketAddr(id, c.xswap.address);
     await c.tokenA.connect(c.admin).transfer(pocket, claimAmount);
-    const tx = c.xswap.connect(c.receiver).claimPocketFund(c.sender.address, srcChainId, utils.defaultNonce, c.tokenA.address);
+    const tx = c.xswap.connect(c.receiver).claimPocketFund(c.sender.address, c.chainId, utils.defaultNonce, c.tokenA.address);
     await expect(tx).to.emit(c.xswap, 'PocketFundClaimed').withArgs(c.receiver.address, claimAmount, c.tokenA.address, 0);
+  });
+  it('should claim native token', async function () {
+    const claimAmount = parseUnits('1');
+    const id = utils.computeId(c, true);
+    const pocket = utils.getPocketAddr(id, c.xswap.address);
+    await c.admin.sendTransaction({
+      to: pocket,
+      value: claimAmount
+    });
+    const tx = c.xswap.connect(c.receiver).claimPocketFund(c.sender.address, c.chainId, utils.defaultNonce, c.weth.address);
+    await expect(tx).to.emit(c.xswap, 'PocketFundClaimed').withArgs(c.receiver.address, 0, c.weth.address, claimAmount);
   });
 });

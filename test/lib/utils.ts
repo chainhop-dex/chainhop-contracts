@@ -95,8 +95,11 @@ export function getPocketAddr(id: string, dstTransferSwapper: string) {
   return ethers.utils.getCreate2Address(dstTransferSwapper, id, codeHash);
 }
 
-export function computeId(sender: string, receiver: string, srcChainId: number, nonce: BigNumberish): string {
-  return keccak256(['address', 'address', 'uint64', 'uint64'], [sender, receiver, srcChainId, nonce]);
+export function computeId(c: IntegrationTestContext, sameChain?: boolean): string {
+  return keccak256(
+    ['address', 'address', 'uint64', 'uint64', 'uint64'],
+    [c.sender.address, c.receiver.address, c.chainId, sameChain ? c.chainId : c.chainId + 1, defaultNonce]
+  );
 }
 
 export interface ComputeTranferIdOverride {
