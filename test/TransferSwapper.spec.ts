@@ -2,7 +2,7 @@ import { parseUnits } from '@ethersproject/units';
 import { expect } from 'chai';
 import { BigNumber } from 'ethers';
 import { loadFixture } from './lib/common';
-import { pocketAddr, ZERO_ADDR } from './lib/constants';
+import { ZERO_ADDR } from './lib/constants';
 import { chainhopFixture, IntegrationTestContext } from './lib/fixtures';
 import * as utils from './lib/utils';
 
@@ -32,8 +32,7 @@ describe('transferWithSwap', () => {
     const dstSwap = utils.buildUniV2Swap(c, amountIn);
     const invalidSig = await utils.signQuote(c, { feeInBridgeOutToken: parseUnits('123123123123') });
     const desc = await utils.buildTransferDesc(c, invalidSig, {
-      amountIn: amountIn,
-      pocket: c.receiver.address
+      amountIn: amountIn
     });
     await c.tokenA.connect(c.sender).approve(c.xswap.address, amountIn);
     const tx = c.xswap.connect(c.sender).transferWithSwap(desc, utils.emptySwap, dstSwap, { value: 1000 });
@@ -45,8 +44,7 @@ describe('transferWithSwap', () => {
     const deadline = BigNumber.from(Math.floor(Date.now() / 1000 - 300));
     const quoteSig = await utils.signQuote(c, { deadline });
     const desc = await utils.buildTransferDesc(c, quoteSig, {
-      deadline: deadline,
-      pocket: c.receiver.address
+      deadline: deadline
     });
     await c.tokenA.connect(c.sender).approve(c.xswap.address, amountIn);
     const tx = c.xswap.connect(c.sender).transferWithSwap(desc, utils.emptySwap, dstSwap, { value: 1000 });
@@ -58,8 +56,7 @@ describe('transferWithSwap', () => {
     const quoteSig = await utils.signQuote(c);
     const desc = await utils.buildTransferDesc(c, quoteSig, {
       tokenIn: c.weth.address,
-      nativeIn: true,
-      dstTransferSwapper: c.receiver.address
+      nativeIn: true
     });
     const tx = c.xswap.connect(c.sender).transferWithSwap(desc, srcSwap, utils.emptySwap, { value: amountIn.sub(parseUnits('95')) });
     await expect(tx).to.be.revertedWith('insufficient native amount');
@@ -69,17 +66,16 @@ describe('transferWithSwap', () => {
     const dstSwaps = utils.buildUniV2Swap(c, amountIn);
     const quoteSig = await utils.signQuote(c);
     const desc = await utils.buildTransferDesc(c, quoteSig, {
-      amountIn: amountIn,
-      dstTransferSwapper: c.receiver.address,
-      pocket: c.receiver.address
+      amountIn: amountIn
     });
-
     await c.tokenA.connect(c.sender).approve(c.xswap.address, amountIn);
-    const senderBal = await c.tokenA.balanceOf(c.sender.address);
     const tx = await c.xswap.connect(c.sender).transferWithSwap(desc, utils.emptySwap, dstSwaps, { value: 1000 });
     const expectId = utils.computeId(c.sender.address, c.receiver.address, c.chainId, desc.nonce);
-    const expectXferId = utils.computeTransferId(c, { token: c.tokenA.address });
-
+    const pocket = utils.getPocketAddr(expectId, c.receiver.address);
+    const expectXferId = utils.computeTransferId(c, {
+      token: c.tokenA.address,
+      receiver: pocket
+    });
     await expect(tx)
       .to.emit(c.xswap, 'SrcExecuted')
       .withArgs(
@@ -91,25 +87,8 @@ describe('transferWithSwap', () => {
         c.tokenA.address,
         c.tokenB.address,
         'cbridge',
-        desc.pocket,
+        pocket,
         expectXferId
-      );
-
-    const senderBalAfter = await c.tokenA.balanceOf(c.sender.address);
-    const senderBalDiff = senderBal.sub(senderBalAfter);
-    await expect(senderBalDiff).to.equal(amountIn);
-
-    await expect(tx)
-      .to.emit(c.bridge, 'Send')
-      .withArgs(
-        expectXferId,
-        c.cbridgeAdapter.address,
-        c.receiver.address,
-        c.tokenA.address,
-        amountIn,
-        desc.dstChainId,
-        desc.nonce,
-        utils.defaultMaxSlippage
       );
   });
   it('should swap -> bridge', async function () {
@@ -127,7 +106,6 @@ describe('transferWithSwap', () => {
       amount: expectAmountOut,
       token: c.tokenB.address
     });
-
     await expect(tx)
       .to.emit(c.xswap, 'SrcExecuted')
       .withArgs(
@@ -142,19 +120,6 @@ describe('transferWithSwap', () => {
         c.receiver.address,
         expectXferId
       );
-    const expectedSendAmt = utils.slipUniV2(amountIn);
-    await expect(tx)
-      .to.emit(c.bridge, 'Send')
-      .withArgs(
-        expectXferId,
-        c.cbridgeAdapter.address,
-        c.receiver.address,
-        c.tokenB.address,
-        expectedSendAmt,
-        desc.dstChainId,
-        desc.nonce,
-        utils.defaultMaxSlippage
-      );
   });
   it('should swap -> bridge -> swap', async function () {
     const amountIn = utils.defaultAmountIn;
@@ -163,14 +128,14 @@ describe('transferWithSwap', () => {
     const dstSwap = utils.buildUniV2Swap(c, expectedBridgeOutAmt, { tokenIn: c.tokenB.address, tokenOut: c.tokenA.address });
     const quoteSig = await utils.signQuote(c);
     const desc = await utils.buildTransferDesc(c, quoteSig, {
-      pocket: pocketAddr,
       dstTokenOut: c.tokenA.address
     });
 
     await c.tokenA.connect(c.sender).approve(c.xswap.address, amountIn);
     const tx = await c.xswap.connect(c.sender).transferWithSwap(desc, srcSwap, dstSwap, { value: 1000 });
     const expectId = utils.computeId(c.sender.address, c.receiver.address, c.chainId, desc.nonce);
-    const expectXferId = utils.computeTransferId(c, { amount: expectedBridgeOutAmt, receiver: pocketAddr, token: c.tokenB.address });
+    const pocket = utils.getPocketAddr(expectId, c.receiver.address);
+    const expectXferId = utils.computeTransferId(c, { amount: expectedBridgeOutAmt, receiver: pocket, token: c.tokenB.address });
 
     await expect(tx)
       .to.emit(c.xswap, 'SrcExecuted')
@@ -183,21 +148,8 @@ describe('transferWithSwap', () => {
         c.tokenB.address,
         c.tokenA.address,
         'cbridge',
-        pocketAddr,
+        pocket,
         expectXferId
-      );
-
-    await expect(tx)
-      .to.emit(c.bridge, 'Send')
-      .withArgs(
-        expectXferId,
-        c.cbridgeAdapter.address,
-        pocketAddr,
-        c.tokenB.address,
-        expectedBridgeOutAmt,
-        desc.dstChainId,
-        desc.nonce,
-        utils.defaultMaxSlippage
       );
   });
   it('should revert if using wrapped bridge token but tokenOut from dex != canonical', async function () {
@@ -205,8 +157,7 @@ describe('transferWithSwap', () => {
     const srcSwap = utils.buildUniV2Swap(c, amountIn);
     const quoteSig = await utils.signQuote(c);
     const desc = await utils.buildTransferDesc(c, quoteSig, {
-      wrappedBridgeToken: c.wrappedBridgeToken.address,
-      pocket: pocketAddr
+      wrappedBridgeToken: c.wrappedBridgeToken.address
     });
     await c.tokenA.connect(c.sender).approve(c.xswap.address, amountIn);
     const tx = c.xswap.connect(c.sender).transferWithSwap(desc, srcSwap, srcSwap, { value: 1000 });
@@ -218,8 +169,7 @@ describe('transferWithSwap', () => {
     const desc = await utils.buildTransferDesc(c, quoteSig, {
       wrappedBridgeToken: c.wrappedBridgeToken.address,
       tokenIn: c.tokenB.address, // wrong token
-      amountIn: amountIn,
-      pocket: pocketAddr
+      amountIn: amountIn
     });
     await c.tokenB.connect(c.sender).approve(c.xswap.address, amountIn);
     const tx = c.xswap.connect(c.sender).transferWithSwap(desc, utils.emptySwap, utils.emptySwap, { value: 1000 });
@@ -257,18 +207,6 @@ describe('transferWithSwap', () => {
         c.receiver.address,
         expectXferId
       );
-    await expect(tx)
-      .to.emit(c.bridge, 'Send')
-      .withArgs(
-        expectXferId,
-        c.cbridgeAdapter.address,
-        c.receiver.address,
-        c.wrappedBridgeToken.address,
-        amountIn,
-        desc.dstChainId,
-        desc.nonce,
-        maxSlippage
-      );
   });
   it('should swap -> bridge (native in)', async function () {
     const amountIn = parseUnits('1');
@@ -277,15 +215,15 @@ describe('transferWithSwap', () => {
     const desc = await utils.buildTransferDesc(c, quoteSig, {
       amountIn: amountIn,
       tokenIn: c.weth.address,
-      nativeIn: true,
-      pocket: c.receiver.address
+      nativeIn: true
     });
-
-    const tx = await c.xswap.connect(c.sender).transferWithSwap(desc, srcSwap, srcSwap, { value: amountIn.add(1000) });
+    const tx = await c.xswap.connect(c.sender).transferWithSwap(desc, srcSwap, utils.emptySwap, { value: amountIn.add(1000) });
     const expectId = utils.computeId(c.sender.address, c.receiver.address, c.chainId, desc.nonce);
     const expectAmountOut = utils.slipUniV2(amountIn);
-    const expectXferId = utils.computeTransferId(c, { amount: expectAmountOut, token: c.tokenB.address });
-
+    const expectXferId = utils.computeTransferId(c, {
+      amount: expectAmountOut,
+      token: c.tokenB.address
+    });
     await expect(tx)
       .to.emit(c.xswap, 'SrcExecuted')
       .withArgs(
@@ -299,19 +237,6 @@ describe('transferWithSwap', () => {
         'cbridge',
         c.receiver.address,
         expectXferId
-      );
-
-    await expect(tx)
-      .to.emit(c.bridge, 'Send')
-      .withArgs(
-        expectXferId,
-        c.cbridgeAdapter.address,
-        c.receiver.address,
-        c.tokenB.address,
-        expectAmountOut,
-        desc.dstChainId,
-        desc.nonce,
-        utils.defaultMaxSlippage
       );
   });
   it('should directly swap', async function () {
@@ -361,7 +286,6 @@ describe('executeMessage', function () {
     const id = utils.computeId(c.sender.address, c.receiver.address, c.chainId, utils.defaultNonce);
     const pocket = utils.getPocketAddr(id, c.xswap.address);
     const msg = utils.encodeMessage(id, swap, c.receiver.address, false, {
-      pocket,
       bridgeOutToken: c.tokenA.address,
       bridgeOutMin: amountIn.add(1) // bridge out min is greater than pocket balance, should revert
     });
@@ -377,7 +301,6 @@ describe('executeMessage', function () {
     const pocket = utils.getPocketAddr(id, c.xswap.address);
     const refundAmount = amountIn.sub(utils.defaultFee);
     const msg = utils.encodeMessage(id, swap, c.receiver.address, false, {
-      pocket,
       bridgeOutToken: c.tokenA.address,
       bridgeOutFallbackToken: c.tokenB.address,
       feeInBridgeOutFallbackToken: utils.defaultFee
@@ -392,7 +315,6 @@ describe('executeMessage', function () {
     const id = utils.computeId(c.sender.address, c.receiver.address, c.chainId, utils.defaultNonce);
     const pocket = utils.getPocketAddr(id, c.xswap.address);
     const msg = utils.encodeMessage(id, swap, c.receiver.address, false, {
-      pocket,
       bridgeOutToken: c.tokenA.address,
       bridgeOutFallbackToken: c.tokenB.address
     });
@@ -408,7 +330,6 @@ describe('executeMessage', function () {
     const id = utils.computeId(c.sender.address, c.receiver.address, c.chainId, utils.defaultNonce);
     const pocket = utils.getPocketAddr(id, c.xswap.address);
     const msg = utils.encodeMessage(id, swap, c.receiver.address, false, {
-      pocket,
       bridgeOutToken: c.tokenA.address,
       bridgeOutFallbackToken: c.tokenB.address,
       feeInBridgeOutToken: utils.defaultFee,
@@ -424,7 +345,6 @@ describe('executeMessage', function () {
     const id = utils.computeId(c.sender.address, c.receiver.address, c.chainId, utils.defaultNonce);
     const pocket = utils.getPocketAddr(id, c.xswap.address);
     const msg = utils.encodeMessage(id, swap, c.receiver.address, false, {
-      pocket,
       bridgeOutToken: c.tokenA.address,
       bridgeOutFallbackToken: c.tokenB.address,
       feeInBridgeOutToken: utils.defaultFee,
@@ -441,7 +361,6 @@ describe('executeMessage', function () {
     const id = utils.computeId(c.sender.address, c.receiver.address, c.chainId, utils.defaultNonce);
     const pocket = utils.getPocketAddr(id, c.xswap.address);
     const msg = utils.encodeMessage(id, swap, c.receiver.address, false, {
-      pocket,
       bridgeOutToken: c.tokenA.address,
       feeInBridgeOutToken: utils.defaultFee
     });
@@ -459,7 +378,6 @@ describe('executeMessage', function () {
     const id = utils.computeId(c.sender.address, c.receiver.address, c.chainId, utils.defaultNonce);
     const pocket = utils.getPocketAddr(id, c.xswap.address);
     const msg = utils.encodeMessage(id, swap, c.receiver.address, false, {
-      pocket,
       bridgeOutToken: c.weth.address,
       feeInBridgeOutToken: fee
     });
@@ -478,7 +396,6 @@ describe('executeMessage', function () {
     const id = utils.computeId(c.sender.address, c.receiver.address, c.chainId, utils.defaultNonce);
     const pocket = utils.getPocketAddr(id, c.xswap.address);
     const msg = utils.encodeMessage(id, swap, c.receiver.address, true, {
-      pocket,
       bridgeOutToken: c.tokenA.address,
       feeInBridgeOutToken: fee
     });
@@ -500,7 +417,6 @@ describe('fee', function () {
     const id = utils.computeId(c.sender.address, c.receiver.address, c.chainId, utils.defaultNonce);
     const pocket = utils.getPocketAddr(id, c.xswap.address);
     const msg = utils.encodeMessage(id, swap, c.receiver.address, true, {
-      pocket,
       bridgeOutToken: c.tokenA.address,
       feeInBridgeOutToken: fee
     });
@@ -521,7 +437,6 @@ describe('fee', function () {
     const id = utils.computeId(c.sender.address, c.receiver.address, c.chainId, utils.defaultNonce);
     const pocket = utils.getPocketAddr(id, c.xswap.address);
     const msg = utils.encodeMessage(id, swap, c.receiver.address, false, {
-      pocket,
       bridgeOutToken: c.weth.address,
       feeInBridgeOutToken: fee
     });
@@ -545,9 +460,7 @@ describe('claimPocketFund', function () {
   });
   it('should revert if pocket has no fund', async function () {
     const srcChainId = 1;
-    const id = utils.computeId(c.sender.address, c.receiver.address, srcChainId, utils.defaultNonce);
-    const pocket = utils.getPocketAddr(id, c.xswap.address);
-    const tx = c.xswap.claimPocketFund(c.sender.address, srcChainId, utils.defaultNonce, pocket, c.tokenA.address);
+    const tx = c.xswap.claimPocketFund(c.sender.address, srcChainId, utils.defaultNonce, c.tokenA.address);
     await expect(tx).to.revertedWith('pocket is empty');
   });
   it('should claim erc20 token', async function () {
@@ -556,7 +469,7 @@ describe('claimPocketFund', function () {
     const id = utils.computeId(c.sender.address, c.receiver.address, srcChainId, utils.defaultNonce);
     const pocket = utils.getPocketAddr(id, c.xswap.address);
     await c.tokenA.connect(c.admin).transfer(pocket, claimAmount);
-    const tx = c.xswap.connect(c.receiver).claimPocketFund(c.sender.address, srcChainId, utils.defaultNonce, pocket, c.tokenA.address);
+    const tx = c.xswap.connect(c.receiver).claimPocketFund(c.sender.address, srcChainId, utils.defaultNonce, c.tokenA.address);
     await expect(tx).to.emit(c.xswap, 'PocketFundClaimed').withArgs(c.receiver.address, claimAmount, c.tokenA.address, 0);
   });
 });

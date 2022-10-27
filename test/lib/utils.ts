@@ -71,13 +71,12 @@ export function encodeMessage(
   o?: BridgeOpts
 ): string {
   const encoded = ethers.utils.defaultAbiCoder.encode(
-    ['(bytes32, (address dex, bytes data), address, address, bool, address, address, uint256, uint256, uint256, uint256)'],
+    ['(bytes32, (address dex, bytes data), address, bool, address, address, uint256, uint256, uint256, uint256)'],
     [
       [
         id,
         swap,
         receiver,
-        o?.pocket ?? ZERO_ADDR,
         nativeOut,
         o?.bridgeOutToken ?? ZERO_ADDR,
         o?.bridgeOutFallbackToken ?? ZERO_ADDR,
@@ -213,7 +212,6 @@ export interface TransferDescOpts {
   // TransferDescription
   receiver?: string;
   dstTransferSwapper?: string;
-  pocket?: string;
   dstChainId?: number;
   bridgeProvider?: string;
   bridgeOutToken?: string;
@@ -256,7 +254,6 @@ export function buildTransferDesc(c: IntegrationTestContext, quoteSig: string, o
   const desc: Types.TransferDescriptionStruct = {
     receiver: opts?.receiver ?? c.receiver.address,
     dstTransferSwapper: opts?.dstTransferSwapper ?? c.receiver.address,
-    pocket: opts?.pocket ?? ZERO_ADDR,
     dstChainId: dstChainId,
     nonce: nonce,
     bridgeProvider: opts?.bridgeProvider ?? 'cbridge',

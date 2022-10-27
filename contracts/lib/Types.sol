@@ -22,7 +22,6 @@ library Types {
         bytes32 id; // see _computeId()
         ICodec.SwapDescription swap; // the swaps need to happen on the destination chain
         address receiver; // see TransferDescription.receiver
-        address pocket;
         bool nativeOut; // see TransferDescription.nativeOut
         address bridgeOutToken;
         address bridgeOutFallbackToken;
@@ -48,9 +47,6 @@ library Types {
         address receiver;
         // TransferSwapper's addr on the dst chain
         address dstTransferSwapper;
-        // the pocket is the address of a counterfactual contract on the dst chain
-        // if there is dst swaps, then a pocket address must be specified.
-        address pocket;
         uint64 dstChainId; // Destination chain id
         // A number unique enough to be used in request ID generation.
         uint64 nonce;
