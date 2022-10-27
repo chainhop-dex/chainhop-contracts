@@ -29,6 +29,8 @@ export const defaultBridgeOutMin = slip(defaultAmountIn, 50);
 export const defaultNonce = 1;
 export const defaultMaxSlippage = 1000000;
 export const defaultDeadline = BigNumber.from(Math.floor(Date.now() / 1000 + 1200));
+export const emptySwap: ICodec.SwapDescriptionStruct = { dex: ZERO_ADDR, data: '0x', amountOutMin: 0 };
+export const emptyForward: Types.ForwardInfoStruct = { dstChainId: 0, bridgeProvider: '', bridgeParams: '0x' };
 
 export function slipUniV2(amount: BigNumber) {
   return slip(amount, UNISWAP_V2_SLIPPAGE);
@@ -71,7 +73,9 @@ export function encodeMessage(
   o?: BridgeOpts
 ): string {
   const encoded = ethers.utils.defaultAbiCoder.encode(
-    ['(bytes32, (address dex, bytes data), address, bool, address, address, uint256, uint256, uint256, uint256)'],
+    [
+      '(bytes32, (address dex, bytes data), address, bool, address, address, uint256, uint256, uint256, uint256, (uint64 dstChainId, string bridgeProvider, bytes bridgeParams))'
+    ],
     [
       [
         id,
@@ -83,7 +87,8 @@ export function encodeMessage(
         o?.feeInBridgeOutToken ?? defaultFee,
         o?.feeInBridgeOutFallbackToken ?? ZERO_ADDR,
         o?.bridgeOutMin ?? 0,
-        o?.bridgeOutFallbackMin ?? 0
+        o?.bridgeOutFallbackMin ?? 0,
+        emptyForward
       ]
     ]
   );
@@ -161,8 +166,6 @@ interface Mock1inchAddress {
     address: string;
   };
 }
-
-export const emptySwap: ICodec.SwapDescriptionStruct = { dex: ZERO_ADDR, data: '0x', amountOutMin: 0 };
 
 export interface UniV2SwapsOverride {
   amountOutMin?: BigNumber;
@@ -273,7 +276,8 @@ export function buildTransferDesc(c: IntegrationTestContext, quoteSig: string, o
     quoteSig: quoteSig,
     amountIn: amountIn,
     tokenIn: opts?.tokenIn || c.tokenA.address,
-    dstTokenOut: opts?.dstTokenOut ?? c.tokenB.address
+    dstTokenOut: opts?.dstTokenOut ?? c.tokenB.address,
+    forward: emptyForward
   };
 
   return desc;

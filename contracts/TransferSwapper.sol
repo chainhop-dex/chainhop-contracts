@@ -115,26 +115,17 @@ contract TransferSwapper is
             : _desc.receiver;
         require(bridgeOutReceiver != address(0), "receiver is 0");
 
-        uint256 refundMsgFee = 0;
-        bytes memory bridgeResp;
-
         // send funds through the bridge of choice
-        bytes32 bridgeHash = keccak256(bytes(_desc.bridgeProvider));
-        IBridgeAdapter bridge = bridges[bridgeHash];
-        if (bridgeHash == CBRIDGE_PROVIDER_HASH) {
-            // special handling for dealing with cbridge's refund mechnism: cbridge adapter always
-            // sends a message that contains only the receiver addr along with the transfer. this way
-            // when refund happens we can execute the executeMessageWithTransferRefund function in
-            // cbridge adapter to refund to the receiver
-            refundMsgFee = IMessageBus(messageBus).calcFee(abi.encode(_desc.receiver));
-        }
-        IERC20(_bridgeTokenIn).safeIncreaseAllowance(address(bridge), _bridgeAmountIn);
-        bridgeResp = bridge.bridge{value: refundMsgFee}(
+        bytes32 bridgeProvider = keccak256(bytes(_desc.bridgeProvider));
+        uint256 refundMsgFee;
+        bytes memory bridgeResp;
+        (bridgeResp, refundMsgFee) = _bridge(
             _desc.dstChainId,
+            bridgeProvider,
+            _desc.bridgeParams,
             bridgeOutReceiver,
-            _bridgeAmountIn,
             _bridgeTokenIn,
-            _desc.bridgeParams
+            _bridgeAmountIn
         );
 
         // send a message separately containing the swap instruction
@@ -270,7 +261,39 @@ contract TransferSwapper is
             sentAmount = amountOut;
             token = tokenOut;
             status = Types.RequestStatus.Succeeded;
+            if (_req.forward.dstChainId != 0) {
+                // forward the token to another chain if requested
+                bytes32 bridgeProvider = keccak256(bytes(_req.forward.bridgeProvider));
+                _bridge(
+                    _req.forward.dstChainId,
+                    bridgeProvider,
+                    _req.forward.bridgeParams,
+                    _req.receiver,
+                    token,
+                    sentAmount
+                );
+            }
         }
+    }
+
+    function _bridge(
+        uint64 _dstChainId,
+        bytes32 _bridgeProvider,
+        bytes memory _bridgeParams,
+        address _receiver,
+        address _token,
+        uint256 _amount
+    ) private returns (bytes memory bridgeResp, uint256 refundMsgFee) {
+        IBridgeAdapter bridge = bridges[_bridgeProvider];
+        if (_bridgeProvider == CBRIDGE_PROVIDER_HASH) {
+            // special handling for dealing with cbridge's refund mechnism: cbridge adapter always
+            // sends a message that contains only the receiver addr along with the transfer. this way
+            // when refund happens we can execute the executeMessageWithTransferRefund function in
+            // cbridge adapter to refund to the receiver
+            refundMsgFee = IMessageBus(messageBus).calcFee(abi.encode(_receiver));
+        }
+        IERC20(_token).safeIncreaseAllowance(address(bridge), _amount);
+        bridgeResp = bridge.bridge{value: refundMsgFee}(_dstChainId, _receiver, _amount, _token, _bridgeParams);
     }
 
     function _deductFee(uint256 _fee, uint256 _amount) private pure returns (uint256 amount, uint256 fee) {
@@ -392,7 +415,8 @@ contract TransferSwapper is
                 feeInBridgeOutToken: _desc.feeInBridgeOutToken,
                 feeInBridgeOutFallbackToken: _desc.feeInBridgeOutFallbackToken,
                 bridgeOutMin: _desc.bridgeOutMin,
-                bridgeOutFallbackMin: _desc.bridgeOutFallbackMin
+                bridgeOutFallbackMin: _desc.bridgeOutFallbackMin,
+                forward: _desc.forward
             })
         );
     }

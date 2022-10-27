@@ -30,16 +30,7 @@ library Types {
         // used as a counter measure to the DoS attack vector described in TransferSwapper
         uint256 bridgeOutMin;
         uint256 bridgeOutFallbackMin;
-    }
-
-    struct Receiver {
-        // The receiving party (the user) of the final output token
-        address receiver;
-        // The following fields are optional and are only used when the user wants to receive the output
-        // token on another chain
-        uint64 forwardChainId;
-        string forwardBridgeProvider;
-        bytes forwardBridgeParams;
+        ForwardInfo forward;
     }
 
     struct TransferDescription {
@@ -83,6 +74,16 @@ library Types {
         bytes quoteSig;
         uint256 amountIn;
         address tokenIn;
-        address dstTokenOut; // the final output token, emitted in event for display purpose only
+        // the final output token, emitted in event for display purpose only
+        address dstTokenOut;
+        // ForwardInfo is optional and is only used when the user wants to receive the output
+        // token on another chain
+        ForwardInfo forward;
+    }
+
+    struct ForwardInfo {
+        uint64 dstChainId;
+        string bridgeProvider;
+        bytes bridgeParams;
     }
 }
