@@ -116,15 +116,6 @@ export function computeTransferId(c: IntegrationTestContext, o?: ComputeTranferI
   const dstChainId = o?.dstChainId ?? c.chainId + 1;
   const nonce = 1;
   const srcChainId = o?.srcChainId ?? c.chainId;
-  console.log('[sender, receiver, token, amount, dstChainId, nonce, srcChainId]', [
-    sender,
-    receiver,
-    token,
-    amount.toString(),
-    dstChainId,
-    nonce,
-    srcChainId
-  ]);
   return keccak256(
     ['address', 'address', 'address', 'uint256', 'uint64', 'uint64', 'uint64'],
     [sender, receiver, token, amount, dstChainId, nonce, srcChainId]

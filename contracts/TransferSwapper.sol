@@ -23,8 +23,6 @@ import "./SigVerifier.sol";
 import "./Pocket.sol";
 import "./DexRegistry.sol";
 
-import "hardhat/console.sol";
-
 /**
  * @author Chainhop Dex Team
  * @author Padoriku
@@ -178,10 +176,6 @@ contract TransferSwapper is
         uint256 erc20Amount = IERC20(req.bridgeOutToken).balanceOf(req.pocket);
         uint256 nativeAmount = address(req.pocket).balance;
 
-        console.log("fallbackAmount", fallbackAmount);
-        console.log("erc20Amount", erc20Amount);
-        console.log("nativeAmount", nativeAmount);
-
         // if the pocket does not have bridgeOutMin, we consider the transfer not arrived yet. in
         // this case we tell the msgbus to revert the outter tx using the MSGBUS::REVERT opcode so
         // that our executor will retry sending this tx later.
@@ -202,13 +196,9 @@ contract TransferSwapper is
         if (fallbackAmount > 0) {
             _claimPocketFund(req.id, req.bridgeOutFallbackToken, fallbackAmount);
             (uint256 amount, uint256 realizedFee) = _deductFee(req.feeInBridgeOutFallbackToken, fallbackAmount);
-            console.log("amount", amount);
-            console.log("realizedFee", realizedFee);
-            if (amount == 0) {
-                emit DstExecuted(req.id, 0, 0, req.bridgeOutFallbackToken, 0, Types.RequestStatus.Succeeded, bytes(""));
-                return ExecutionStatus.Success;
+            if (amount > 0) {
+                IERC20(req.bridgeOutFallbackToken).safeTransfer(req.receiver, amount);
             }
-            IERC20(req.bridgeOutFallbackToken).safeTransfer(req.receiver, amount);
             emit DstExecuted(
                 req.id,
                 0,
@@ -218,52 +208,57 @@ contract TransferSwapper is
                 Types.RequestStatus.Fallback,
                 bytes("")
             );
-        } else if (erc20Amount > 0) {
-            _claimPocketFund(req.id, req.bridgeOutToken, erc20Amount);
-            (uint256 amount, uint256 realizedFee) = _deductFee(req.feeInBridgeOutToken, erc20Amount);
-            if (amount == 0) {
-                emit DstExecuted(req.id, 0, 0, req.bridgeOutToken, 0, Types.RequestStatus.Succeeded, bytes(""));
-                return ExecutionStatus.Success;
-            }
-            _swapAndSend(req, amount, realizedFee);
-        } else if (nativeAmount > 0) {
-            _claimPocketFund(req.id, req.bridgeOutToken, nativeAmount);
-            require(req.bridgeOutToken == nativeWrap, "bridgeOutToken not nativeWrap");
-            (uint256 amount, uint256 realizedFee) = _deductFee(req.feeInBridgeOutToken, nativeAmount);
-            if (amount == 0) {
-                emit DstExecuted(req.id, 0, 0, req.bridgeOutToken, 0, Types.RequestStatus.Succeeded, bytes(""));
-                return ExecutionStatus.Success;
-            }
-            IWETH(req.bridgeOutToken).deposit{value: amount}();
-            _swapAndSend(req, amount, realizedFee);
-        }
+        } else {
+            uint256 realizedFee;
+            uint256 sentAmount;
+            uint256 refundAmount;
+            address tokenOut = req.bridgeOutToken;
+            Types.RequestStatus status = Types.RequestStatus.Fallback;
 
+            if (erc20Amount > 0) {
+                _claimPocketFund(req.id, req.bridgeOutToken, erc20Amount);
+                uint256 amount;
+                (amount, realizedFee) = _deductFee(req.feeInBridgeOutToken, erc20Amount);
+                if (amount > 0) {
+                    (sentAmount, refundAmount, tokenOut, status) = _swapAndSend(req, amount);
+                }
+            } else if (nativeAmount > 0) {
+                _claimPocketFund(req.id, req.bridgeOutToken, nativeAmount);
+                require(req.bridgeOutToken == nativeWrap, "bridgeOutToken not nativeWrap");
+                uint256 amount;
+                (amount, realizedFee) = _deductFee(req.feeInBridgeOutToken, nativeAmount);
+                if (amount > 0) {
+                    IWETH(req.bridgeOutToken).deposit{value: amount}();
+                    (sentAmount, refundAmount, tokenOut, status) = _swapAndSend(req, amount);
+                }
+            }
+            emit DstExecuted(req.id, sentAmount, refundAmount, tokenOut, realizedFee, status, bytes(""));
+        }
         return ExecutionStatus.Success;
     }
 
-    function _swapAndSend(
-        Types.Request memory _req,
-        uint256 _amountIn,
-        uint256 _realizedFee
-    ) private returns (uint256 sentAmount, uint256 refundAmount) {
+    function _swapAndSend(Types.Request memory _req, uint256 _amountIn)
+        private
+        returns (
+            uint256 sentAmount,
+            uint256 refundAmount,
+            address token,
+            Types.RequestStatus status
+        )
+    {
         (bool ok, uint256 amountOut, address tokenOut) = _executeSwap(_req.swap, _amountIn, _req.bridgeOutToken);
         if (!ok) {
             // swap failed, send refund
             IERC20(_req.bridgeOutToken).safeTransfer(_req.receiver, _amountIn);
             refundAmount = _amountIn;
+            token = _req.bridgeOutToken;
+            status = Types.RequestStatus.Fallback;
         } else {
             _sendToken(tokenOut, amountOut, _req.receiver, _req.nativeOut);
             sentAmount = amountOut;
+            token = tokenOut;
+            status = Types.RequestStatus.Succeeded;
         }
-        emit DstExecuted(
-            _req.id,
-            sentAmount,
-            refundAmount,
-            _req.bridgeOutToken,
-            _realizedFee,
-            Types.RequestStatus.Succeeded,
-            bytes("")
-        );
     }
 
     function _deductFee(uint256 _fee, uint256 _amount) private pure returns (uint256 amount, uint256 fee) {
@@ -350,12 +345,15 @@ contract TransferSwapper is
             address tokenOut
         )
     {
+        if (_swap.dex == address(0)) {
+            // nop swap
+            return (true, _amountIn, _tokenIn);
+        }
         bytes4 selector = bytes4(_swap.data);
         ICodec codec = getCodec(_swap.dex, selector);
-        uint256 amountIn;
         address tokenIn;
-        (amountIn, tokenIn, tokenOut) = codec.decodeCalldata(_swap);
-        require(amountIn == _amountIn && tokenIn == _tokenIn, "swap info mismatch");
+        (, tokenIn, tokenOut) = codec.decodeCalldata(_swap);
+        require(tokenIn == _tokenIn, "swap info mismatch");
 
         bytes memory data = codec.encodeCalldataWithOverride(_swap.data, _amountIn, address(this));
         IERC20(tokenIn).safeIncreaseAllowance(_swap.dex, _amountIn);

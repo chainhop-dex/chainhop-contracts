@@ -4,10 +4,6 @@ pragma solidity >=0.8.15;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 
-/**
- * @title A codec registry that maps swap function selectors to corresponding codec addresses
- * @author Padoriku
- */
 abstract contract NativeWrap is Ownable {
     address public nativeWrap;
 
