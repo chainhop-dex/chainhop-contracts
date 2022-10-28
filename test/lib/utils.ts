@@ -270,7 +270,7 @@ export function buildTransferDesc(c: IntegrationTestContext, quoteSig: string, o
     dstChainId: dstChainId,
     nonce: nonce,
     bridgeProvider: opts?.bridgeProvider ?? 'cbridge',
-    bridgeParams: buildBridgeParams(),
+    bridgeParams: buildBridgeParams(undefined, opts?.wrappedBridgeToken, undefined),
     bridgeOutToken: opts?.bridgeOutToken ?? c.tokenB.address,
     bridgeOutFallbackToken: opts?.bridgeOutFallbackToken ?? c.tokenA.address,
     bridgeOutMin: opts?.bridgeOutMin ?? defaultBridgeOutMin,

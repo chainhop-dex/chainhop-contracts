@@ -314,13 +314,13 @@ contract TransferSwapper is
     // funds inside.
     function claimPocketFund(
         address _srcSender,
+        address _dstReceiver,
         uint64 _srcChainId,
         uint64 _nonce,
         address _token
     ) external {
         // only the designated receiver of a swap can claim funds from the designated pocket of a swap
-        address receiver = msg.sender;
-        bytes32 id = keccak256(abi.encodePacked(_srcSender, msg.sender, _srcChainId, uint64(block.chainid), _nonce));
+        bytes32 id = keccak256(abi.encodePacked(_srcSender, _dstReceiver, _srcChainId, uint64(block.chainid), _nonce));
 
         Pocket pocket = new Pocket{salt: id}();
         uint256 erc20Amount = IERC20(_token).balanceOf(address(pocket));
@@ -331,13 +331,13 @@ contract TransferSwapper is
         pocket.claim(_token, erc20Amount);
 
         if (erc20Amount > 0) {
-            IERC20(_token).safeTransfer(receiver, erc20Amount);
+            IERC20(_token).safeTransfer(_dstReceiver, erc20Amount);
         }
         if (nativeAmount > 0) {
-            (bool ok, ) = receiver.call{value: nativeAmount, gas: 50000}("");
+            (bool ok, ) = _dstReceiver.call{value: nativeAmount, gas: 50000}("");
             require(ok, "failed to send native");
         }
-        emit PocketFundClaimed(receiver, erc20Amount, _token, nativeAmount);
+        emit PocketFundClaimed(_dstReceiver, erc20Amount, _token, nativeAmount);
     }
 
     /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *

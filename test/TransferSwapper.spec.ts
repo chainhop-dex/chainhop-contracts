@@ -486,7 +486,7 @@ describe('claimPocketFund', function () {
   });
   it('should revert if pocket has no fund', async function () {
     const srcChainId = 1;
-    const tx = c.xswap.claimPocketFund(c.sender.address, srcChainId, utils.defaultNonce, c.tokenA.address);
+    const tx = c.xswap.claimPocketFund(c.sender.address, c.receiver.address, srcChainId, utils.defaultNonce, c.tokenA.address);
     await expect(tx).to.revertedWith('pocket is empty');
   });
   it('should claim erc20 token', async function () {
@@ -494,7 +494,9 @@ describe('claimPocketFund', function () {
     const id = utils.computeId(c, true);
     const pocket = utils.getPocketAddr(id, c.xswap.address);
     await c.tokenA.connect(c.admin).transfer(pocket, claimAmount);
-    const tx = c.xswap.connect(c.receiver).claimPocketFund(c.sender.address, c.chainId, utils.defaultNonce, c.tokenA.address);
+    const tx = c.xswap
+      .connect(c.receiver)
+      .claimPocketFund(c.sender.address, c.receiver.address, c.chainId, utils.defaultNonce, c.tokenA.address);
     await expect(tx).to.emit(c.xswap, 'PocketFundClaimed').withArgs(c.receiver.address, claimAmount, c.tokenA.address, 0);
   });
   it('should claim native token', async function () {
@@ -505,7 +507,9 @@ describe('claimPocketFund', function () {
       to: pocket,
       value: claimAmount
     });
-    const tx = c.xswap.connect(c.receiver).claimPocketFund(c.sender.address, c.chainId, utils.defaultNonce, c.weth.address);
+    const tx = c.xswap
+      .connect(c.receiver)
+      .claimPocketFund(c.sender.address, c.receiver.address, c.chainId, utils.defaultNonce, c.weth.address);
     await expect(tx).to.emit(c.xswap, 'PocketFundClaimed').withArgs(c.receiver.address, 0, c.weth.address, claimAmount);
   });
 });
