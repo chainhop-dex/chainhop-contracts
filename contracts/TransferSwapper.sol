@@ -95,7 +95,7 @@ contract TransferSwapper is
         // directly send the fund to receiver if there are no more steps
         if (_desc.dstChainId == uint64(block.chainid)) {
             _sendToken(nextTokenIn, nextAmountIn, _desc.receiver, _desc.nativeOut);
-            _emitSrcExecuted(_desc, id, nextAmountIn, nextTokenIn, "", address(0), bytes(""));
+            emit StepExecuted(_chainId(), id, nextAmountIn, nextTokenIn);
             return;
         }
         _transfer(id, nextTokenIn, nextAmountIn, _desc, _dstSwap);
@@ -117,9 +117,8 @@ contract TransferSwapper is
 
         // send funds through the bridge of choice
         bytes32 bridgeProvider = keccak256(bytes(_desc.bridgeProvider));
-        uint256 refundMsgFee;
-        bytes memory bridgeResp;
-        (bridgeResp, refundMsgFee) = _bridge(
+
+        uint256 refundMsgFee = _bridge(
             _desc.dstChainId,
             bridgeProvider,
             _desc.bridgeParams,
@@ -127,6 +126,7 @@ contract TransferSwapper is
             _bridgeTokenIn,
             _bridgeAmountIn
         );
+        emit StepExecuted(_chainId(), _id, _bridgeAmountIn, _bridgeTokenIn);
 
         // send a message separately containing the swap instruction
         if (_dstSwap.dex != address(0)) {
@@ -138,16 +138,6 @@ contract TransferSwapper is
             bytes memory req = _encodeRequestMessage(_id, _desc, _dstSwap);
             MessageSenderLib.sendMessage(_desc.dstTransferSwapper, _desc.dstChainId, req, messageBus, msgFee);
         }
-
-        _emitSrcExecuted(
-            _desc,
-            _id,
-            _bridgeAmountIn,
-            _bridgeTokenIn,
-            _desc.bridgeProvider,
-            bridgeOutReceiver,
-            bridgeResp
-        );
     }
 
     function _getPocketAddr(bytes32 _salt, address _deployer) private pure returns (address) {
@@ -198,80 +188,60 @@ contract TransferSwapper is
         if (fallbackAmount > 0) {
             pocket.claim(req.bridgeOutFallbackToken, fallbackAmount);
 
-            (uint256 amount, uint256 realizedFee) = _deductFee(req.feeInBridgeOutFallbackToken, fallbackAmount);
+            uint256 amount = _deductFee(req.feeInBridgeOutFallbackToken, fallbackAmount);
             if (amount > 0) {
                 IERC20(req.bridgeOutFallbackToken).safeTransfer(req.receiver, amount);
             }
-            emit DstExecuted(
-                req.id,
-                0,
-                amount,
-                req.bridgeOutFallbackToken,
-                realizedFee,
-                Types.RequestStatus.Fallback,
-                bytes("")
-            );
+            emit StepExecuted(_chainId(), req.id, amount, req.bridgeOutFallbackToken);
         } else {
             pocket.claim(req.bridgeOutToken, erc20Amount);
 
-            uint256 realizedFee;
-            uint256 sentAmount;
-            uint256 refundAmount;
-            address tokenOut = req.bridgeOutToken;
-            Types.RequestStatus status = Types.RequestStatus.Fallback;
-            bytes memory forwardResp;
+            uint256 amountSent;
+            address tokenSent = req.bridgeOutToken;
 
             if (erc20Amount > 0) {
                 uint256 amount;
-                (amount, realizedFee) = _deductFee(req.feeInBridgeOutToken, erc20Amount);
+                amount = _deductFee(req.feeInBridgeOutToken, erc20Amount);
                 if (amount > 0) {
-                    (sentAmount, refundAmount, tokenOut, status, forwardResp) = _swapAndSend(req, amount);
+                    (amountSent, tokenSent) = _swapAndSend(req, amount);
                 }
             } else if (nativeAmount > 0) {
                 require(req.bridgeOutToken == nativeWrap, "bridgeOutToken not nativeWrap");
                 uint256 amount;
-                (amount, realizedFee) = _deductFee(req.feeInBridgeOutToken, nativeAmount);
+                amount = _deductFee(req.feeInBridgeOutToken, nativeAmount);
                 if (amount > 0) {
                     IWETH(req.bridgeOutToken).deposit{value: amount}();
-                    (sentAmount, refundAmount, tokenOut, status, forwardResp) = _swapAndSend(req, amount);
+                    (amountSent, tokenSent) = _swapAndSend(req, amount);
                 }
             }
-            emit DstExecuted(req.id, sentAmount, refundAmount, tokenOut, realizedFee, status, forwardResp);
+            emit StepExecuted(_chainId(), req.id, amountSent, tokenSent);
         }
         return ExecutionStatus.Success;
     }
 
     function _swapAndSend(Types.Request memory _req, uint256 _amountIn)
         private
-        returns (
-            uint256 sentAmount,
-            uint256 refundAmount,
-            address token,
-            Types.RequestStatus status,
-            bytes memory bridgeResp
-        )
+        returns (uint256 amountSent, address tokenSent)
     {
         (bool ok, uint256 amountOut, address tokenOut) = _executeSwap(_req.swap, _amountIn, _req.bridgeOutToken);
         if (!ok) {
             // swap failed, send refund
             IERC20(_req.bridgeOutToken).safeTransfer(_req.receiver, _amountIn);
-            refundAmount = _amountIn;
-            token = _req.bridgeOutToken;
-            status = Types.RequestStatus.Fallback;
+            amountSent = _amountIn;
+            tokenSent = _req.bridgeOutToken;
         } else {
-            sentAmount = amountOut;
-            token = tokenOut;
-            status = Types.RequestStatus.Succeeded;
+            amountSent = amountOut;
+            tokenSent = tokenOut;
             if (_req.forward.dstChainId != 0) {
                 // forward the token to another chain if requested
                 bytes32 bridgeProvider = keccak256(bytes(_req.forward.bridgeProvider));
-                (bridgeResp, ) = _bridge(
+                _bridge(
                     _req.forward.dstChainId,
                     bridgeProvider,
                     _req.forward.bridgeParams,
                     _req.receiver,
-                    token,
-                    sentAmount
+                    tokenSent,
+                    amountSent
                 );
             } else {
                 _sendToken(tokenOut, amountOut, _req.receiver, _req.nativeOut);
@@ -286,7 +256,7 @@ contract TransferSwapper is
         address _receiver,
         address _token,
         uint256 _amount
-    ) private returns (bytes memory bridgeResp, uint256 refundMsgFee) {
+    ) private returns (uint256 refundMsgFee) {
         IBridgeAdapter bridge = bridges[_bridgeProvider];
         if (_bridgeProvider == CBRIDGE_PROVIDER_HASH) {
             // special handling for dealing with cbridge's refund mechnism: cbridge adapter always
@@ -296,15 +266,12 @@ contract TransferSwapper is
             refundMsgFee = IMessageBus(messageBus).calcFee(abi.encode(_receiver));
         }
         IERC20(_token).safeIncreaseAllowance(address(bridge), _amount);
-        bridgeResp = bridge.bridge{value: refundMsgFee}(_dstChainId, _receiver, _amount, _token, _bridgeParams);
+        bridge.bridge{value: refundMsgFee}(_dstChainId, _receiver, _amount, _token, _bridgeParams);
     }
 
-    function _deductFee(uint256 _fee, uint256 _amount) private pure returns (uint256 amount, uint256 fee) {
+    function _deductFee(uint256 _fee, uint256 _amount) private pure returns (uint256 amount) {
         // handle the case where amount received is not enough to pay fee
-        if (_amount < _fee) {
-            fee = _amount;
-        } else {
-            fee = _fee;
+        if (_amount >= _fee) {
             amount = _amount - _fee;
         }
     }
@@ -458,26 +425,7 @@ contract TransferSwapper is
         require(_desc.deadline > block.timestamp, "deadline exceeded");
     }
 
-    function _emitSrcExecuted(
-        Types.TransferDescription memory _desc,
-        bytes32 _id,
-        uint256 _srcAmountOut,
-        address _srcTokenOut,
-        string memory _bridgeProvider,
-        address _bridgeOutReceiver,
-        bytes memory _bridgeResp
-    ) private {
-        emit SrcExecuted(
-            _id,
-            _desc.dstChainId,
-            _desc.amountIn,
-            _desc.tokenIn,
-            _srcAmountOut,
-            _srcTokenOut,
-            _desc.dstTokenOut,
-            _bridgeProvider,
-            _bridgeOutReceiver,
-            _bridgeResp
-        );
+    function _chainId() private returns (uint64) {
+        return uint64(block.chainid);
     }
 }

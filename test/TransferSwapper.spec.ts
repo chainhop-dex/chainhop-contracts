@@ -72,23 +72,22 @@ describe('transferWithSwap', () => {
     const tx = await c.xswap.connect(c.sender).transferWithSwap(desc, utils.emptySwap, dstSwaps, { value: 1000 });
     const expectId = utils.computeId(c);
     const pocket = utils.getPocketAddr(expectId, c.receiver.address);
-    const expectXferId = utils.computeTransferId(c, {
+    const xferId = utils.computeTransferId(c, {
       token: c.tokenA.address,
       receiver: pocket
     });
+    await expect(tx).to.emit(c.xswap, 'StepExecuted').withArgs(c.chainId, expectId, amountIn, c.tokenA.address);
     await expect(tx)
-      .to.emit(c.xswap, 'SrcExecuted')
+      .to.emit(c.bridge, 'Send')
       .withArgs(
-        expectId,
-        desc.dstChainId,
-        amountIn,
-        c.tokenA.address,
-        amountIn,
-        c.tokenA.address,
-        c.tokenB.address,
-        'cbridge',
+        xferId,
+        c.cbridgeAdapter.address,
         pocket,
-        expectXferId
+        c.tokenA.address,
+        amountIn,
+        c.chainId + 1,
+        utils.defaultNonce,
+        utils.defaultMaxSlippage
       );
   });
   it('should swap -> bridge', async function () {
@@ -106,26 +105,25 @@ describe('transferWithSwap', () => {
       amount: expectAmountOut,
       token: c.tokenB.address
     });
+    await expect(tx).to.emit(c.xswap, 'StepExecuted').withArgs(c.chainId, expectId, expectAmountOut, c.tokenB.address);
     await expect(tx)
-      .to.emit(c.xswap, 'SrcExecuted')
+      .to.emit(c.bridge, 'Send')
       .withArgs(
-        expectId,
-        desc.dstChainId,
-        amountIn,
-        c.tokenA.address,
-        expectAmountOut,
-        c.tokenB.address,
-        c.tokenB.address,
-        'cbridge',
+        expectXferId,
+        c.cbridgeAdapter.address,
         c.receiver.address,
-        expectXferId
+        c.tokenB.address,
+        expectAmountOut,
+        c.chainId + 1,
+        utils.defaultNonce,
+        utils.defaultMaxSlippage
       );
   });
   it('should swap -> bridge -> swap', async function () {
     const amountIn = utils.defaultAmountIn;
     const srcSwap = utils.buildUniV2Swap(c, amountIn);
-    const expectedBridgeOutAmt = utils.slipUniV2(amountIn);
-    const dstSwap = utils.buildUniV2Swap(c, expectedBridgeOutAmt, { tokenIn: c.tokenB.address, tokenOut: c.tokenA.address });
+    const srcAmountOut = utils.slipUniV2(amountIn);
+    const dstSwap = utils.buildUniV2Swap(c, srcAmountOut, { tokenIn: c.tokenB.address, tokenOut: c.tokenA.address });
     const quoteSig = await utils.signQuote(c);
     const desc = await utils.buildTransferDesc(c, quoteSig, {
       dstTokenOut: c.tokenA.address
@@ -135,21 +133,20 @@ describe('transferWithSwap', () => {
     const tx = await c.xswap.connect(c.sender).transferWithSwap(desc, srcSwap, dstSwap, { value: 1000 });
     const expectId = utils.computeId(c);
     const pocket = utils.getPocketAddr(expectId, c.receiver.address);
-    const expectXferId = utils.computeTransferId(c, { amount: expectedBridgeOutAmt, receiver: pocket, token: c.tokenB.address });
+    const expectXferId = utils.computeTransferId(c, { amount: srcAmountOut, receiver: pocket, token: c.tokenB.address });
 
+    await expect(tx).to.emit(c.xswap, 'StepExecuted').withArgs(c.chainId, expectId, srcAmountOut, c.tokenB.address);
     await expect(tx)
-      .to.emit(c.xswap, 'SrcExecuted')
+      .to.emit(c.bridge, 'Send')
       .withArgs(
-        expectId,
-        desc.dstChainId,
-        amountIn,
-        c.tokenA.address,
-        expectedBridgeOutAmt,
-        c.tokenB.address,
-        c.tokenA.address,
-        'cbridge',
+        expectXferId,
+        c.cbridgeAdapter.address,
         pocket,
-        expectXferId
+        c.tokenB.address,
+        srcAmountOut,
+        c.chainId + 1,
+        utils.defaultNonce,
+        utils.defaultMaxSlippage
       );
   });
   it('should revert if using wrapped bridge token but tokenOut from dex != canonical', async function () {
@@ -193,19 +190,18 @@ describe('transferWithSwap', () => {
       amount: amountIn,
       token: c.wrappedBridgeToken.address
     });
+    await expect(tx).to.emit(c.xswap, 'StepExecuted').withArgs(c.chainId, expectId, amountIn, c.tokenA.address);
     await expect(tx)
-      .to.emit(c.xswap, 'SrcExecuted')
+      .to.emit(c.bridge, 'Send')
       .withArgs(
-        expectId,
-        desc.dstChainId,
-        amountIn,
-        c.tokenA.address,
-        amountIn,
-        c.tokenA.address,
-        c.tokenB.address,
-        'cbridge',
+        expectXferId,
+        c.cbridgeAdapter.address,
         c.receiver.address,
-        expectXferId
+        c.wrappedBridgeToken.address,
+        amountIn,
+        c.chainId + 1,
+        utils.defaultNonce,
+        utils.defaultMaxSlippage
       );
   });
   it('should swap -> bridge (native in)', async function () {
@@ -219,24 +215,23 @@ describe('transferWithSwap', () => {
     });
     const tx = await c.xswap.connect(c.sender).transferWithSwap(desc, srcSwap, utils.emptySwap, { value: amountIn.add(1000) });
     const expectId = utils.computeId(c);
-    const expectAmountOut = utils.slipUniV2(amountIn);
+    const srcAmountOut = utils.slipUniV2(amountIn);
     const expectXferId = utils.computeTransferId(c, {
-      amount: expectAmountOut,
+      amount: srcAmountOut,
       token: c.tokenB.address
     });
+    await expect(tx).to.emit(c.xswap, 'StepExecuted').withArgs(c.chainId, expectId, srcAmountOut, c.tokenB.address);
     await expect(tx)
-      .to.emit(c.xswap, 'SrcExecuted')
+      .to.emit(c.bridge, 'Send')
       .withArgs(
-        expectId,
-        desc.dstChainId,
-        amountIn,
-        c.weth.address,
-        expectAmountOut,
-        c.tokenB.address,
-        c.tokenB.address,
-        'cbridge',
+        expectXferId,
+        c.cbridgeAdapter.address,
         c.receiver.address,
-        expectXferId
+        c.tokenB.address,
+        srcAmountOut,
+        c.chainId + 1,
+        utils.defaultNonce,
+        utils.defaultMaxSlippage
       );
   });
   it('should directly swap', async function () {
@@ -249,10 +244,8 @@ describe('transferWithSwap', () => {
     await c.tokenA.connect(c.sender).approve(c.xswap.address, amountIn);
     const tx = await c.xswap.connect(c.sender).transferWithSwap(desc, srcSwap, utils.emptySwap);
     const expectId = utils.computeId(c, true);
-    const expectAmountOut = utils.slipUniV2(amountIn);
-    await expect(tx)
-      .to.emit(c.xswap, 'SrcExecuted')
-      .withArgs(expectId, c.chainId, amountIn, c.tokenA.address, expectAmountOut, c.tokenB.address, c.tokenB.address, '', ZERO_ADDR, '0x');
+    const amountOut = utils.slipUniV2(amountIn);
+    await expect(tx).to.emit(c.xswap, 'StepExecuted').withArgs(c.chainId, expectId, amountOut, c.tokenB.address);
     await expect(tx).to.not.emit(c.bridge, 'Send');
   });
   it('should directly swap (native in)', async function () {
@@ -265,13 +258,10 @@ describe('transferWithSwap', () => {
       nativeIn: true,
       amountIn: amountIn
     });
-
     const tx = await c.xswap.connect(c.sender).transferWithSwap(desc, srcSwap, utils.emptySwap, { value: amountIn });
     const expectId = utils.computeId(c, true);
     const expectAmountOut = utils.slipUniV2(amountIn);
-    await expect(tx)
-      .to.emit(c.xswap, 'SrcExecuted')
-      .withArgs(expectId, c.chainId, amountIn, c.weth.address, expectAmountOut, c.tokenB.address, c.tokenB.address, '', ZERO_ADDR, '0x');
+    await expect(tx).to.emit(c.xswap, 'StepExecuted').withArgs(c.chainId, expectId, expectAmountOut, c.tokenB.address);
     await expect(tx).to.not.emit(c.bridge, 'Send');
   });
 });
@@ -289,7 +279,6 @@ describe('executeMessage', function () {
       bridgeOutToken: c.tokenA.address,
       bridgeOutMin: amountIn.add(1) // bridge out min is greater than pocket balance, should revert
     });
-
     await c.tokenA.transfer(pocket, amountIn);
     const tx = c.xswap.executeMessage(ZERO_ADDR, 0, msg, ZERO_ADDR);
     await expect(tx).to.be.revertedWith('MSGBUS::REVERT');
@@ -307,7 +296,7 @@ describe('executeMessage', function () {
     });
     await c.tokenB.transfer(pocket, amountIn);
     const tx = c.xswap.executeMessage(ZERO_ADDR, 0, msg, ZERO_ADDR);
-    await expect(tx).to.emit(c.xswap, 'DstExecuted').withArgs(id, 0, refundAmount, c.tokenB.address, utils.defaultFee, 2, '0x');
+    await expect(tx).to.emit(c.xswap, 'StepExecuted').withArgs(c.chainId, id, refundAmount, c.tokenB.address);
   });
   it('should refund if swap fails', async function () {
     const amountIn = utils.defaultAmountIn;
@@ -320,9 +309,7 @@ describe('executeMessage', function () {
     });
     await c.tokenA.transfer(pocket, amountIn);
     const tx = c.xswap.executeMessage(ZERO_ADDR, 0, msg, ZERO_ADDR);
-    await expect(tx)
-      .to.emit(c.xswap, 'DstExecuted')
-      .withArgs(id, 0, amountIn.sub(utils.defaultFee), c.tokenA.address, utils.defaultFee, 2, '0x');
+    await expect(tx).to.emit(c.xswap, 'StepExecuted').withArgs(c.chainId, id, amountIn.sub(utils.defaultFee), c.tokenA.address);
   });
   it('should collect all fallback amount as fee if fallback amount <= fee', async function () {
     const amountIn = utils.defaultFee.sub(1);
@@ -337,7 +324,7 @@ describe('executeMessage', function () {
     });
     await c.tokenB.transfer(pocket, amountIn);
     const tx = c.xswap.executeMessage(ZERO_ADDR, 0, msg, ZERO_ADDR);
-    await expect(tx).to.emit(c.xswap, 'DstExecuted').withArgs(id, 0, 0, c.tokenB.address, amountIn, 2, '0x');
+    await expect(tx).to.emit(c.xswap, 'StepExecuted').withArgs(c.chainId, id, 0, c.tokenB.address);
   });
   it('should collect all received amount as fee if amount <= fee', async function () {
     const amountIn = utils.defaultFee.sub(1);
@@ -352,7 +339,7 @@ describe('executeMessage', function () {
     });
     await c.tokenA.transfer(pocket, amountIn);
     const tx = c.xswap.executeMessage(ZERO_ADDR, 0, msg, ZERO_ADDR);
-    await expect(tx).to.emit(c.xswap, 'DstExecuted').withArgs(id, 0, 0, c.tokenA.address, amountIn, 2, '0x');
+    await expect(tx).to.emit(c.xswap, 'StepExecuted').withArgs(c.chainId, id, 0, c.tokenA.address);
   });
   it('should send swap out token to receiver', async function () {
     const amountIn = utils.defaultAmountIn;
@@ -366,9 +353,7 @@ describe('executeMessage', function () {
     });
     await c.tokenA.transfer(pocket, amountIn);
     const tx = c.xswap.executeMessage(ZERO_ADDR, 0, msg, ZERO_ADDR);
-    await expect(tx)
-      .to.emit(c.xswap, 'DstExecuted')
-      .withArgs(id, utils.slipUniV2(amountInSubFee), 0, c.tokenB.address, utils.defaultFee, 1, '0x');
+    await expect(tx).to.emit(c.xswap, 'StepExecuted').withArgs(c.chainId, id, utils.slipUniV2(amountInSubFee), c.tokenB.address);
   });
   it('should send swap out token to receiver (bridge out is native)', async function () {
     const amountIn = parseUnits('1');
@@ -386,7 +371,7 @@ describe('executeMessage', function () {
       value: parseUnits('1')
     });
     const tx = c.xswap.executeMessage(ZERO_ADDR, 0, msg, ZERO_ADDR);
-    await expect(tx).to.emit(c.xswap, 'DstExecuted').withArgs(id, utils.slipUniV2(amountInSubFee), 0, c.tokenB.address, fee, 1, '0x');
+    await expect(tx).to.emit(c.xswap, 'StepExecuted').withArgs(c.chainId, id, utils.slipUniV2(amountInSubFee), c.tokenB.address);
   });
   it('should send swap out token to receiver (native out)', async function () {
     const amountIn = parseUnits('1');
@@ -401,7 +386,7 @@ describe('executeMessage', function () {
     });
     await c.tokenA.transfer(pocket, amountIn);
     const tx = c.xswap.executeMessage(ZERO_ADDR, 0, msg, ZERO_ADDR);
-    await expect(tx).to.emit(c.xswap, 'DstExecuted').withArgs(id, utils.slipUniV2(amountInSubFee), 0, c.weth.address, fee, 1, '0x');
+    await expect(tx).to.emit(c.xswap, 'StepExecuted').withArgs(c.chainId, id, utils.slipUniV2(amountInSubFee), c.weth.address);
   });
   it('should send swap out token to receiver (forward to another chain)', async function () {
     const amountIn = utils.defaultAmountIn;
@@ -415,19 +400,29 @@ describe('executeMessage', function () {
       forward: {
         bridgeParams: utils.buildBridgeParams(),
         bridgeProvider: 'cbridge',
-        dstChainId: 1
+        dstChainId: c.chainId + 1
       }
     });
     const amountOut = utils.slipUniV2(amountInSubFee);
     const xferId = utils.computeTransferId(c, {
       amount: amountOut,
-      dstChainId: 1,
-      srcChainId: c.chainId,
       token: c.tokenB.address
     });
     await c.tokenA.transfer(pocket, amountIn);
     const tx = c.xswap.executeMessage(ZERO_ADDR, 0, msg, ZERO_ADDR, { value: 1000 });
-    await expect(tx).to.emit(c.xswap, 'DstExecuted').withArgs(id, amountOut, 0, c.tokenB.address, utils.defaultFee, 1, xferId);
+    await expect(tx).to.emit(c.xswap, 'StepExecuted').withArgs(c.chainId, id, amountOut, c.tokenB.address);
+    await expect(tx)
+      .to.emit(c.bridge, 'Send')
+      .withArgs(
+        xferId,
+        c.cbridgeAdapter.address,
+        c.receiver.address,
+        c.tokenB.address,
+        amountOut,
+        c.chainId + 1,
+        utils.defaultNonce,
+        utils.defaultMaxSlippage
+      );
   });
 });
 
@@ -447,8 +442,7 @@ describe('fee', function () {
       feeInBridgeOutToken: fee
     });
     await c.tokenA.transfer(pocket, amountIn);
-    const tx = c.xswap.executeMessage(ZERO_ADDR, 0, msg, ZERO_ADDR);
-    await expect(tx).to.emit(c.xswap, 'DstExecuted').withArgs(id, utils.slipUniV2(amountInSubFee), 0, c.weth.address, fee, 1, '0x');
+    await c.xswap.executeMessage(ZERO_ADDR, 0, msg, ZERO_ADDR);
 
     const balBefore = await c.tokenA.balanceOf(c.feeCollector.address);
     await c.xswap.connect(c.feeCollector).collectFee([c.tokenA.address], c.feeCollector.address);
@@ -470,8 +464,7 @@ describe('fee', function () {
       to: pocket,
       value: parseUnits('1')
     });
-    const tx = c.xswap.executeMessage(ZERO_ADDR, 0, msg, ZERO_ADDR);
-    await expect(tx).to.emit(c.xswap, 'DstExecuted').withArgs(id, utils.slipUniV2(amountInSubFee), 0, c.tokenB.address, fee, 1, '0x');
+    await c.xswap.executeMessage(ZERO_ADDR, 0, msg, ZERO_ADDR);
 
     const balBefore = await c.feeCollector.getBalance();
     await c.xswap.connect(c.feeCollector).collectFee([ZERO_ADDR], c.feeCollector.address);
