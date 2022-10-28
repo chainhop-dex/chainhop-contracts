@@ -403,6 +403,32 @@ describe('executeMessage', function () {
     const tx = c.xswap.executeMessage(ZERO_ADDR, 0, msg, ZERO_ADDR);
     await expect(tx).to.emit(c.xswap, 'DstExecuted').withArgs(id, utils.slipUniV2(amountInSubFee), 0, c.weth.address, fee, 1, '0x');
   });
+  it('should send swap out token to receiver (forward to another chain)', async function () {
+    const amountIn = utils.defaultAmountIn;
+    const amountInSubFee = amountIn.sub(utils.defaultFee);
+    const swap = utils.buildUniV2Swap(c, amountInSubFee);
+    const id = utils.computeId(c);
+    const pocket = utils.getPocketAddr(id, c.xswap.address);
+    const msg = utils.encodeMessage(id, swap, c.receiver.address, false, {
+      bridgeOutToken: c.tokenA.address,
+      feeInBridgeOutToken: utils.defaultFee,
+      forward: {
+        bridgeParams: utils.buildBridgeParams(),
+        bridgeProvider: 'cbridge',
+        dstChainId: 1
+      }
+    });
+    const amountOut = utils.slipUniV2(amountInSubFee);
+    const xferId = utils.computeTransferId(c, {
+      amount: amountOut,
+      dstChainId: 1,
+      srcChainId: c.chainId,
+      token: c.tokenB.address
+    });
+    await c.tokenA.transfer(pocket, amountIn);
+    const tx = c.xswap.executeMessage(ZERO_ADDR, 0, msg, ZERO_ADDR, { value: 1000 });
+    await expect(tx).to.emit(c.xswap, 'DstExecuted').withArgs(id, amountOut, 0, c.tokenB.address, utils.defaultFee, 1, xferId);
+  });
 });
 
 describe('fee', function () {

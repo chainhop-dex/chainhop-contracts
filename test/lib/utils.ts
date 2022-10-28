@@ -63,6 +63,7 @@ export interface BridgeOpts {
   feeInBridgeOutFallbackToken?: BigNumberish;
   bridgeOutMin?: BigNumberish;
   bridgeOutFallbackMin?: BigNumberish;
+  forward?: Types.ForwardInfoStruct;
 }
 
 export function encodeMessage(
@@ -88,7 +89,7 @@ export function encodeMessage(
         o?.feeInBridgeOutFallbackToken ?? ZERO_ADDR,
         o?.bridgeOutMin ?? 0,
         o?.bridgeOutFallbackMin ?? 0,
-        emptyForward
+        o?.forward ?? emptyForward
       ]
     ]
   );
@@ -238,17 +239,23 @@ export interface TransferDescOpts {
   maxSlippage?: number;
 }
 
+export function buildBridgeParams(
+  maxSlippage: number = defaultMaxSlippage,
+  wrappedBridgeToken: string = ZERO_ADDR,
+  nonce: number = defaultNonce
+) {
+  return ethers.utils.defaultAbiCoder.encode(
+    ['uint256', 'uint32', 'address', 'uint64'],
+    [BridgeType.Liquidity, maxSlippage, wrappedBridgeToken, nonce]
+  );
+}
+
 export function buildTransferDesc(c: IntegrationTestContext, quoteSig: string, opts?: TransferDescOpts) {
   const dstChainId = opts?.dstChainId ?? c.chainId + 1;
 
   const fee = opts?.feeInBridgeOutToken ?? defaultFee;
   const deadline = opts?.deadline ?? defaultDeadline;
   const nonce = 1;
-  const bridgeParams = ethers.utils.defaultAbiCoder.encode(
-    ['uint256', 'uint32', 'address', 'uint64'],
-    [BridgeType.Liquidity, opts?.maxSlippage ?? defaultMaxSlippage, opts?.wrappedBridgeToken || ZERO_ADDR, nonce]
-  );
-
   const amountIn = opts?.amountIn || defaultAmountIn;
 
   // defaults
@@ -263,7 +270,7 @@ export function buildTransferDesc(c: IntegrationTestContext, quoteSig: string, o
     dstChainId: dstChainId,
     nonce: nonce,
     bridgeProvider: opts?.bridgeProvider ?? 'cbridge',
-    bridgeParams: bridgeParams,
+    bridgeParams: buildBridgeParams(),
     bridgeOutToken: opts?.bridgeOutToken ?? c.tokenB.address,
     bridgeOutFallbackToken: opts?.bridgeOutFallbackToken ?? c.tokenA.address,
     bridgeOutMin: opts?.bridgeOutMin ?? defaultBridgeOutMin,

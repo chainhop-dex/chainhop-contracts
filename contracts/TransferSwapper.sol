@@ -219,12 +219,13 @@ contract TransferSwapper is
             uint256 refundAmount;
             address tokenOut = req.bridgeOutToken;
             Types.RequestStatus status = Types.RequestStatus.Fallback;
+            bytes memory forwardResp;
 
             if (erc20Amount > 0) {
                 uint256 amount;
                 (amount, realizedFee) = _deductFee(req.feeInBridgeOutToken, erc20Amount);
                 if (amount > 0) {
-                    (sentAmount, refundAmount, tokenOut, status) = _swapAndSend(req, amount);
+                    (sentAmount, refundAmount, tokenOut, status, forwardResp) = _swapAndSend(req, amount);
                 }
             } else if (nativeAmount > 0) {
                 require(req.bridgeOutToken == nativeWrap, "bridgeOutToken not nativeWrap");
@@ -232,10 +233,10 @@ contract TransferSwapper is
                 (amount, realizedFee) = _deductFee(req.feeInBridgeOutToken, nativeAmount);
                 if (amount > 0) {
                     IWETH(req.bridgeOutToken).deposit{value: amount}();
-                    (sentAmount, refundAmount, tokenOut, status) = _swapAndSend(req, amount);
+                    (sentAmount, refundAmount, tokenOut, status, forwardResp) = _swapAndSend(req, amount);
                 }
             }
-            emit DstExecuted(req.id, sentAmount, refundAmount, tokenOut, realizedFee, status, bytes(""));
+            emit DstExecuted(req.id, sentAmount, refundAmount, tokenOut, realizedFee, status, forwardResp);
         }
         return ExecutionStatus.Success;
     }
@@ -246,7 +247,8 @@ contract TransferSwapper is
             uint256 sentAmount,
             uint256 refundAmount,
             address token,
-            Types.RequestStatus status
+            Types.RequestStatus status,
+            bytes memory bridgeResp
         )
     {
         (bool ok, uint256 amountOut, address tokenOut) = _executeSwap(_req.swap, _amountIn, _req.bridgeOutToken);
@@ -257,14 +259,13 @@ contract TransferSwapper is
             token = _req.bridgeOutToken;
             status = Types.RequestStatus.Fallback;
         } else {
-            _sendToken(tokenOut, amountOut, _req.receiver, _req.nativeOut);
             sentAmount = amountOut;
             token = tokenOut;
             status = Types.RequestStatus.Succeeded;
             if (_req.forward.dstChainId != 0) {
                 // forward the token to another chain if requested
                 bytes32 bridgeProvider = keccak256(bytes(_req.forward.bridgeProvider));
-                _bridge(
+                (bridgeResp, ) = _bridge(
                     _req.forward.dstChainId,
                     bridgeProvider,
                     _req.forward.bridgeParams,
@@ -272,6 +273,8 @@ contract TransferSwapper is
                     token,
                     sentAmount
                 );
+            } else {
+                _sendToken(tokenOut, amountOut, _req.receiver, _req.nativeOut);
             }
         }
     }
