@@ -19,16 +19,16 @@ abstract contract BridgeRegistry is Ownable, Initializable {
 
     mapping(bytes32 => IBridgeAdapter) public bridges;
 
-    function initBridgeRegistry(string[] calldata _providers, address[] calldata _adapters) internal onlyInitializing {
+    function initBridgeRegistry(string[] memory _providers, address[] memory _adapters) internal onlyInitializing {
         _setSupportedbridges(_providers, _adapters);
     }
 
     // to disable a bridge, set the bridge addr of the corresponding provider to address(0)
-    function setSupportedBridges(string[] calldata _providers, address[] calldata _adapters) external onlyOwner {
+    function setSupportedBridges(string[] memory _providers, address[] memory _adapters) external onlyOwner {
         _setSupportedbridges(_providers, _adapters);
     }
 
-    function _setSupportedbridges(string[] calldata _providers, address[] calldata _adapters) private {
+    function _setSupportedbridges(string[] memory _providers, address[] memory _adapters) private {
         require(_providers.length == _adapters.length, "params size mismatch");
         for (uint256 i = 0; i < _providers.length; i++) {
             bridges[keccak256(bytes(_providers[i]))] = IBridgeAdapter(_adapters[i]);

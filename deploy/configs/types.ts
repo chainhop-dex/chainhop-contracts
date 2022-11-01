@@ -34,6 +34,12 @@ export interface ICodecConfig {
   args?: IMetaPoolArgs;
 }
 
+export interface IDexFuncCodec {
+  dex: string;
+  func: string;
+  codec: string;
+}
+
 export interface IPoolConfig {
   chain_id: number;
   name: string;
@@ -59,8 +65,7 @@ export const OneInchSwapFunc = 'swap(address,(address,address,address,address,ui
 export const OneInchClipperSwapFunc = 'clipperSwap(address,address,uint256,uint256)';
 export const OneInchUnoswapSwapFunc = 'unoswap(address,uint256,uint256,bytes32[])';
 export const OneInchUnoswapV3SwapFunc = 'uniswapV3Swap(uint256,uint256,uint256[])';
-export const OneInchFillOrderRFQFunc =
-  'fillOrderRFQ((uint256,address,address,address,address,uint256,uint256),bytes,uint256,uint256)';
+export const OneInchFillOrderRFQFunc = 'fillOrderRFQ((uint256,address,address,address,address,uint256,uint256),bytes,uint256,uint256)';
 
 export const UniswapV2SwapExactTokensForTokensCodec: ICodecConfig = {
   name: 'UniswapV2SwapExactTokensForTokensCodec',

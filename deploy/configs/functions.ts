@@ -1,6 +1,6 @@
 import * as dotenv from 'dotenv';
 import fs from 'fs';
-import { DeployResult } from 'hardhat-deploy/types';
+import { Deployment } from 'hardhat-deploy/types';
 import { HardhatRuntimeEnvironment } from 'hardhat/types';
 import toml from 'toml';
 import {
@@ -94,18 +94,18 @@ export const getSpecialMetaPoolCodecConfig = (chainId: number): ICodecConfig => 
 
 export const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-export const verify = async (hre: HardhatRuntimeEnvironment, deployResult: DeployResult, args?: any) => {
-  console.log('verifying contract ' + deployResult.address);
+export const verify = async (hre: HardhatRuntimeEnvironment, deployment: Deployment, args?: any) => {
+  console.log('verifying contract ' + deployment.address);
   try {
     return hre
       .run('verify:verify', {
-        address: deployResult.address,
-        constructorArguments: args ?? deployResult.args
+        address: deployment.address,
+        constructorArguments: args ?? deployment.args
       })
-      .then(() => console.log(deployResult + ' verified'));
+      .then(() => console.log(deployment + ' verified'));
   } catch (e: any) {
     if (e.message.toLowerCase().includes('already verified')) {
-      console.log(deployResult.address + ' already verified');
+      console.log(deployment.address + ' already verified');
     } else {
       console.log(e);
     }

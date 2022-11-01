@@ -28,25 +28,25 @@ abstract contract DexRegistry is Ownable, Initializable {
     mapping(address => mapping(bytes4 => address)) public dexFunc2Codec;
 
     function initDexRegistry(
-        address[] calldata _dexList,
-        string[] calldata _funcs,
-        address[] calldata _codecs
+        address[] memory _dexList,
+        string[] memory _funcs,
+        address[] memory _codecs
     ) internal onlyInitializing {
         _setDexCodecs(_dexList, _funcs, _codecs);
     }
 
     function setDexCodecs(
-        address[] calldata _dexList,
-        string[] calldata _funcs,
-        address[] calldata _codecs
+        address[] memory _dexList,
+        string[] memory _funcs,
+        address[] memory _codecs
     ) external onlyOwner {
         _setDexCodecs(_dexList, _funcs, _codecs);
     }
 
     function _setDexCodecs(
-        address[] calldata _dexList,
-        string[] calldata _funcs,
-        address[] calldata _codecs
+        address[] memory _dexList,
+        string[] memory _funcs,
+        address[] memory _codecs
     ) private {
         for (uint256 i = 0; i < _dexList.length; i++) {
             bytes4 selector = bytes4(keccak256(bytes(_funcs[i])));

@@ -62,17 +62,19 @@ contract ExecutionNode is
         address _nativeWrap
     ) MessageReceiver(_testMode, _messageBus) NativeWrap(_nativeWrap) {}
 
+    // init() can only be called once during the first deployment of the proxy contract.
+    // any subsequent changes to the proxy contract's state must be done through their respective set methods via owner key.
     function init(
         bool _testMode,
         address _messageBus,
         address _nativeWrap,
         address _signer,
         address _feeCollector,
-        address[] calldata _dexList,
-        string[] calldata _funcs,
-        address[] calldata _codecs,
-        string[] calldata _bridgeProviders,
-        address[] calldata _bridgeAdapters
+        address[] memory _dexList,
+        string[] memory _funcs,
+        address[] memory _codecs,
+        string[] memory _bridgeProviders,
+        address[] memory _bridgeAdapters
     ) external initializer {
         initMessageReceiver(_testMode, _messageBus);
         initDexRegistry(_dexList, _funcs, _codecs);
