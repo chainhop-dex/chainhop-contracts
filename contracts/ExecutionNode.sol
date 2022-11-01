@@ -56,6 +56,12 @@ contract ExecutionNode is
     using ECDSA for bytes32;
     using Bytes for bytes;
 
+    constructor(
+        bool _testMode,
+        address _messageBus,
+        address _nativeWrap
+    ) MessageReceiver(_testMode, _messageBus) NativeWrap(_nativeWrap) {}
+
     function init(
         bool _testMode,
         address _messageBus,
@@ -392,4 +398,10 @@ contract ExecutionNode is
     function _chainId() private view returns (uint64) {
         return uint64(block.chainid);
     }
+
+    function executeMessageWithTransferRefund(
+        address _token,
+        uint256 _amount,
+        bytes calldata _message
+    ) external payable override returns (bool) {}
 }
