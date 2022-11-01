@@ -8,6 +8,8 @@ import {
   CBridgeAdapter__factory,
   CurvePoolCodec,
   CurvePoolCodec__factory,
+  ExecutionNode,
+  ExecutionNode__factory,
   IntermediaryOriginalToken__factory,
   MessageBus,
   MessageBus__factory,
@@ -20,22 +22,20 @@ import {
   PlatypusRouter01Codec__factory,
   TestERC20,
   TestERC20__factory,
-  TransferSwapper,
-  TransferSwapper__factory,
   UniswapV2SwapExactTokensForTokensCodec,
   UniswapV2SwapExactTokensForTokensCodec__factory,
   UniswapV3ExactInputCodec,
   UniswapV3ExactInputCodec__factory,
   WETH
 } from '../../typechain';
+import { CBridgeAdapter } from '../../typechain/CBridgeAdapter';
 import { MinimalUniswapV2__factory } from '../../typechain/factories/MinimalUniswapV2__factory';
-import { CBridgeAdapter } from './../../typechain/CBridgeAdapter';
-import { WETH__factory } from './../../typechain/factories/WETH__factory';
-import { IntermediaryOriginalToken } from './../../typechain/IntermediaryOriginalToken';
-import { MinimalUniswapV2 } from './../../typechain/MinimalUniswapV2';
-import { Mock1inch } from './../../typechain/Mock1inch';
-import { MockCurvePool } from './../../typechain/MockCurvePool';
-import { MockUniswapV2 } from './../../typechain/MockUniswapV2';
+import { WETH__factory } from '../../typechain/factories/WETH__factory';
+import { IntermediaryOriginalToken } from '../../typechain/IntermediaryOriginalToken';
+import { MinimalUniswapV2 } from '../../typechain/MinimalUniswapV2';
+import { Mock1inch } from '../../typechain/Mock1inch';
+import { MockCurvePool } from '../../typechain/MockCurvePool';
+import { MockUniswapV2 } from '../../typechain/MockUniswapV2';
 import * as consts from './constants';
 
 // Workaround for https://github.com/nomiclabs/hardhat/issues/849
@@ -55,7 +55,7 @@ export interface WrappedBridgeTokens {
 }
 
 export interface ChainHopContracts {
-  xswap: TransferSwapper;
+  enode: ExecutionNode;
   cbridgeAdapter: CBridgeAdapter;
 }
 
@@ -142,22 +142,16 @@ export async function deployCodecContracts(admin: Wallet): Promise<CodecContract
   return { v2Codec, v3Codec, curveCodec, platypusCodec, oneinchCodec };
 }
 
-export async function deployChainhopContracts(
-  admin: Wallet,
-  weth: string,
-  signer: string,
-  feeCollector: string,
-  messageBus: string
-): Promise<ChainHopContracts> {
-  const transferSwapperFactory = (await ethers.getContractFactory('TransferSwapper')) as TransferSwapper__factory;
-  const xswap = await transferSwapperFactory.connect(admin).deploy(messageBus, weth, signer, feeCollector, true);
-  await xswap.deployed();
+export async function deployChainhopContracts(admin: Wallet, weth: string, messageBus: string): Promise<ChainHopContracts> {
+  const ExecutionNodeFactory = (await ethers.getContractFactory('ExecutionNode')) as ExecutionNode__factory;
+  const enode = await ExecutionNodeFactory.connect(admin).deploy(true, messageBus, weth);
+  await enode.deployed();
 
   const bridgeAdapterFactory = (await ethers.getContractFactory('CBridgeAdapter')) as CBridgeAdapter__factory;
   const cbridgeAdapter = await bridgeAdapterFactory.connect(admin).deploy(weth, messageBus);
   await cbridgeAdapter.deployed();
 
-  return { xswap, cbridgeAdapter };
+  return { enode: enode, cbridgeAdapter };
 }
 
 export async function deployTokenContracts(admin: Wallet): Promise<TokenContracts> {
@@ -223,21 +217,4 @@ export async function getAccounts(admin: Wallet, assets: TestERC20[], num: numbe
   }
   accounts.sort((a, b) => (a.address.toLowerCase() > b.address.toLowerCase() ? 1 : -1));
   return accounts;
-}
-
-export async function advanceBlockNumber(blkNum: number): Promise<void> {
-  const promises = [];
-  for (let i = 0; i < blkNum; i++) {
-    promises.push(ethers.provider.send('evm_mine', []));
-  }
-  await Promise.all(promises);
-}
-
-export async function advanceBlockNumberTo(target: number): Promise<void> {
-  const blockNumber = await ethers.provider.getBlockNumber();
-  const promises = [];
-  for (let i = blockNumber; i < target; i++) {
-    promises.push(ethers.provider.send('evm_mine', []));
-  }
-  await Promise.all(promises);
 }

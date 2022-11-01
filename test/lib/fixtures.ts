@@ -17,7 +17,7 @@ import {
   MockDexContracts,
   TokenContracts,
   WrappedBridgeTokens
-} from './common';
+} from './deploy';
 
 export interface IntegrationTestContext extends IntegrationTestFixture {
   sender: Wallet;
@@ -64,13 +64,7 @@ export const chainhopFixture = async ([admin]: Wallet[]): Promise<IntegrationTes
   const chainId = (await ethers.provider.getNetwork()).chainId;
   const { v2Codec, v3Codec, curveCodec, oneinchCodec } = await deployCodecContracts(admin);
 
-  const chainhop = await deployChainhopContracts(
-    admin,
-    tokens.weth.address,
-    signer.address,
-    feeCollector.address,
-    bridge.messageBus.address
-  );
+  const chainhop = await deployChainhopContracts(admin, tokens.weth.address, bridge.messageBus.address);
 
   const funcs = [
     'swapExactTokensForTokens(uint256,uint256,address[],address,uint256)',
@@ -101,8 +95,20 @@ export const chainhopFixture = async ([admin]: Wallet[]): Promise<IntegrationTes
     dex.mock1inch.address
   ];
 
-  await chainhop.xswap.setDexCodec(dexList, funcs, codecs);
-  await chainhop.xswap.setSupportedBridges(['cbridge'], [chainhop.cbridgeAdapter.address]);
+  await chainhop.enode
+    .connect(admin)
+    .init(
+      true,
+      bridge.messageBus.address,
+      tokens.weth.address,
+      signer.address,
+      feeCollector.address,
+      dexList,
+      funcs,
+      codecs,
+      ['cbridge'],
+      [chainhop.cbridgeAdapter.address]
+    );
   await fundTokens(tokens, dex.mockCurve.address);
   await fundTokens(tokens, dex.mockV2.address);
   await fundTokens(tokens, dex.mock1inch.address);
@@ -132,20 +138,26 @@ export const benchmarkFixture = async ([admin]: Wallet[]): Promise<BenchmarkFixt
   const chainId = (await ethers.provider.getNetwork()).chainId;
   const { v2Codec } = await deployCodecContracts(admin);
 
-  const chainhop = await deployChainhopContracts(
-    admin,
-    tokens.weth.address,
-    signer.address,
-    feeCollector.address,
-    bridge.messageBus.address
-  );
+  const chainhop = await deployChainhopContracts(admin, tokens.weth.address, bridge.messageBus.address);
 
   const dexList = [dex.mockV2.address];
   const funcs = ['swapExactTokensForTokens(uint256,uint256,address[],address,uint256)'];
   const codecs = [v2Codec.address];
 
-  await chainhop.xswap.setDexCodec(dexList, funcs, codecs);
-  await chainhop.xswap.setSupportedBridges(['cbridge'], [chainhop.cbridgeAdapter.address]);
+  await chainhop.enode
+    .connect(admin)
+    .init(
+      true,
+      bridge.messageBus.address,
+      tokens.weth.address,
+      signer.address,
+      feeCollector.address,
+      dexList,
+      funcs,
+      codecs,
+      ['cbridge'],
+      [chainhop.cbridgeAdapter.address]
+    );
   await fundTokens(tokens, dex.mockV2.address);
   await tokens.weth.deposit({ value: parseUnits('20') });
 

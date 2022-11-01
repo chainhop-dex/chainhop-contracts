@@ -26,6 +26,8 @@ import "./SigVerifier.sol";
 import "./Pocket.sol";
 import "./DexRegistry.sol";
 
+import "hardhat/console.sol";
+
 /**
  * @author Chainhop Dex Team
  * @author Padoriku
@@ -118,27 +120,35 @@ contract ExecutionNode is
         } else {
             (amountIn, tokenIn) = _pullFundFromPocket(_id, _execs[0]);
         }
+        console.log("6");
 
         // process the current execution
         Types.ExecutionInfo memory exec = _popFirst(_execs);
+        console.log("7");
+
         uint256 nextAmount = amountIn;
         address nextToken = tokenIn;
         bool execSuccess = true;
         if (exec.swap.dex != address(0)) {
+            console.log("8");
             (execSuccess, nextAmount, nextToken) = _executeSwap(exec.swap, amountIn, tokenIn);
             if (_src.chainId == _chainId()) require(execSuccess, "swap fail");
         }
+        console.log("9");
 
         // pay receiver if this is the last execution step or if the swap fails on a middle chain
         if (_dst.chainId == _chainId() || !execSuccess) {
+            console.log("10");
             _sendToken(nextToken, nextAmount, _dst.receiver, _dst.nativeOut);
             emit StepExecuted(_id, nextAmount, nextToken);
             return;
         }
+        console.log("11");
 
         // fund is bridged directly to receiver if there is no swaps needed on the destination chain. otherwise,
         // it's sent to a "pocket" contract addr to temporarily hold the fund before it is used for swapping.
         address bridgeOutReceiver = (_execs.length > 0) ? _getPocketAddr(_id, exec.remoteExecutionNode) : _dst.receiver;
+        console.log("12");
         uint256 refundMsgFee = _bridgeSend(
             exec.bridge.toChainId,
             keccak256(bytes(exec.bridge.bridgeProvider)),
@@ -147,13 +157,16 @@ contract ExecutionNode is
             nextToken,
             nextAmount
         );
+        console.log("13");
 
         // initiate the next hop
         if (_execs.length > 0) {
+            console.log("14");
             bytes memory message = abi.encode(Types.Message({id: _id, execs: _execs, dst: _dst}));
             uint256 msgFee = msg.value - refundMsgFee;
             MessageSenderLib.sendMessage(exec.remoteExecutionNode, exec.bridge.toChainId, message, messageBus, msgFee);
         }
+        console.log("15");
 
         emit StepExecuted(_id, nextAmount, nextToken);
     }
@@ -355,12 +368,13 @@ contract ExecutionNode is
         }
     }
 
-    function _popFirst(Types.ExecutionInfo[] memory _execs) private pure returns (Types.ExecutionInfo memory exec) {
-        exec = _execs[0];
-        for (uint256 i = 0; i < _execs.length - 1; i++) {
-            _execs[i] = _execs[i + 1];
+    function _popFirst(Types.ExecutionInfo[] memory _execs) private pure returns (Types.ExecutionInfo memory first) {
+        require(_execs.length > 0, "empty execs");
+        first = _execs[0];
+        assembly {
+            // moves the entire array 1 slot to the left
+            mstore(_execs, sub(mload(_execs), 1))
         }
-        delete _execs[_execs.length - 1];
     }
 
     function _verify(
@@ -368,12 +382,15 @@ contract ExecutionNode is
         Types.SourceInfo memory _src,
         Types.DestinationInfo memory _dst
     ) private view {
+        console.log("1");
         if (_execs.length == 1) {
             // no chainhop delegated executions, no need to verify sig
             return;
         }
+        console.log("2");
         require(_src.deadline > block.timestamp, "deadline exceeded");
-        bytes memory data = abi.encodePacked(
+        console.log("3");
+        bytes memory data = abi.encode(
             "chainhop quote",
             uint64(block.chainid),
             _dst.chainId,
@@ -381,18 +398,19 @@ contract ExecutionNode is
             _src.tokenIn,
             _src.deadline
         );
+        console.log("4");
         for (uint256 i = 1; i < _execs.length; i++) {
             Types.ExecutionInfo memory e = _execs[i];
-            data = data.concat(
-                abi.encodePacked(
-                    e.chainId,
-                    e.feeInBridgeOutToken,
-                    e.bridgeOutToken,
-                    e.feeInBridgeOutFallbackToken,
-                    e.bridgeOutFallbackToken
-                )
+            bytes memory execData = abi.encode(
+                e.chainId,
+                e.feeInBridgeOutToken,
+                e.bridgeOutToken,
+                e.feeInBridgeOutFallbackToken,
+                e.bridgeOutFallbackToken
             );
+            data = data.concat(execData);
         }
+        console.log("5");
         bytes32 signHash = keccak256(data).toEthSignedMessageHash();
         verifySig(signHash, _src.quoteSig);
     }
