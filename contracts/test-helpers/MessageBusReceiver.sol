@@ -7,7 +7,6 @@ import "./interfaces/IOriginalTokenVault.sol";
 import "./interfaces/IOriginalTokenVaultV2.sol";
 import "./interfaces/IPeggedTokenBridge.sol";
 import "./interfaces/IPeggedTokenBridgeV2.sol";
-import "../interfaces/IMessageReceiverApp.sol";
 import "./Ownable.sol";
 
 contract MessageBusReceiver is Ownable {
@@ -212,7 +211,7 @@ contract MessageBusReceiver is Ownable {
     {
         (bool ok, bytes memory res) = address(_transfer.receiver).call{value: msg.value}(
             abi.encodeWithSelector(
-                IMessageReceiverApp.executeMessageWithTransfer.selector,
+                IMessageReceiver.executeMessageWithTransfer.selector,
                 _transfer.sender,
                 _transfer.token,
                 _transfer.amount,
@@ -233,7 +232,7 @@ contract MessageBusReceiver is Ownable {
     {
         (bool ok, bytes memory res) = address(_transfer.receiver).call{value: msg.value}(
             abi.encodeWithSelector(
-                IMessageReceiverApp.executeMessageWithTransferFallback.selector,
+                IMessageReceiver.executeMessageWithTransferFallback.selector,
                 _transfer.sender,
                 _transfer.token,
                 _transfer.amount,
@@ -254,7 +253,7 @@ contract MessageBusReceiver is Ownable {
     {
         (bool ok, bytes memory res) = address(_transfer.receiver).call{value: msg.value}(
             abi.encodeWithSelector(
-                IMessageReceiverApp.executeMessageWithTransferRefund.selector,
+                IMessageReceiver.executeMessageWithTransferRefund.selector,
                 _transfer.token,
                 _transfer.amount,
                 _message
@@ -352,12 +351,7 @@ contract MessageBusReceiver is Ownable {
 
     function executeMessage(RouteInfo calldata _route, bytes calldata _message) private returns (bool) {
         (bool ok, bytes memory res) = address(_route.receiver).call{value: msg.value}(
-            abi.encodeWithSelector(
-                IMessageReceiverApp.executeMessage.selector,
-                _route.sender,
-                _route.srcChainId,
-                _message
-            )
+            abi.encodeWithSelector(IMessageReceiver.executeMessage.selector, _route.sender, _route.srcChainId, _message)
         );
         if (ok) {
             bool success = abi.decode((res), (bool));

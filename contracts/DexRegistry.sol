@@ -3,13 +3,15 @@
 pragma solidity >=0.8.15;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/proxy/utils/Initializable.sol";
+
 import "./interfaces/ICodec.sol";
 
 /**
  * @title Manages a list supported dex
  * @author Padoriku
  */
-abstract contract DexRegistry is Ownable {
+abstract contract DexRegistry is Ownable, Initializable {
     event DexCodecUpdated(address dex, bytes4 selector, address codec);
 
     // supported swap functions
@@ -25,11 +27,27 @@ abstract contract DexRegistry is Ownable {
     // 0xd0a3b665 fillOrderRFQ((uint256,address,address,address,address,uint256,uint256),bytes,uint256,uint256)
     mapping(address => mapping(bytes4 => address)) public dexFunc2Codec;
 
-    function setDexCodec(
+    function initDexRegistry(
+        address[] calldata _dexList,
+        string[] calldata _funcs,
+        address[] calldata _codecs
+    ) internal onlyInitializing {
+        _setDexCodecs(_dexList, _funcs, _codecs);
+    }
+
+    function setDexCodecs(
         address[] calldata _dexList,
         string[] calldata _funcs,
         address[] calldata _codecs
     ) external onlyOwner {
+        _setDexCodecs(_dexList, _funcs, _codecs);
+    }
+
+    function _setDexCodecs(
+        address[] calldata _dexList,
+        string[] calldata _funcs,
+        address[] calldata _codecs
+    ) private {
         for (uint256 i = 0; i < _dexList.length; i++) {
             bytes4 selector = bytes4(keccak256(bytes(_funcs[i])));
             _setDexCodec(_dexList[i], selector, _codecs[i]);

@@ -8,20 +8,17 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 
 import "../lib/Pauser.sol";
 import "../lib/MessageSenderLib.sol";
-import "../lib/MessageReceiverApp.sol";
+import "../lib/MessageReceiver.sol";
 import "../lib/NativeWrap.sol";
 import "../lib/Types.sol";
 import "../interfaces/IBridgeAdapter.sol";
 import "../interfaces/IIntermediaryOriginalToken.sol";
 import "../interfaces/IWETH.sol";
 
-contract CBridgeAdapter is MessageReceiverApp, IBridgeAdapter, NativeWrap, Pauser {
+contract CBridgeAdapter is MessageReceiver, IBridgeAdapter, NativeWrap, Pauser {
     using SafeERC20 for IERC20;
 
-    constructor(address _nativeWrap, address _messageBus)
-        NativeWrap(_nativeWrap)
-        MessageReceiverApp(false, _messageBus)
-    {}
+    constructor(address _nativeWrap, address _messageBus) NativeWrap(_nativeWrap) MessageReceiver(false, _messageBus) {}
 
     struct CBridgeParams {
         // type of the bridge in cBridge to use (i.e. liquidity bridge, pegged token bridge, etc.)
@@ -95,7 +92,7 @@ contract CBridgeAdapter is MessageReceiverApp, IBridgeAdapter, NativeWrap, Pause
         uint256 _amount,
         bytes calldata _message,
         address // _executor
-    ) external payable override onlyMessageBus returns (ExecutionStatus) {
+    ) external payable onlyMessageBus returns (ExecutionStatus) {
         require(!paused(), "MSGBUS::REVERT"); // revert outter tx
         address receiver = abi.decode((_message), (address));
         _wrapBridgeOutToken(_token, _amount);
@@ -136,4 +133,17 @@ contract CBridgeAdapter is MessageReceiverApp, IBridgeAdapter, NativeWrap, Pause
             IERC20(_token).safeTransfer(_receiver, _amount);
         }
     }
+
+    function executeMessage(
+        address _sender,
+        uint64 _srcChainId,
+        bytes calldata _message,
+        address _executor
+    ) external payable override returns (ExecutionStatus) {}
+
+    function executeMessageWithTransferRefund(
+        address _token,
+        uint256 _amount,
+        bytes calldata _message
+    ) external payable override returns (bool) {}
 }

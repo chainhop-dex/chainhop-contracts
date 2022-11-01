@@ -5,12 +5,13 @@ pragma solidity >=0.8.15;
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 
 /**
  * @title Allows the owner to set fee collector and allows fee collectors to collect fees
  * @author Padoriku
  */
-abstract contract FeeOperator is Ownable {
+abstract contract FeeOperator is Ownable, Initializable {
     using SafeERC20 for IERC20;
 
     address public feeCollector;
@@ -22,8 +23,8 @@ abstract contract FeeOperator is Ownable {
         _;
     }
 
-    constructor(address _feeCollector) {
-        feeCollector = _feeCollector;
+    function initFeeOperator(address _feeCollector) internal onlyInitializing {
+        _setFeeCollector(_feeCollector);
     }
 
     function collectFee(address[] calldata _tokens, address _to) external onlyFeeCollector {
@@ -41,6 +42,10 @@ abstract contract FeeOperator is Ownable {
     }
 
     function setFeeCollector(address _feeCollector) external onlyOwner {
+        _setFeeCollector(_feeCollector);
+    }
+
+    function _setFeeCollector(address _feeCollector) private {
         address oldFeeCollector = feeCollector;
         feeCollector = _feeCollector;
         emit FeeCollectorUpdated(oldFeeCollector, _feeCollector);
