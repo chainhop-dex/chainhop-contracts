@@ -22,6 +22,7 @@ import {
 export interface IntegrationTestContext extends IntegrationTestFixture {
   sender: Wallet;
   receiver: Wallet;
+  remote: Wallet;
 }
 
 export interface BenchmarkContext extends BenchmarkFixture {

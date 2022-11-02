@@ -44,12 +44,6 @@ contract AnyswapAdapter is IBridgeAdapter, Ownable {
         AnyswapParams memory params = abi.decode((_bridgeParams), (AnyswapParams));
         require(supportedRouters[params.router], "illegal router");
 
-        bytes32 transferId = keccak256(
-            abi.encodePacked(_receiver, _token, _amount, _dstChainId, params.nonce, uint64(block.chainid))
-        );
-        require(transfers[transferId] == false, "transfer exists");
-        transfers[transferId] = true;
-
         IERC20(_token).safeTransferFrom(msg.sender, address(this), _amount);
         IERC20(_token).safeApprove(params.router, _amount);
         if (IUnderlying(params.anyToken).underlying() != address(0)) {
@@ -58,8 +52,7 @@ contract AnyswapAdapter is IBridgeAdapter, Ownable {
             IBridgeAnyswap(params.router).anySwapOut(params.anyToken, _receiver, _amount, _dstChainId);
         }
         IERC20(_token).safeApprove(params.router, 0);
-
-        return abi.encodePacked(transferId);
+        return bridgeResp;
     }
 
     function setSupportedRouter(address _router, bool _enabled) external onlyOwner {

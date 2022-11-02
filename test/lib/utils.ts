@@ -1,12 +1,34 @@
 import { keccak256 } from '@ethersproject/solidity';
-import { BigNumber, BigNumberish } from 'ethers';
+import { expect } from 'chai';
+import { BigNumber, BigNumberish, ContractTransaction } from 'ethers';
 import { AbiCoder, parseUnits, solidityKeccak256 } from 'ethers/lib/utils';
 import { ethers } from 'hardhat';
 import { ICodec } from '../../typechain';
 import { Types } from './../../typechain/ExecutionNode';
 import { Pocket__factory } from './../../typechain/factories/Pocket__factory';
+import { TestERC20 } from './../../typechain/TestERC20';
 import { CURVE_SLIPPAGE, UINT64_MAX, UNISWAP_V2_SLIPPAGE, ZERO_ADDR } from './constants';
 import { ChainhopFixture, IntegrationTestContext } from './fixtures';
+
+export async function assertBalanceChange(tx: Promise<ContractTransaction>, user: string, balDelta: BigNumberish, token?: TestERC20) {
+  let balBefore: BigNumber;
+  if (!token) {
+    balBefore = await ethers.provider.getBalance(user);
+  } else {
+    balBefore = await token.balanceOf(user);
+  }
+
+  await tx;
+
+  let balAfter: BigNumber;
+  if (!token) {
+    balAfter = await ethers.provider.getBalance(user);
+  } else {
+    balAfter = await token.balanceOf(user);
+  }
+
+  expect(balAfter.sub(balBefore)).to.gte(balDelta);
+}
 
 export enum BridgeType {
   Null,
@@ -29,7 +51,7 @@ export const defaultBridgeOutMin = slip(defaultAmountIn, 50);
 export const defaultNonce = 1;
 export const defaultMaxSlippage = 1000000;
 export const defaultDeadline = BigNumber.from(Math.floor(Date.now() / 1000 + 1200));
-export const emptySwap: ICodec.SwapDescriptionStruct = { dex: ZERO_ADDR, data: '0x', amountOutMin: 0 };
+export const emptySwap: ICodec.SwapDescriptionStruct = { dex: ZERO_ADDR, data: '0x' };
 
 export function slipUniV2(amount: BigNumber) {
   return slip(amount, UNISWAP_V2_SLIPPAGE);
@@ -227,13 +249,13 @@ export function newDestinationInfo(o: DestinationInfoOverrides = defaultDestinat
 //   return encoded;
 // }
 
-export function getPocketAddr(id: string, dstTransferSwapper: string) {
+export function getPocketAddr(id: string, remoteExecutionNode: string) {
   const codeHash = keccak256(['bytes'], [Pocket__factory.bytecode]);
-  return ethers.utils.getCreate2Address(dstTransferSwapper, id, codeHash);
+  return ethers.utils.getCreate2Address(remoteExecutionNode, id, codeHash);
 }
 
-export function computeId(dstChainId: number, receiver: string, nonce: number = defaultNonce): string {
-  return keccak256(['uint64', 'address', 'uint64'], [dstChainId, receiver, nonce]);
+export function computeId(sender: string, receiver: string, nonce: number = defaultNonce): string {
+  return keccak256(['address', 'address', 'uint64'], [sender, receiver, nonce]);
 }
 
 export interface ComputeTranferIdOverride {

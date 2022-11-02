@@ -6,7 +6,6 @@ interface ICodec {
     struct SwapDescription {
         address dex; // the DEX to use for the swap, zero address implies no swap needed
         bytes data; // the data to call the dex with
-        uint256 amountOutMin;
     }
 
     function decodeCalldata(SwapDescription calldata swap)
