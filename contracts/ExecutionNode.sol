@@ -117,6 +117,8 @@ contract ExecutionNode is
         if (_src.chainId == _chainId()) {
             // if there are more executions on other chains, verify sig so that we are sure the fees
             // to be collected will not be tempered with when we run executions on other chains
+            // note that quote sig verification is only done on the src chain. the security of each
+            // subsequent execution's fee collection is dependant on the security of cbridge's IM
             if (_execs.length > 0) {
                 _verify(_execs, _src, _dst);
             }

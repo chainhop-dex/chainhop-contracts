@@ -3,6 +3,17 @@
 pragma solidity >=0.8.15;
 
 interface IBridgeCeler {
+    event Send(
+        bytes32 transferId,
+        address sender,
+        address receiver,
+        address token,
+        uint256 amount,
+        uint64 dstChainId,
+        uint64 nonce,
+        uint32 maxSlippage
+    );
+
     // common
     function delayThresholds(address token) external view returns (uint256);
 

@@ -21,22 +21,26 @@ interface IBridgeStargate {
         bytes calldata _to,
         bytes calldata _payload
     ) external payable;
+
     // only in non RouterETH
     function bridge() external pure returns (address);
 
     // only in RouterETH
     function swapETH(
-        uint16 _dstChainId,                         // destination Stargate chainId
-        address payable _refundAddress,             // refund additional messageFee to this address
-        bytes calldata _toAddress,                  // the receiver of the destination ETH
-        uint256 _amountLD,                          // the amount, in Local Decimals, to be swapped
-        uint256 _minAmountLD                        // the minimum amount accepted out on destination
+        uint16 _dstChainId, // destination Stargate chainId
+        address payable _refundAddress, // refund additional messageFee to this address
+        bytes calldata _toAddress, // the receiver of the destination ETH
+        uint256 _amountLD, // the amount, in Local Decimals, to be swapped
+        uint256 _minAmountLD // the minimum amount accepted out on destination
     ) external payable;
+
     // only in RouterETH
     function stargateRouter() external pure returns (address);
 }
 
 interface IStargateInternalBridge {
+    event SendMsg(uint8 msgType, uint64 nonce);
+
     function layerZeroEndpoint() external pure returns (address);
 }
 
