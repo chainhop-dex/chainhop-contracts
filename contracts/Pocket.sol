@@ -5,9 +5,9 @@ pragma solidity 0.8.15;
 // there is a dst swap. the main problem the pocket tries to solve is to gain the ability to know when and
 // by how much the bridged send out funds.
 // when chainhop backend builds a cross-chain swap, it calculates a swap id (the same as _computeSwapId
-// in TransferSwapper) and the id is used as the salt in generating a pocket address on the dst chain.
+// in ExecutionNode) and the id is used as the salt in generating a pocket address on the dst chain.
 // the pocket address would temporarily hold the fund that the bridge transfers to it until the swap
-// message is executed on the dst chain and TransferSwapper deploys this pocket contract that claims
+// message is executed on the dst chain and ExecutionNode deploys this pocket contract that claims
 // the fund.
 contract Pocket {
     function claim(address _token, uint256 _amt) external {

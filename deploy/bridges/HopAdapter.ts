@@ -2,10 +2,10 @@ import * as dotenv from 'dotenv';
 import { ethers } from 'hardhat';
 import { DeployFunction } from 'hardhat-deploy/types';
 import { HardhatRuntimeEnvironment } from 'hardhat/types';
-import { TransferSwapper__factory } from '../../typechain';
 import { deploymentConfigs } from '../configs/config';
 import { verify } from '../configs/functions';
 import { isTestnet, testnetDeploymentConfigs } from '../configs/testnetConfig';
+import { ExecutionNode__factory } from './../../typechain/factories/ExecutionNode__factory';
 
 dotenv.config();
 
@@ -16,7 +16,7 @@ const deployFunc: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   const chainId = parseInt(await hre.getChainId(), 10);
   const configs = isTestnet(chainId) ? testnetDeploymentConfigs : deploymentConfigs;
   const config = configs[chainId];
-  const xswap = await deployments.get('TransferSwapper');
+  const enode = await deployments.get('ExecutionNode');
 
   const tokens: string[] = [];
   const bridges: string[] = [];
@@ -40,8 +40,8 @@ const deployFunc: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
 
   const deployerSigner = await ethers.getSigner(deployer);
 
-  const xswapFactory = await ethers.getContractFactory<TransferSwapper__factory>('TransferSwapper');
-  const main = xswapFactory.attach(xswap.address);
+  const xswapFactory = await ethers.getContractFactory<ExecutionNode__factory>('ExecutionNode');
+  const main = xswapFactory.attach(enode.address);
   const tx = await main.connect(deployerSigner).setSupportedBridges(['hop'], [result.address]);
   console.log('setSupportedBridges: tx', tx.hash);
   await tx.wait(5);

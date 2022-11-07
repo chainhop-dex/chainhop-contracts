@@ -50,7 +50,7 @@ const deployBridgeAdapters = async (hre: HardhatRuntimeEnvironment) => {
   const bridgeProviders: string[] = [];
   const bridgeAdapters: string[] = [];
 
-  const cbridgeArgs = [config.messageBus];
+  const cbridgeArgs = [config.nativeWrap, config.messageBus];
   console.log(cbridgeArgs);
   const cbridgeAdapter = await deploy('CBridgeAdapter', {
     from: deployer,
@@ -146,7 +146,18 @@ const deploySuite: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   const { bridgeProviders, bridgeAdapters } = await deployBridgeAdapters(hre);
 
   const constructorArgs = [false, config.messageBus, config.nativeWrap];
-  const initArgs = constructorArgs.concat(configs.feeSigner, configs.feeCollector, dexList, funcs, codecs, bridgeProviders, bridgeAdapters);
+  const initArgs: [boolean, string, string, string, string, string[], string[], string[], string[], string[]] = [
+    false,
+    config.messageBus as string,
+    config.nativeWrap,
+    configs.feeSigner as string,
+    configs.feeCollector as string,
+    dexList,
+    funcs,
+    codecs,
+    bridgeProviders,
+    bridgeAdapters
+  ];
 
   console.log(`deploying ExecutionNode...`);
   console.log(initArgs);
