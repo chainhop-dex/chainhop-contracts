@@ -11,7 +11,7 @@ library Types {
         // A number unique enough to be used in request ID generation.
         uint64 nonce;
         // the unix timestamp before which the fee is valid
-        uint256 deadline;
+        uint64 deadline;
         // sig of sha3("executor fee", srcChainId, amountIn, tokenIn, deadline, toChainId, feeInBridgeOutToken, bridgeOutToken, feeInBridgeOutFallbackToken, bridgeOutFallbackToken[, toChainId, feeInBridgeOutToken, bridgeOutToken, feeInBridgeOutFallbackToken, bridgeOutFallbackToken]...)
         // see _verifyQuote()
         bytes quoteSig;
@@ -30,7 +30,7 @@ library Types {
         // note that if an organization user's private key is breached, and if their original receiver is a contract
         // address, the hacker could deploy a malicious contract with the same address on the different chain and hence
         // get access to the user's pocket funds on that chain.
-        // WARNING users should make sure their own deployer key's safety or that receiver is either
+        // WARNING users should make sure their own deployer key's safety or that the receiver is
         // 1. not a reproducable address on any of the chains that chainhop supports
         // 2. a contract that they already deployed on all the chains that chainhop supports
         // 3. an EOA

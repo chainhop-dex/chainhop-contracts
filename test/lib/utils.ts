@@ -1,7 +1,7 @@
 import { keccak256 } from '@ethersproject/solidity';
 import { expect } from 'chai';
 import { BigNumber, BigNumberish, ContractTransaction } from 'ethers';
-import { AbiCoder, parseUnits, solidityKeccak256 } from 'ethers/lib/utils';
+import { parseUnits, solidityKeccak256, solidityPack } from 'ethers/lib/utils';
 import { ethers } from 'hardhat';
 import { ICodec } from '../../typechain';
 import { Types } from './../../typechain/ExecutionNode';
@@ -208,47 +208,6 @@ export function newDestinationInfo(o: DestinationInfoOverrides = defaultDestinat
   };
 }
 
-// export interface BridgeOpts {
-//   pocket?: string;
-//   bridgeOutToken?: string;
-//   bridgeOutFallbackToken?: string;
-//   feeInBridgeOutToken?: BigNumberish;
-//   feeInBridgeOutFallbackToken?: BigNumberish;
-//   bridgeOutMin?: BigNumberish;
-//   bridgeOutFallbackMin?: BigNumberish;
-//   forward?: Types.ForwardInfoStruct;
-// }
-
-// export function encodeMessage(
-//   id: string,
-//   swap: ICodec.SwapDescriptionStruct,
-//   receiver: string,
-//   nativeOut: boolean,
-//   o?: BridgeOpts
-// ): string {
-//   const encoded = ethers.utils.defaultAbiCoder.encode(
-//     [
-//       '(bytes32, (address dex, bytes data), address, bool, address, address, uint256, uint256, uint256, uint256, (uint64 dstChainId, string bridgeProvider, bytes bridgeParams))'
-//     ],
-//     [
-//       [
-//         id,
-//         swap,
-//         receiver,
-//         nativeOut,
-//         o?.bridgeOutToken ?? ZERO_ADDR,
-//         o?.bridgeOutFallbackToken ?? ZERO_ADDR,
-//         o?.feeInBridgeOutToken ?? defaultFee,
-//         o?.feeInBridgeOutFallbackToken ?? ZERO_ADDR,
-//         o?.bridgeOutMin ?? 0,
-//         o?.bridgeOutFallbackMin ?? 0,
-//         o?.forward ?? emptyForward
-//       ]
-//     ]
-//   );
-//   return encoded;
-// }
-
 export function getPocketAddr(id: string, remoteExecutionNode: string) {
   const codeHash = keccak256(['bytes'], [Pocket__factory.bytecode]);
   return ethers.utils.getCreate2Address(remoteExecutionNode, id, codeHash);
@@ -280,26 +239,25 @@ export function computeTransferId(c: IntegrationTestContext, o?: ComputeTranferI
   );
 }
 
-const abi = new AbiCoder();
-
 export function encodeSignData(execs: Types.ExecutionInfoStruct[], src: Types.SourceInfoStruct, dst: Types.DestinationInfoStruct) {
   if (!execs || execs.length == 1) {
     return hex2Bytes('0x');
   }
-  let data = abi.encode(
+  let data = solidityPack(
     ['string', 'uint64', 'uint64', 'uint256', 'address', 'uint64'],
     ['chainhop quote', src.chainId, dst.chainId, src.amountIn, src.tokenIn, src.deadline]
   );
   for (let i = 1; i < execs.length; i++) {
     const ex = execs[i];
-    const execData = abi.encode(
+    const packedExec = solidityPack(
       ['uint64', 'uint256', 'address', 'uint256', 'address'],
       [ex.chainId, ex.feeInBridgeOutToken, ex.bridgeOutToken, ex.feeInBridgeOutFallbackToken, ex.bridgeOutFallbackToken]
     );
-    data = data.concat(execData.replace('0x', ''));
+    data = data.concat(packedExec.replace('0x', ''));
   }
-  data = solidityKeccak256(['bytes'], [data]);
-  return hex2Bytes(data);
+  console.log('data', data);
+  const hash = solidityKeccak256(['bytes'], [data]);
+  return hex2Bytes(hash);
 }
 
 interface MockV2Address {

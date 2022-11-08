@@ -282,20 +282,20 @@ contract ExecutionNode is
         uint256 nativeAmount = address(pocket).balance;
 
         // if the pocket does not have bridgeOutMin, we consider the transfer not arrived yet. in
-        // this case we tell the msgbus to revert the outter tx using the MSGBUS::REVERT opcode so
+        // this case we tell the msgbus to revert the outter tx using the MSG::ABORT: prefix so
         // that our executor will retry sending this tx later.
         // this is a counter-measure to a DoS attack vector. an attacker can deposit a small amount
         // of fund into the pocket and confuse this contract that the bridged fund has arrived,
         // denying the dst swap for the victim. bridgeOutMin is determined by the server before
         // sending out the transfer. bridgeOutMin = R * bridgeAmountIn where R is an arbitrary ratio
         // that we feel effective in raising the attacker's attack cost.
-        // note that in case the bridging actually has a huge slippage, the user can always call
+        // note that in case the bridging actually results in a huge slippage, the user can always call
         // claimPocketFund to collect the bridge out tokens as a refund.
         require(
             erc20Amount > _exec.bridgeOutMin ||
                 nativeAmount > _exec.bridgeOutMin ||
                 fallbackAmount > _exec.bridgeOutFallbackMin,
-            "MSGBUS::REVERT"
+            "MSG::ABORT:pocket is empty"
         );
         if (fallbackAmount > 0) {
             pocket.claim(_exec.bridgeOutFallbackToken, fallbackAmount);
@@ -416,7 +416,7 @@ contract ExecutionNode is
         Types.DestinationInfo memory _dst
     ) private view {
         require(_src.deadline > block.timestamp, "deadline exceeded");
-        bytes memory data = abi.encode(
+        bytes memory data = abi.encodePacked(
             "chainhop quote",
             uint64(block.chainid),
             _dst.chainId,
@@ -426,7 +426,7 @@ contract ExecutionNode is
         );
         for (uint256 i = 0; i < _execs.length; i++) {
             Types.ExecutionInfo memory e = _execs[i];
-            bytes memory execData = abi.encode(
+            bytes memory execData = abi.encodePacked(
                 e.chainId,
                 e.feeInBridgeOutToken,
                 e.bridgeOutToken,

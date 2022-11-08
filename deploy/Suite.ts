@@ -189,12 +189,12 @@ const deploySuite: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   console.log('Encoded init data', encodedInitData);
   const proxyAdmin = await deployments.get('DefaultProxyAdmin');
   console.log('DefaultProxyAdmin', proxyAdmin.address);
-  const proxy = await deployments.get('MessageBus_Proxy');
-  console.log('MessageBus_Proxy', proxy.address);
-  const messageBus = await deployments.get('MessageBus_Implementation');
+  const proxy = await deployments.get('ExecutionNode_Proxy');
+  console.log('ExecutionNode_Proxy', proxy.address);
+  // const enode = await deployments.get('ExecutionNode_Implementation');
 
-  const proxyArgs = [messageBus.address, proxyAdmin.address].concat(encodedInitData);
-  await hre.run('verify:verify', { address: proxy.address, constructorArguments: proxyArgs });
+  // const proxyArgs = [enode.address, proxyAdmin.address].concat(encodedInitData);
+  // await hre.run('verify:verify', { address: proxy.address, constructorArguments: proxyArgs });
 };
 
 deploySuite.tags = ['Suite'];

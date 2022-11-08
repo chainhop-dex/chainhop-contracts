@@ -8,7 +8,6 @@ export interface IConfig {
     messageBus?: string;
     supportedDex: IDexConfig[];
     codecs: ICodecConfig[];
-    transferSwapper?: string;
     anyswapRouters?: string[];
     stargateRouters?: string[];
     acrossSpokePool?: string;
