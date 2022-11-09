@@ -114,7 +114,7 @@ contract ExecutionNode is
         address tokenIn;
         if (_src.chainId == _chainId()) {
             // if there are more executions on other chains, verify sig so that we are sure the fees
-            // to be collected will not be tempered with when we run executions on other chains
+            // to be collected will not be tempered with when we run those executions
             // note that quote sig verification is only done on the src chain. the security of each
             // subsequent execution's fee collection is dependant on the security of cbridge's IM
             if (_execs.length > 0) {
@@ -155,15 +155,15 @@ contract ExecutionNode is
             }
         }
 
-        // pay receiver if this is the last execution step or if the swap fails on a middle chain
+        // pay receiver if this is the last execution step
         if (_dst.chainId == _chainId()) {
             _sendToken(nextToken, nextAmount, _dst.receiver, _dst.nativeOut);
             emit StepExecuted(_id, nextAmount, nextToken);
             return remainingValue;
         }
 
-        // funds are bridged directly to receiver if there is no swaps needed on the destination chain. otherwise,
-        // it's sent to a "pocket" contract addr to temporarily hold the fund before it is used for swapping.
+        // funds are bridged directly to the receiver if there are no subsequent executions on the destination chain.
+        // otherwise, it's sent to a "pocket" contract addr to temporarily hold the fund before it is used for swapping.
         address bridgeOutReceiver = (_execs.length > 0) ? _getPocketAddr(_id, exec.remoteExecutionNode) : _dst.receiver;
         uint256 refundMsgFee = _bridgeSend(
             exec.bridge.toChainId,
@@ -175,7 +175,7 @@ contract ExecutionNode is
         );
         remainingValue -= refundMsgFee;
 
-        // initiate the next hop
+        // if there are more execution steps left, pack them and send to the next chain
         if (_execs.length > 0) {
             bytes memory message = abi.encode(Types.Message({id: _id, execs: _execs, dst: _dst}));
             uint256 msgFee = IMessageBus(messageBus).calcFee(message);
@@ -191,7 +191,7 @@ contract ExecutionNode is
     }
 
     /**
-     * @notice call by cBridge MessageBus and then simply calls execute() to carry on the executions
+     * @notice called by cBridge MessageBus and then simply calls execute() to carry on the executions
      * @param _message the message that contains the remaining swap-bridge combos to be executed
      * @return executionStatus always success if no reverts to let the MessageBus know that the message is processed
      */
@@ -203,9 +203,9 @@ contract ExecutionNode is
     ) external payable override onlyMessageBus returns (ExecutionStatus) {
         Types.Message memory message = abi.decode((_message), (Types.Message));
         uint256 remainingValue = execute(message.id, message.execs, Types.emptySourceInfo(), message.dst);
-        // chainhop executor would always send a set amount of native token with calling messagebus's executeMessage().
-        // this is to allow chaining another message in case that another bridging is needed. refunding the unspent native
-        // tokens back to the executor
+        // chainhop executor would always send a set amount of native token when calling messagebus's executeMessage().
+        // these tokens cover the fee introduced by chaining another message when there are more bridging.
+        // refunding the unspent native tokens back to the executor
         if (remainingValue > 0) {
             (bool ok, ) = tx.origin.call{value: remainingValue}("");
             require(ok, "failed to refund remaining native token");
@@ -251,7 +251,7 @@ contract ExecutionNode is
         address _dstReceiver,
         uint64 _nonce
     ) private pure returns (bytes32) {
-        // the main purpose of this id is to uniquely identify a receiver on a per-swap basis.
+        // the main purpose of this id is to uniquely identify a user-swap.
         return keccak256(abi.encodePacked(_sender, _dstReceiver, _nonce));
     }
 
@@ -280,13 +280,17 @@ contract ExecutionNode is
         uint256 nativeAmount = address(pocket).balance;
 
         // if the pocket does not have bridgeOutMin, we consider the transfer not arrived yet. in
-        // this case we tell the msgbus to revert the outter tx using the MSG::ABORT: prefix so
-        // that our executor will retry sending this tx later.
-        // this is a counter-measure to a DoS attack vector. an attacker can deposit a small amount
-        // of fund into the pocket and confuse this contract that the bridged fund has arrived,
-        // denying the dst swap for the victim. bridgeOutMin is determined by the server before
-        // sending out the transfer. bridgeOutMin = R * bridgeAmountIn where R is an arbitrary ratio
-        // that we feel effective in raising the attacker's attack cost.
+        // this case we tell the msgbus to revert the outter tx using the MSG::ABORT: prefix and
+        // our executor will retry sending this tx later.
+        //
+        // this bridgeOutMin is also a counter-measure to a DoS attack vector. if we assume the bridge
+        // funds have arrived once we see a balance in the pocket, an attacker can deposit a small
+        // amount of fund into the pocket and confuse this contract that the bridged fund has arrived.
+        // this triggers the refund logic branch and thus denying the dst swap for the victim.
+        // bridgeOutMin is determined by the server before sending out the transfer.
+        // bridgeOutMin = R * bridgeAmountIn where R is an arbitrary ratio that we feel effective in
+        // raising the attacker's attack cost.
+        //
         // note that in case the bridging actually results in a huge slippage, the user can always call
         // claimPocketFund to collect the bridge out tokens as a refund.
         require(
@@ -426,6 +430,8 @@ contract ExecutionNode is
         );
         for (uint256 i = 0; i < _execs.length; i++) {
             Types.ExecutionInfo memory e = _execs[i];
+            // bridged tokens and the chain id of the execution are encoded in the sig data so that
+            // no malicious user can temper the fee they have to pay on any execution steps
             bytes memory execData = abi.encodePacked(
                 e.chainId,
                 e.feeInBridgeOutToken,
@@ -442,10 +448,4 @@ contract ExecutionNode is
     function _chainId() private view returns (uint64) {
         return uint64(block.chainid);
     }
-
-    function executeMessageWithTransferRefund(
-        address _token,
-        uint256 _amount,
-        bytes calldata _message
-    ) external payable override returns (bool) {}
 }

@@ -65,5 +65,5 @@ abstract contract MessageReceiver is IMessageReceiver, Ownable, Initializable {
         address _token,
         uint256 _amount,
         bytes calldata _message
-    ) external payable virtual returns (bool);
+    ) external payable returns (bool) {}
 }
