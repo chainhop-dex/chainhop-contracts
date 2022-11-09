@@ -37,9 +37,8 @@ import "./DexRegistry.sol";
  * - a message is an edge in the execution chain, it carries the remaining swap-bridge combos to the next node
  * - execute() executes a swap-bridge combo and determines if the current node is the final one by looking at Types.DestinationInfo
  * - executeMessage() is called on the intermediate nodes by chainhop's executor. it simply calls execute() to advance the execution chain
- * - a "pocket" is a counterfactual contract of which the address is determined at quote-time by chainhop's pathfinder server with using the id as salt
- * the actual pocket contract deployment is done at execution time by the the ExecutionNode on that chain
- * these concepts are there to make bridge-agnostic multi-hop execution possible and to help keep the code sane
+ * - a "pocket" is a counterfactual contract of which the address is determined at quote-time by chainhop's pathfinder server with using
+ * the id as salt. the actual pocket contract deployment is done at execution time by the the ExecutionNode on that chain
  */
 contract ExecutionNode is
     IExecutionNodeEvents,
@@ -90,12 +89,11 @@ contract ExecutionNode is
 
     /**
      * @notice executes a swap-bridge combo and relays the next swap-bridge combo to the next chain (if any)
-     * @notice nop nodes are allowed. execute() simply sends the output token (wrap/unwrap native if needed) to the receiver
-     * @param _id an id that is unique enough per user-swap. persistent for the entire operation. also used as salt for the pocket contract
-     * id = keccak256(abi.encodePacked(_dstReceiver, _nonce));
+     * @param _id an id that is unique per user-swap. persistent for the entire operation. also used as salt for the pocket contract
+     * id = keccak256(abi.encodePacked(sender, receiver, nonce))
      * @param _execs contains info that tells this contract how to collect a part of the bridge token
      * received as fee and how to swap can be omitted on the source chain if there is no swaps to execute
-     * @param _src only required on the source chain and should not be populated on subsequent hops
+     * @param _src info that is processed on the source chain. only required on the source chain and should not be populated on subsequent hops
      * @param _dst the receiving info of the entire operation
      */
     function execute(
@@ -315,6 +313,8 @@ contract ExecutionNode is
     }
 
     function _getPocketAddr(bytes32 _salt, address _deployer) private pure returns (address) {
+        // how to predict a create2 address:
+        // https://docs.soliditylang.org/en/v0.8.17/control-structures.html?highlight=create2#salted-contract-creations-create2
         bytes32 hash = keccak256(
             abi.encodePacked(bytes1(0xff), _deployer, _salt, keccak256(type(Pocket).creationCode))
         );
