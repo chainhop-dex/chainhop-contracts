@@ -20,6 +20,8 @@ contract CBridgeAdapter is MessageReceiver, IBridgeAdapter, NativeWrap, Pauser {
 
     constructor(address _nativeWrap, address _messageBus) NativeWrap(_nativeWrap) MessageReceiver(false, _messageBus) {}
 
+    event CBridgeRefunded(uint256 amount, address receiver);
+
     struct CBridgeParams {
         // type of the bridge in cBridge to use (i.e. liquidity bridge, pegged token bridge, etc.)
         MsgDataTypes.BridgeSendType bridgeType;
@@ -93,7 +95,7 @@ contract CBridgeAdapter is MessageReceiver, IBridgeAdapter, NativeWrap, Pauser {
         bytes calldata _message,
         address // _executor
     ) external payable onlyMessageBus returns (ExecutionStatus) {
-        require(!paused(), "MSGBUS::REVERT"); // revert outter tx
+        require(!paused(), "MSG::ABORT:paused"); // revert outter tx
         address receiver = abi.decode((_message), (address));
         _wrapBridgeOutToken(_token, _amount);
         _sendToken(_token, _amount, receiver, false);
@@ -133,11 +135,4 @@ contract CBridgeAdapter is MessageReceiver, IBridgeAdapter, NativeWrap, Pauser {
             IERC20(_token).safeTransfer(_receiver, _amount);
         }
     }
-
-    function executeMessage(
-        address _sender,
-        uint64 _srcChainId,
-        bytes calldata _message,
-        address _executor
-    ) external payable override returns (ExecutionStatus) {}
 }

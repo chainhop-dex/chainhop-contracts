@@ -53,7 +53,7 @@ abstract contract MessageReceiver is IMessageReceiver, Ownable, Initializable {
         uint64 _srcChainId,
         bytes calldata _message,
         address _executor
-    ) external payable virtual returns (ExecutionStatus);
+    ) external payable virtual returns (ExecutionStatus) {}
 
     /**
      * @notice Called by MessageBus (MessageBusReceiver) to process refund of the original transfer from this contract
@@ -65,5 +65,5 @@ abstract contract MessageReceiver is IMessageReceiver, Ownable, Initializable {
         address _token,
         uint256 _amount,
         bytes calldata _message
-    ) external payable returns (bool) {}
+    ) external payable virtual returns (bool) {}
 }
