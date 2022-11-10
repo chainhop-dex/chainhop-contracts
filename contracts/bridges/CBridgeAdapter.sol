@@ -20,7 +20,7 @@ contract CBridgeAdapter is MessageReceiver, IBridgeAdapter, NativeWrap, Pauser {
 
     constructor(address _nativeWrap, address _messageBus) NativeWrap(_nativeWrap) MessageReceiver(false, _messageBus) {}
 
-    event CBridgeRefunded(uint256 amount, address receiver);
+    event CBridgeRefunded(uint256 amount, address token, address receiver);
 
     struct CBridgeParams {
         // type of the bridge in cBridge to use (i.e. liquidity bridge, pegged token bridge, etc.)
@@ -99,14 +99,11 @@ contract CBridgeAdapter is MessageReceiver, IBridgeAdapter, NativeWrap, Pauser {
         address receiver = abi.decode((_message), (address));
         _wrapBridgeOutToken(_token, _amount);
         _sendToken(_token, _amount, receiver, false);
+        emit CBridgeRefunded(_amount, _token, receiver);
         return ExecutionStatus.Success;
     }
 
     function _wrapBridgeOutToken(address _token, uint256 _amount) private {
-        // Wrapping the bridge token before doing anything. There is inefficiency in this function
-        // and _sendToken() only if the received the token is native and the user wants native out.
-        // The wrapping then unwrapping process could be skipped. This inefficiency is tolerated for
-        // logic tidiness
         if (_token == nativeWrap) {
             // If the bridge out token is a native wrap, we need to check whether the actual received
             // token is native token.
