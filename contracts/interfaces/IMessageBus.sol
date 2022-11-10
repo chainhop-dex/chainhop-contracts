@@ -5,6 +5,15 @@ pragma solidity >=0.8.0;
 import "../lib/MsgDataTypes.sol";
 
 interface IMessageBus {
+    event Executed(
+        MsgDataTypes.MsgType msgType,
+        bytes32 msgId,
+        MsgDataTypes.TxStatus status,
+        address indexed receiver,
+        uint64 srcChainId,
+        bytes32 srcTxHash
+    );
+
     function liquidityBridge() external view returns (address);
 
     function pegBridge() external view returns (address);

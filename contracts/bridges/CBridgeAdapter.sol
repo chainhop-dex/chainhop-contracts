@@ -140,10 +140,4 @@ contract CBridgeAdapter is MessageReceiver, IBridgeAdapter, NativeWrap, Pauser {
         bytes calldata _message,
         address _executor
     ) external payable override returns (ExecutionStatus) {}
-
-    function executeMessageWithTransferRefund(
-        address _token,
-        uint256 _amount,
-        bytes calldata _message
-    ) external payable override returns (bool) {}
 }
