@@ -255,7 +255,6 @@ export function encodeSignData(execs: Types.ExecutionInfoStruct[], src: Types.So
     );
     data = data.concat(packedExec.replace('0x', ''));
   }
-  console.log('data', data);
   const hash = solidityKeccak256(['bytes'], [data]);
   return hex2Bytes(hash);
 }
