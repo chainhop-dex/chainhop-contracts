@@ -96,20 +96,14 @@ export const chainhopFixture = async ([admin]: Wallet[]): Promise<IntegrationTes
     dex.mock1inch.address
   ];
 
-  await chainhop.enode
-    .connect(admin)
-    .init(
-      true,
-      bridge.messageBus.address,
-      tokens.weth.address,
-      signer.address,
-      feeCollector.address,
-      dexList,
-      funcs,
-      codecs,
-      ['cbridge'],
-      [chainhop.cbridgeAdapter.address]
-    );
+  const enode = chainhop.enode.connect(admin);
+  await enode.setMessageBus(bridge.messageBus.address);
+  await enode.setDexCodecs(dexList, funcs, codecs);
+  await enode.setFeeCollector(feeCollector.address);
+  await enode.setNativeWrap(tokens.weth.address);
+  await enode.setSigner(signer.address);
+  await enode.setSupportedBridges(['cbridge'], [chainhop.cbridgeAdapter.address]);
+
   await fundTokens(tokens, dex.mockCurve.address);
   await fundTokens(tokens, dex.mockV2.address);
   await fundTokens(tokens, dex.mock1inch.address);

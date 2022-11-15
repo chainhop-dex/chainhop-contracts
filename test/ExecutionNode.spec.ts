@@ -727,8 +727,12 @@ describe('fee', function () {
 describe('claimPocketFund', function () {
   beforeEach(prepareContext);
   it('should revert if pocket has no fund', async function () {
-    const tx = c.enode.claimPocketFund(c.sender.address, c.receiver.address, utils.defaultNonce, c.tokenA.address);
+    const tx = c.enode.connect(c.receiver).claimPocketFund(c.sender.address, c.receiver.address, utils.defaultNonce, c.tokenA.address);
     await expect(tx).to.revertedWith('pocket is empty');
+  });
+  it('should revert if claimer is not receiver', async function () {
+    const tx = c.enode.claimPocketFund(c.sender.address, c.receiver.address, utils.defaultNonce, c.tokenA.address);
+    await expect(tx).to.revertedWith('only receiver can claim');
   });
   it('should claim erc20 token', async function () {
     const claimAmount = utils.defaultAmountIn;
