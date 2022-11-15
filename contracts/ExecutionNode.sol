@@ -222,6 +222,7 @@ contract ExecutionNode is
         uint64 _nonce,
         address _token
     ) external {
+        require(msg.sender == _receiver, "only receiver can claim");
         // id ensures that only the designated receiver of a swap can claim funds from the designated pocket of a swap
         bytes32 id = _computeId(_sender, _receiver, _nonce);
 
@@ -290,9 +291,6 @@ contract ExecutionNode is
         // bridgeOutMin is determined by the server before sending out the transfer.
         // bridgeOutMin = R * bridgeAmountIn where R is an arbitrary ratio that we feel effective in
         // raising the attacker's attack cost.
-        //
-        // note that in case the bridging actually results in a huge slippage, the user can always call
-        // claimPocketFund to collect the bridge out tokens as a refund.
         require(
             erc20Amount > _exec.bridgeOutMin ||
                 nativeAmount > _exec.bridgeOutMin ||
