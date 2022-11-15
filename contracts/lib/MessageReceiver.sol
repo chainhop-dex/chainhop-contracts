@@ -2,7 +2,7 @@
 
 pragma solidity 0.8.15;
 
-import "@openzeppelin/contracts/access/Ownable.sol";
+import "./Ownable.sol";
 import "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 
 import "../interfaces/IMessageReceiver.sol";

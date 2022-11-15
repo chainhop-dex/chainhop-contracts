@@ -3,8 +3,9 @@
 pragma solidity >=0.8.15;
 
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/proxy/utils/Initializable.sol";
+
+import "./lib/Ownable.sol";
 
 /**
  * @title Allows owner to set signer, and verifies signatures

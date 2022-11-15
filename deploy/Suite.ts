@@ -1,7 +1,7 @@
 import * as dotenv from 'dotenv';
+import { AbiCoder } from 'ethers/lib/utils';
 import { DeployFunction } from 'hardhat-deploy/types';
 import { HardhatRuntimeEnvironment } from 'hardhat/types';
-import { ExecutionNode__factory } from './../typechain/factories/ExecutionNode__factory';
 import { deploymentConfigs } from './configs/config';
 import { sleep, verify } from './configs/functions';
 import { isTestnet, testnetDeploymentConfigs } from './configs/testnetConfig';
@@ -182,19 +182,11 @@ const deploySuite: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   await sleep(5000);
   console.log('verifying ExecutionNode.sol...');
   const impl = await deployments.get('ExecutionNode_Implementation');
+
+  const abi = new AbiCoder();
+  const encodedArgs = abi.encode(['bool', 'address', 'address'], constructorArgs);
+  console.log('encoded constructor args', encodedArgs);
   await verify(hre, impl, constructorArgs);
-
-  const iface = ExecutionNode__factory.createInterface();
-  const encodedInitData = iface.encodeFunctionData('init', initArgs);
-  console.log('Encoded init data', encodedInitData);
-  const proxyAdmin = await deployments.get('DefaultProxyAdmin');
-  console.log('DefaultProxyAdmin', proxyAdmin.address);
-  const proxy = await deployments.get('ExecutionNode_Proxy');
-  console.log('ExecutionNode_Proxy', proxy.address);
-  // const enode = await deployments.get('ExecutionNode_Implementation');
-
-  // const proxyArgs = [enode.address, proxyAdmin.address].concat(encodedInitData);
-  // await hre.run('verify:verify', { address: proxy.address, constructorArguments: proxyArgs });
 };
 
 deploySuite.tags = ['Suite'];

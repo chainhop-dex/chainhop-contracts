@@ -75,6 +75,7 @@ contract ExecutionNode is
         string[] memory _bridgeProviders,
         address[] memory _bridgeAdapters
     ) external initializer {
+        initOwner();
         initMessageReceiver(_testMode, _messageBus);
         initDexRegistry(_dexList, _funcs, _codecs);
         initBridgeRegistry(_bridgeProviders, _bridgeAdapters);

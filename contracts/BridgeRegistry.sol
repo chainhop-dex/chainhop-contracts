@@ -2,10 +2,11 @@
 
 pragma solidity >=0.8.15;
 
-import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 
 import "./interfaces/IBridgeAdapter.sol";
+
+import "./lib/Ownable.sol";
 
 /**
  * @title Manages a list of supported bridges
