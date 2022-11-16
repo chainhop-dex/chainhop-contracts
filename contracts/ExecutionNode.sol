@@ -166,15 +166,8 @@ contract ExecutionNode is
         // funds are bridged directly to the receiver if there are no subsequent executions on the destination chain.
         // otherwise, it's sent to a "pocket" contract addr to temporarily hold the fund before it is used for swapping.
         address bridgeOutReceiver = (_execs.length > 0) ? _getPocketAddr(_id, exec.remoteExecutionNode) : _dst.receiver;
-        uint256 refundMsgFee = _bridgeSend(
-            exec.bridge.toChainId,
-            keccak256(bytes(exec.bridge.bridgeProvider)),
-            exec.bridge.bridgeParams,
-            bridgeOutReceiver,
-            nextToken,
-            nextAmount
-        );
-        remainingValue -= refundMsgFee;
+        _bridgeSend(exec.bridge, bridgeOutReceiver, nextToken, nextAmount);
+        remainingValue -= exec.bridge.nativeFee;
 
         // if there are more execution steps left, pack them and send to the next chain
         if (_execs.length > 0) {
@@ -332,23 +325,14 @@ contract ExecutionNode is
     }
 
     function _bridgeSend(
-        uint64 _toChainId,
-        bytes32 _bridgeProvider,
-        bytes memory _bridgeParams,
+        Types.BridgeInfo memory _bridge,
         address _receiver,
         address _token,
         uint256 _amount
-    ) private returns (uint256 refundMsgFee) {
-        IBridgeAdapter bridge = bridges[_bridgeProvider];
-        if (_bridgeProvider == CBRIDGE_PROVIDER_HASH) {
-            // special handling for dealing with cbridge's refund mechnism: cbridge adapter always
-            // sends a message that contains only the receiver addr along with the transfer. this way
-            // when refund happens we can execute the executeMessageWithTransferRefund function in
-            // cbridge adapter to refund to the receiver
-            refundMsgFee = IMessageBus(messageBus).calcFee(abi.encode(_receiver));
-        }
+    ) private {
+        IBridgeAdapter bridge = bridges[keccak256(bytes(_bridge.bridgeProvider))];
         IERC20(_token).safeIncreaseAllowance(address(bridge), _amount);
-        bridge.bridge{value: refundMsgFee}(_toChainId, _receiver, _amount, _token, _bridgeParams);
+        bridge.bridge{value: _bridge.nativeFee}(_bridge.toChainId, _receiver, _amount, _token, _bridge.bridgeParams);
     }
 
     function _executeSwap(
@@ -436,7 +420,10 @@ contract ExecutionNode is
                 e.feeInBridgeOutToken,
                 e.bridgeOutToken,
                 e.feeInBridgeOutFallbackToken,
-                e.bridgeOutFallbackToken
+                e.bridgeOutFallbackToken,
+                // native fee also needs to be agreed upon by chainhop for any subsequent bridge
+                // since the fee is provided by chainhop's executor
+                e.bridge.nativeFee
             );
             data = data.concat(execData);
         }

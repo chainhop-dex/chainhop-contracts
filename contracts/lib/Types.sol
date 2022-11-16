@@ -68,6 +68,8 @@ library Types {
         // Bridge transfers quoted and abi encoded by chainhop backend server.
         // Bridge adapter implementations need to decode this themselves.
         bytes bridgeParams;
+        // the native fee required by the bridge provider
+        uint256 nativeFee;
     }
 
     struct Message {
