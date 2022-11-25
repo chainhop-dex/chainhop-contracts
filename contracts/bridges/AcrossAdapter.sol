@@ -35,7 +35,7 @@ contract AcrossAdapter is IBridgeAdapter, Ownable {
     ) external payable returns (bytes memory bridgeResp) {
         BridgeParams memory params = abi.decode(_bridgeParams, (BridgeParams));
         IERC20(_token).safeTransferFrom(msg.sender, address(this), _amount);
-        IERC20(_token).approve(spokePool, _amount);
+        IERC20(_token).safeApprove(spokePool, _amount);
         uint32 depositId = ISpokePool(spokePool).numberOfDeposits();
         ISpokePool(spokePool).deposit(
             _receiver,
@@ -45,6 +45,7 @@ contract AcrossAdapter is IBridgeAdapter, Ownable {
             params.relayerFeePct,
             params.quoteTimestamp
         );
+        IERC20(_token).safeApprove(spokePool, 0);
         return abi.encode(depositId);
     }
 

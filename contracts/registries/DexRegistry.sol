@@ -4,9 +4,9 @@ pragma solidity >=0.8.15;
 
 import "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 
-import "./interfaces/ICodec.sol";
+import "../interfaces/ICodec.sol";
 
-import "./lib/Ownable.sol";
+import "../lib/Ownable.sol";
 
 /**
  * @title Manages a list supported dex
@@ -49,6 +49,7 @@ abstract contract DexRegistry is Ownable, Initializable {
         string[] memory _funcs,
         address[] memory _codecs
     ) private {
+        require(_dexList.length == _funcs.length && _dexList.length == _codecs.length, "codec lengths mismatch");
         for (uint256 i = 0; i < _dexList.length; i++) {
             bytes4 selector = bytes4(keccak256(bytes(_funcs[i])));
             _setDexCodec(_dexList[i], selector, _codecs[i]);

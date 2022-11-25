@@ -20,11 +20,12 @@ import "./interfaces/IExecutionNodeEvents.sol";
 import "./interfaces/IWETH.sol";
 import "./interfaces/IMessageBus.sol";
 
-import "./BridgeRegistry.sol";
-import "./FeeOperator.sol";
+import "./registries/BridgeRegistry.sol";
+import "./registries/DexRegistry.sol";
+import "./registries/RemoteExecutionNodeRegistry.sol";
+import "./registries/FeeVaultRegistry.sol";
 import "./SigVerifier.sol";
 import "./Pocket.sol";
-import "./DexRegistry.sol";
 
 /**
  * @author Chainhop Dex Team
@@ -46,10 +47,11 @@ contract ExecutionNode is
     DexRegistry,
     BridgeRegistry,
     SigVerifier,
-    FeeOperator,
+    FeeVaultRegistry,
     NativeWrap,
     ReentrancyGuard,
-    Pauser
+    Pauser,
+    RemoteExecutionNodeRegistry
 {
     using SafeERC20 for IERC20;
     using ECDSA for bytes32;
@@ -68,20 +70,23 @@ contract ExecutionNode is
         address _messageBus,
         address _nativeWrap,
         address _signer,
-        address _feeCollector,
+        address _feeVault,
         address[] memory _dexList,
         string[] memory _funcs,
         address[] memory _codecs,
         string[] memory _bridgeProviders,
-        address[] memory _bridgeAdapters
+        address[] memory _bridgeAdapters,
+        uint64[] memory _remoteChainIds,
+        address[] memory _remotes
     ) external initializer {
         initOwner();
         initMessageReceiver(_testMode, _messageBus);
         initDexRegistry(_dexList, _funcs, _codecs);
         initBridgeRegistry(_bridgeProviders, _bridgeAdapters);
+        initFeeVaultRegistry(_feeVault);
         initSigVerifier(_signer);
-        initFeeOperator(_feeCollector);
         initNativeWrap(_nativeWrap);
+        initRemotes(_remoteChainIds, _remotes);
     }
 
     /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
@@ -238,6 +243,10 @@ contract ExecutionNode is
         emit PocketFundClaimed(_receiver, erc20Amount, _token, nativeAmount);
     }
 
+    function resecueFund(address _token, uint256 _amount) external onlyOwner {
+        _sendToken(_token, _amount, msg.sender, false);
+    }
+
     /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
      * Misc
      * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
@@ -292,20 +301,36 @@ contract ExecutionNode is
             "MSG::ABORT:pocket is empty"
         );
         if (fallbackAmount > 0) {
-            pocket.claim(_exec.bridgeOutFallbackToken, fallbackAmount);
-            amount = _deductFee(_exec.feeInBridgeOutFallbackToken, fallbackAmount);
+            _claimPocketERC20(pocket, _exec.bridgeOutFallbackToken, fallbackAmount);
+            amount = _deductFee(fallbackAmount, _exec.feeInBridgeOutFallbackToken);
             token = _exec.bridgeOutFallbackToken;
         } else {
-            pocket.claim(_exec.bridgeOutToken, erc20Amount);
             if (erc20Amount > 0) {
-                amount = _deductFee(_exec.feeInBridgeOutToken, erc20Amount);
+                _claimPocketERC20(pocket, _exec.bridgeOutToken, erc20Amount);
+                amount = _deductFee(erc20Amount, _exec.feeInBridgeOutToken);
             } else if (nativeAmount > 0) {
+                // no need to check before/after balance here since selfdestruct is guaranteed to
+                // send all native tokens from the pocket to this contract.
+                pocket.claim(address(0), 0);
                 require(_exec.bridgeOutToken == nativeWrap, "bridgeOutToken not nativeWrap");
-                amount = _deductFee(_exec.feeInBridgeOutToken, nativeAmount);
+                amount = _deductFee(nativeAmount, _exec.feeInBridgeOutToken);
                 IWETH(_exec.bridgeOutToken).deposit{value: amount}();
             }
             token = _exec.bridgeOutToken;
         }
+    }
+
+    // since the call result of the transfer function in the pocket contract is not checked, we check
+    // the before and after balance of this contract to ensure that the amount is indeed received.
+    function _claimPocketERC20(
+        Pocket _pocket,
+        address _token,
+        uint256 _amount
+    ) private {
+        uint256 balBefore = IERC20(_token).balanceOf(address(this));
+        _pocket.claim(_token, _amount);
+        uint256 balAfter = IERC20(_token).balanceOf(address(this));
+        require(balAfter - balBefore >= _amount, "insufficient fund claimed");
     }
 
     function _getPocketAddr(bytes32 _salt, address _deployer) private pure returns (address) {
@@ -317,11 +342,16 @@ contract ExecutionNode is
         return address(uint160(uint256(hash)));
     }
 
-    function _deductFee(uint256 _fee, uint256 _amount) private pure returns (uint256 amount) {
+    function _deductFee(uint256 _amount, uint256 _fee) private pure returns (uint256 amount) {
+        uint256 fee;
         // handle the case where amount received is not enough to pay fee
-        if (_amount >= _fee) {
+        if (_amount > _fee) {
             amount = _amount - _fee;
+            fee = _fee;
+        } else {
+            fee = _amount;
         }
+        // feeAccount
     }
 
     function _bridgeSend(
