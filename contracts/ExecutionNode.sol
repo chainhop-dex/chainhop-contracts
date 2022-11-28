@@ -108,13 +108,10 @@ contract ExecutionNode is
         Types.DestinationInfo memory _dst
     ) public payable nonReentrant whenNotPaused returns (uint256 remainingValue) {
         require(_execs.length > 0, "nop");
-
-        Types.ExecutionInfo memory exec;
-        (exec, _execs) = _popFirst(_execs);
-
         bytes32 id = _computeId(_dst.receiver, _dst.nonce);
-
         remainingValue = msg.value;
+
+        Types.ExecutionInfo memory exec = _execs[0];
 
         // pull funds
         uint256 amountIn;
@@ -132,7 +129,8 @@ contract ExecutionNode is
                 remainingValue -= amountIn;
             }
         } else {
-            // execution is not on the src chain
+            // execution is not on the src chain. the following two checks ensures that no remote
+            // contracts that are not an ExecutionNode can call this contract
             requireMessageBus();
             requireRemoteExecutionNode(_remoteCallerChainId, _remoteCaller);
             (amountIn, tokenIn) = _pullFundFromPocket(id, exec);
@@ -150,6 +148,8 @@ contract ExecutionNode is
             }
         }
 
+        _execs = _removeFirst(_execs);
+
         // process swap if any
         uint256 nextAmount = amountIn;
         address nextToken = tokenIn;
@@ -165,7 +165,7 @@ contract ExecutionNode is
             }
         }
 
-        // pay receiver if this is the last execution step
+        // pay receiver if there is no more swaps or bridges
         if (_dst.chainId == _chainId()) {
             _sendToken(nextToken, nextAmount, _dst.receiver, _dst.nativeOut);
             emit StepExecuted(id, nextAmount, nextToken);
@@ -174,21 +174,22 @@ contract ExecutionNode is
 
         // funds are bridged directly to the receiver if there are no subsequent executions on the destination chain.
         // otherwise, it's sent to a "pocket" contract addr to temporarily hold the fund before it is used for swapping.
-        address bridgeOutReceiver = (_execs.length > 0) ? _getPocketAddr(id, exec.remoteExecutionNode) : _dst.receiver;
-        _bridgeSend(exec.bridge, bridgeOutReceiver, nextToken, nextAmount);
-        remainingValue -= exec.bridge.nativeFee;
+        address bridgeOutReceiver = _dst.receiver;
 
         // if there are more execution steps left, pack them and send to the next chain
         if (_execs.length > 0) {
+            address remote = remotes[exec.bridge.toChainId];
+            require(remote != address(0), "remote not found");
+            bridgeOutReceiver = _getPocketAddr(id, remote);
+
             bytes memory message = abi.encode(Types.Message({execs: _execs, dst: _dst}));
             uint256 msgFee = IMessageBus(messageBus).calcFee(message);
             remainingValue -= msgFee;
-            IMessageBus(messageBus).sendMessage{value: msgFee}(
-                exec.remoteExecutionNode,
-                exec.bridge.toChainId,
-                message
-            );
+            IMessageBus(messageBus).sendMessage{value: msgFee}(remote, exec.bridge.toChainId, message);
         }
+
+        _bridgeSend(exec.bridge, bridgeOutReceiver, nextToken, nextAmount);
+        remainingValue -= exec.bridge.nativeFee;
 
         emit StepExecuted(id, nextAmount, nextToken);
     }
@@ -413,13 +414,12 @@ contract ExecutionNode is
         }
     }
 
-    function _popFirst(Types.ExecutionInfo[] memory _execs)
+    function _removeFirst(Types.ExecutionInfo[] memory _execs)
         private
         pure
-        returns (Types.ExecutionInfo memory first, Types.ExecutionInfo[] memory rest)
+        returns (Types.ExecutionInfo[] memory rest)
     {
         require(_execs.length > 0, "empty execs");
-        first = _execs[0];
         rest = new Types.ExecutionInfo[](_execs.length - 1);
         for (uint256 i = 1; i < _execs.length; i++) {
             rest[i - 1] = _execs[i];
@@ -427,7 +427,7 @@ contract ExecutionNode is
     }
 
     function _verify(
-        Types.ExecutionInfo[] memory _execs, // all execs except the one on the src chain
+        Types.ExecutionInfo[] memory _execs,
         Types.SourceInfo memory _src,
         Types.DestinationInfo memory _dst
     ) private view {
@@ -440,12 +440,13 @@ contract ExecutionNode is
             _src.tokenIn,
             _src.deadline
         );
-        for (uint256 i = 0; i < _execs.length; i++) {
+        for (uint256 i = 1; i < _execs.length; i++) {
             Types.ExecutionInfo memory e = _execs[i];
+            Types.BridgeInfo memory prevBridge = _execs[i - 1].bridge;
             // bridged tokens and the chain id of the execution are encoded in the sig data so that
             // no malicious user can temper the fee they have to pay on any execution steps
             bytes memory execData = abi.encodePacked(
-                e.chainId,
+                prevBridge.toChainId,
                 e.feeInBridgeOutToken,
                 e.bridgeOutToken,
                 e.feeInBridgeOutFallbackToken,

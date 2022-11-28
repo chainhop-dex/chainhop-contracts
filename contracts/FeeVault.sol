@@ -18,6 +18,10 @@ contract FeeVault is Ownable {
 
     event FeeCollectorUpdated(address from, address to);
 
+    constructor(address _feeCollector) {
+        feeCollector = _feeCollector;
+    }
+
     modifier onlyFeeCollector() {
         require(msg.sender == feeCollector, "not fee collector");
         _;

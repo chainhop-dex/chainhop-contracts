@@ -39,10 +39,8 @@ library Types {
     }
 
     struct ExecutionInfo {
-        uint64 chainId;
         ICodec.SwapDescription swap;
         BridgeInfo bridge;
-        address remoteExecutionNode;
         address bridgeOutToken;
         // some bridges utilize a intermediary token (e.g. hToken for Hop and anyToken for Multichain)
         // in cases where there isn't enough underlying token liquidity on the dst chain, the user/pocket
