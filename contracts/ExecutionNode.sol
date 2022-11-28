@@ -251,8 +251,20 @@ contract ExecutionNode is
         emit PocketFundClaimed(_receiver, erc20Amount, _token, nativeAmount);
     }
 
-    function resecueFund(address _token, uint256 _amount) external onlyOwner {
-        _sendToken(_token, _amount, msg.sender, false);
+    /**
+     * @notice allows the owner to extract stuck funds from this contract and sent to _receiver
+     * @dev since bridged funds are sent to the pocket contract, and fees are sent to the fee vault,
+     * normally there should be no residue funds in this contract. but in case someone mistakenly
+     * send tokens directly to this contract, this function can be used to access these funds.
+     * @param _token the token to extract, use address(0) for native token
+     */
+    function resecueFund(address _token) external onlyOwner {
+        if (_token == address(0)) {
+            (bool ok, ) = owner().call{value: address(this).balance}("");
+            require(ok, "send native failed");
+        } else {
+            IERC20(_token).safeTransfer(owner(), IERC20(_token).balanceOf(address(this)));
+        }
     }
 
     /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
