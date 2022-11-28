@@ -92,10 +92,6 @@ contract ExecutionNode is
     /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
      * Core
      * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
-    modifier onlyRemoteExecutionNode(uint64 _chainId, address _remote) {
-        requireRemoteExecutionNode(_chainId, _remote);
-        _;
-    }
 
     /**
      * @notice executes a swap-bridge combo and relays the next swap-bridge combo to the next chain (if any)
@@ -125,7 +121,7 @@ contract ExecutionNode is
             // to be collected will not be tempered with when we run those executions
             // note that quote sig verification is only done on the src chain. the security of each
             // subsequent execution's fee collection is dependant on the security of cbridge's IM
-            if (_execs.length > 0) {
+            if (_execs.length > 1) {
                 _verify(_execs, _src, _dst);
             }
             (amountIn, tokenIn) = _pullFundFromSender(_src);
@@ -191,7 +187,6 @@ contract ExecutionNode is
             remainingValue -= msgFee;
             IMessageBus(messageBus).sendMessage{value: msgFee}(remote, exec.bridge.toChainId, message);
         }
-
         _bridgeSend(exec.bridge, bridgeOutReceiver, nextToken, nextAmount);
         remainingValue -= exec.bridge.nativeFee;
 

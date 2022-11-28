@@ -8,7 +8,7 @@ import { Types } from './../../typechain/ExecutionNode';
 import { Pocket__factory } from './../../typechain/factories/Pocket__factory';
 import { TestERC20 } from './../../typechain/TestERC20';
 import { CURVE_SLIPPAGE, UINT64_MAX, UNISWAP_V2_SLIPPAGE, ZERO_ADDR } from './constants';
-import { ChainhopFixture, IntegrationTestContext } from './fixtures';
+import { ChainhopFixture, IntegrationTestFixture } from './fixtures';
 
 export async function assertBalanceChange(tx: Promise<ContractTransaction>, user: string, balDelta: BigNumberish, token?: TestERC20) {
   let balBefore: BigNumber;
@@ -45,6 +45,8 @@ export function slip(amount: BigNumberish, perc: number): BigNumber {
   return amt.mul(parseUnits(percent.toString(), 4)).div(parseUnits('100', 4));
 }
 
+export const defaultChainId = 31337;
+export const defaultRemoteChainId = 31338;
 export const defaultFee = parseUnits('1');
 export const defaultAmountIn = parseUnits('100');
 export const defaultBridgeOutMin = slip(defaultAmountIn, 50);
@@ -80,6 +82,7 @@ export interface BridgeInfoOverrides {
   toChainId?: number;
   bridgeProvider?: string;
   bridgeParams?: string;
+  nativeFee?: BigNumberish;
 }
 
 export const emptyBridgeInfo: BridgeInfoOverrides = {
@@ -91,22 +94,22 @@ export const emptyBridgeInfo: BridgeInfoOverrides = {
 export const defaultBridgeInfo: Types.BridgeInfoStruct = {
   toChainId: 0,
   bridgeProvider: '',
-  bridgeParams: '0x'
+  bridgeParams: '0x',
+  nativeFee: 0
 };
 
 export function newBridgeInfo(o: BridgeInfoOverrides = emptyBridgeInfo): Types.BridgeInfoStruct {
   return {
     toChainId: o?.toChainId ?? defaultBridgeInfo.toChainId,
     bridgeProvider: o?.bridgeProvider ?? defaultBridgeInfo.bridgeProvider,
-    bridgeParams: o?.bridgeParams ?? defaultBridgeInfo.bridgeParams
+    bridgeParams: o?.bridgeParams ?? defaultBridgeInfo.bridgeParams,
+    nativeFee: o?.nativeFee ?? defaultBridgeInfo.nativeFee
   };
 }
 
 export const emptyExecutionInfo: ExecutionInfoOverrides = {
-  chainId: 0,
   swap: emptySwap,
   bridge: defaultBridgeInfo,
-  remoteExecutionNode: ZERO_ADDR,
   bridgeOutToken: ZERO_ADDR,
   bridgeOutFallbackToken: ZERO_ADDR,
   bridgeOutMin: 0,
@@ -116,10 +119,8 @@ export const emptyExecutionInfo: ExecutionInfoOverrides = {
 };
 
 export interface ExecutionInfoOverrides {
-  chainId?: number;
   swap?: ICodec.SwapDescriptionStruct;
   bridge?: Types.BridgeInfoStruct;
-  remoteExecutionNode?: string;
   bridgeOutToken?: string;
   bridgeOutFallbackToken?: string;
   bridgeOutMin?: BigNumberish;
@@ -129,10 +130,8 @@ export interface ExecutionInfoOverrides {
 }
 
 export const defaultExecutionInfo: Types.ExecutionInfoStruct = {
-  chainId: 0,
   swap: emptySwap,
   bridge: defaultBridgeInfo,
-  remoteExecutionNode: ZERO_ADDR,
   bridgeOutToken: ZERO_ADDR,
   bridgeOutFallbackToken: ZERO_ADDR,
   bridgeOutMin: 0,
@@ -143,10 +142,8 @@ export const defaultExecutionInfo: Types.ExecutionInfoStruct = {
 
 export function newExecutionInfo(o: ExecutionInfoOverrides = emptyExecutionInfo): Types.ExecutionInfoStruct {
   return {
-    chainId: o?.chainId ?? defaultExecutionInfo.chainId,
     swap: o?.swap ?? defaultExecutionInfo.swap,
     bridge: o?.bridge ?? defaultExecutionInfo.bridge,
-    remoteExecutionNode: o?.remoteExecutionNode ?? defaultExecutionInfo.remoteExecutionNode,
     bridgeOutToken: o?.bridgeOutToken ?? defaultExecutionInfo.bridgeOutToken,
     bridgeOutFallbackToken: o?.bridgeOutFallbackToken ?? defaultExecutionInfo.bridgeOutFallbackToken,
     bridgeOutMin: o?.bridgeOutMin ?? defaultExecutionInfo.bridgeOutMin,
@@ -168,7 +165,6 @@ export const defaultSourceInfo = {
 
 export interface SourceInfoOverrides {
   chainId?: number;
-  nonce?: number;
   deadline?: BigNumberish;
   quoteSig?: string;
   amountIn?: BigNumberish;
@@ -179,7 +175,6 @@ export interface SourceInfoOverrides {
 export function newSourceInfo(o: SourceInfoOverrides = defaultSourceInfo) {
   return {
     chainId: o?.chainId ?? defaultSourceInfo.chainId,
-    nonce: o?.nonce ?? defaultSourceInfo.nonce,
     deadline: o?.deadline ?? defaultSourceInfo.deadline,
     quoteSig: o?.quoteSig ?? defaultSourceInfo.quoteSig,
     amountIn: o?.amountIn ?? defaultSourceInfo.amountIn,
@@ -197,6 +192,7 @@ export const defaultDestinationInfo = {
 export interface DestinationInfoOverrides {
   chainId?: number;
   receiver?: string;
+  nonce?: number;
   nativeOut?: boolean;
 }
 
@@ -204,6 +200,7 @@ export function newDestinationInfo(o: DestinationInfoOverrides = defaultDestinat
   return {
     chainId: o?.chainId ?? defaultDestinationInfo.chainId,
     receiver: o?.receiver ?? defaultDestinationInfo.receiver,
+    nonce: o?.nonce ?? defaultSourceInfo.nonce,
     nativeOut: o?.nativeOut ?? defaultDestinationInfo.nativeOut
   };
 }
@@ -213,8 +210,8 @@ export function getPocketAddr(id: string, remoteExecutionNode: string) {
   return ethers.utils.getCreate2Address(remoteExecutionNode, id, codeHash);
 }
 
-export function computeId(sender: string, receiver: string, nonce: number = defaultNonce): string {
-  return keccak256(['address', 'address', 'uint64'], [sender, receiver, nonce]);
+export function computeId(receiver: string, nonce: number = defaultNonce): string {
+  return keccak256(['address', 'uint64'], [receiver, nonce]);
 }
 
 export interface ComputeTranferIdOverride {
@@ -225,7 +222,7 @@ export interface ComputeTranferIdOverride {
   srcChainId?: number;
 }
 
-export function computeTransferId(c: IntegrationTestContext, o?: ComputeTranferIdOverride) {
+export function computeTransferId(c: IntegrationTestFixture, o?: ComputeTranferIdOverride) {
   const sender = c.cbridgeAdapter.address;
   const receiver = o?.receiver ?? c.receiver.address;
   const token = o?.token ?? c.tokenA.address;
@@ -249,9 +246,17 @@ export function encodeSignData(execs: Types.ExecutionInfoStruct[], src: Types.So
   );
   for (let i = 1; i < execs.length; i++) {
     const ex = execs[i];
+    const b = execs[i - 1].bridge;
     const packedExec = solidityPack(
-      ['uint64', 'uint256', 'address', 'uint256', 'address'],
-      [ex.chainId, ex.feeInBridgeOutToken, ex.bridgeOutToken, ex.feeInBridgeOutFallbackToken, ex.bridgeOutFallbackToken]
+      ['uint64', 'uint256', 'address', 'uint256', 'address', 'uint256'],
+      [
+        b.toChainId,
+        ex.feeInBridgeOutToken,
+        ex.bridgeOutToken,
+        ex.feeInBridgeOutFallbackToken,
+        ex.bridgeOutFallbackToken,
+        ex.bridge.nativeFee
+      ]
     );
     data = data.concat(packedExec.replace('0x', ''));
   }

@@ -50,4 +50,6 @@ contract FeeVault is Ownable {
         feeCollector = _feeCollector;
         emit FeeCollectorUpdated(oldFeeCollector, _feeCollector);
     }
+
+    receive() external payable {}
 }

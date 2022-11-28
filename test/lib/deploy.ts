@@ -10,6 +10,7 @@ import {
   CurvePoolCodec__factory,
   ExecutionNode,
   ExecutionNode__factory,
+  FeeVault__factory,
   IntermediaryOriginalToken__factory,
   MessageBus,
   MessageBus__factory,
@@ -36,6 +37,7 @@ import { MinimalUniswapV2 } from '../../typechain/MinimalUniswapV2';
 import { Mock1inch } from '../../typechain/Mock1inch';
 import { MockCurvePool } from '../../typechain/MockCurvePool';
 import { MockUniswapV2 } from '../../typechain/MockUniswapV2';
+import { FeeVault } from './../../typechain/FeeVault';
 import * as consts from './constants';
 
 // Workaround for https://github.com/nomiclabs/hardhat/issues/849
@@ -57,6 +59,7 @@ export interface WrappedBridgeTokens {
 export interface ChainHopContracts {
   enode: ExecutionNode;
   cbridgeAdapter: CBridgeAdapter;
+  feeVault: FeeVault;
 }
 
 export interface CodecContracts {
@@ -147,11 +150,15 @@ export async function deployChainhopContracts(admin: Wallet, weth: string, messa
   const enode = await ExecutionNodeFactory.connect(admin).deploy(true, messageBus, weth);
   await enode.deployed();
 
+  const FeeVaultFactory = (await ethers.getContractFactory('FeeVault')) as FeeVault__factory;
+  const feeVault = await FeeVaultFactory.connect(admin).deploy(consts.ZERO_ADDR);
+  await feeVault.deployed();
+
   const bridgeAdapterFactory = (await ethers.getContractFactory('CBridgeAdapter')) as CBridgeAdapter__factory;
   const cbridgeAdapter = await bridgeAdapterFactory.connect(admin).deploy(weth, messageBus);
   await cbridgeAdapter.deployed();
 
-  return { enode: enode, cbridgeAdapter };
+  return { enode: enode, cbridgeAdapter, feeVault };
 }
 
 export async function deployTokenContracts(admin: Wallet): Promise<TokenContracts> {
