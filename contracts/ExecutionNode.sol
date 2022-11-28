@@ -92,6 +92,10 @@ contract ExecutionNode is
     /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
      * Core
      * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+    modifier onlyRemoteExecutionNode(uint64 _chainId, address _remote) {
+        requireRemoteExecutionNode(_chainId, _remote);
+        _;
+    }
 
     /**
      * @notice executes a swap-bridge combo and relays the next swap-bridge combo to the next chain (if any)
@@ -302,18 +306,18 @@ contract ExecutionNode is
         );
         if (fallbackAmount > 0) {
             _claimPocketERC20(pocket, _exec.bridgeOutFallbackToken, fallbackAmount);
-            amount = _deductFee(fallbackAmount, _exec.feeInBridgeOutFallbackToken);
+            amount = _deductFee(fallbackAmount, _exec.feeInBridgeOutFallbackToken, _exec.bridgeOutFallbackToken);
             token = _exec.bridgeOutFallbackToken;
         } else {
             if (erc20Amount > 0) {
                 _claimPocketERC20(pocket, _exec.bridgeOutToken, erc20Amount);
-                amount = _deductFee(erc20Amount, _exec.feeInBridgeOutToken);
+                amount = _deductFee(erc20Amount, _exec.feeInBridgeOutToken, _exec.bridgeOutToken);
             } else if (nativeAmount > 0) {
                 // no need to check before/after balance here since selfdestruct is guaranteed to
                 // send all native tokens from the pocket to this contract.
                 pocket.claim(address(0), 0);
                 require(_exec.bridgeOutToken == nativeWrap, "bridgeOutToken not nativeWrap");
-                amount = _deductFee(nativeAmount, _exec.feeInBridgeOutToken);
+                amount = _deductFee(nativeAmount, _exec.feeInBridgeOutToken, _exec.bridgeOutToken);
                 IWETH(_exec.bridgeOutToken).deposit{value: amount}();
             }
             token = _exec.bridgeOutToken;
@@ -342,7 +346,11 @@ contract ExecutionNode is
         return address(uint160(uint256(hash)));
     }
 
-    function _deductFee(uint256 _amount, uint256 _fee) private pure returns (uint256 amount) {
+    function _deductFee(
+        uint256 _amount,
+        uint256 _fee,
+        address _token
+    ) private pure returns (uint256 amount) {
         uint256 fee;
         // handle the case where amount received is not enough to pay fee
         if (_amount > _fee) {
@@ -351,7 +359,12 @@ contract ExecutionNode is
         } else {
             fee = _amount;
         }
-        // feeAccount
+        if (_token == nativeWrap) {
+            (bool ok, ) = feeVault.call{value: fee}("");
+            require(ok, "send native failed");
+        } else {
+            IERC20(_token).safeTransfer(feeVault, fee);
+        }
     }
 
     function _bridgeSend(
