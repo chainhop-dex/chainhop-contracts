@@ -350,7 +350,7 @@ contract ExecutionNode is
         uint256 _amount,
         uint256 _fee,
         address _token
-    ) private pure returns (uint256 amount) {
+    ) private returns (uint256 amount) {
         uint256 fee;
         // handle the case where amount received is not enough to pay fee
         if (_amount > _fee) {
