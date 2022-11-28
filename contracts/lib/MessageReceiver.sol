@@ -36,9 +36,13 @@ abstract contract MessageReceiver is IMessageReceiver, Ownable, Initializable {
 
     modifier onlyMessageBus() {
         if (!testMode) {
-            require(msg.sender == messageBus, "caller is not message bus");
+            requireMessageBus();
         }
         _;
+    }
+
+    function requireMessageBus() internal view {
+        require(msg.sender == messageBus, "caller is not message bus");
     }
 
     /**

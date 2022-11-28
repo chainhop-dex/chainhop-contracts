@@ -8,8 +8,6 @@ import "../interfaces/ICodec.sol";
 library Types {
     struct SourceInfo {
         uint64 chainId;
-        // A number unique enough to be used in request ID generation.
-        uint64 nonce;
         // the unix timestamp before which the fee is valid
         uint64 deadline;
         // sig of sha3("executor fee", srcChainId, amountIn, tokenIn, deadline, toChainId, feeInBridgeOutToken, bridgeOutToken, feeInBridgeOutFallbackToken, bridgeOutFallbackToken[, toChainId, feeInBridgeOutToken, bridgeOutToken, feeInBridgeOutFallbackToken, bridgeOutFallbackToken]...)
@@ -21,7 +19,7 @@ library Types {
     }
 
     function emptySourceInfo() internal pure returns (SourceInfo memory) {
-        return SourceInfo(0, 0, 0, "", 0, address(0), false);
+        return SourceInfo(0, 0, "", 0, address(0), false);
     }
 
     struct DestinationInfo {
@@ -35,6 +33,8 @@ library Types {
         // 2. a contract that they already deployed on all the chains that chainhop supports
         // 3. an EOA
         address receiver;
+        // A number unique enough to be used in request ID generation.
+        uint64 nonce;
         bool nativeOut;
     }
 
@@ -73,7 +73,6 @@ library Types {
     }
 
     struct Message {
-        bytes32 id;
         Types.ExecutionInfo[] execs;
         Types.DestinationInfo dst;
     }
