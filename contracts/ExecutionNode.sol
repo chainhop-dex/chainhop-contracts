@@ -166,14 +166,7 @@ contract ExecutionNode is
         }
         uint256 consumedValue = _processNextStep(m.id, m.execs, m.dst, nextToken, nextAmount);
         remainingValue -= consumedValue;
-        // chainhop executor would always send a set amount of native token when calling messagebus's executeMessage().
-        // these tokens cover the fee introduced by chaining another message when there are more bridging.
-        // refunding the unspent native tokens back to the executor
-        if (remainingValue > 0) {
-            (bool ok, ) = tx.origin.call{value: remainingValue}("");
-            require(ok, "failed to refund remaining native token");
-        }
-        return ExecutionStatus.Success;
+        return _refundValueAndDone(remainingValue);
     }
 
     // the receiver of a swap is entitled to all the funds in the pocket. as long as someone can prove
@@ -281,7 +274,7 @@ contract ExecutionNode is
         // these tokens cover the fee introduced by chaining another message when there are more bridging.
         // refunding the unspent native tokens back to the executor
         if (_remainingValue > 0) {
-            (bool ok, ) = tx.origin.call{value: _remainingValue}("");
+            (bool ok, ) = tx.origin.call{value: _remainingValue, gas: 50000}("");
             require(ok, "failed to refund remaining native token");
         }
         return ExecutionStatus.Success;

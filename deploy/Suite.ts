@@ -139,6 +139,8 @@ const deploySuite: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
 
   console.log(`deploying chainhop contract suite on chain ${chainId} using deployer ${deployer}...`);
 
+  const feeVault = await deployments.get('FeeVault');
+
   console.log(`deploying dex codecs...`);
   const { dexList, funcs, codecs } = await deployCodecs(hre);
 
@@ -151,7 +153,7 @@ const deploySuite: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
     config.messageBus as string,
     config.nativeWrap,
     configs.feeSigner as string,
-    configs.feeCollector as string,
+    feeVault.address,
     dexList,
     funcs,
     codecs,
@@ -190,5 +192,5 @@ const deploySuite: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
 };
 
 deploySuite.tags = ['Suite'];
-deploySuite.dependencies = [];
+deploySuite.dependencies = ['FeeVault'];
 export default deploySuite;

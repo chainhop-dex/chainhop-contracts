@@ -10,7 +10,8 @@
     "report-gas:benchmark": "REPORT_GAS=true BENCHMARK=execute hardhat test benchmark/execute.ts",
     "size-contracts": "hardhat size-contracts | sed -r 's/[[:cntrl:]]\\[[0-9]{1,3}m//g' > reports/contract_sizes.txt",
     "test": "hardhat test",
-    "deploy:suite": "hardhat deploy --tags Suite --network"
+    "deploy:suite": "hardhat deploy --tags Suite --network",
+    "solt": "solt write contracts/ExecutionNode.sol --npm --runs 800"
   },
   "license": "GPL-3.0",
   "devDependencies": {
