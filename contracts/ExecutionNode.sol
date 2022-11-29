@@ -104,7 +104,7 @@ contract ExecutionNode is
         Types.ExecutionInfo[] memory _execs,
         Types.SourceInfo memory _src,
         Types.DestinationInfo memory _dst
-    ) external {
+    ) external payable {
         require(_execs.length > 0, "nop");
         bytes32 id = _computeId(msg.sender, _dst.receiver, _dst.nonce);
         Types.ExecutionInfo memory exec = _execs[0];
@@ -125,7 +125,7 @@ contract ExecutionNode is
     }
 
     /**
-     * @notice called by cBridge MessageBus and then simply calls execute() to carry on the executions
+     * @notice called by cBridge MessageBus. processes the execution info and carry on the executions
      * @param _message the message that contains the remaining swap-bridge combos to be executed
      * @return executionStatus always success if no reverts to let the MessageBus know that the message is processed
      */
@@ -254,7 +254,7 @@ contract ExecutionNode is
         Types.ExecutionInfo memory exec = _execs[0];
         _execs = _removeFirst(_execs);
         // pay receiver if there is no more swaps or bridges
-        if (_dst.chainId == _chainId()) {
+        if (_dst.chainId == uint64(block.chainid)) {
             _sendToken(_nextToken, _nextAmount, _dst.receiver, _dst.nativeOut);
             emit StepExecuted(_id, _nextAmount, _nextToken);
             return 0;
@@ -498,9 +498,5 @@ contract ExecutionNode is
         }
         bytes32 signHash = keccak256(data).toEthSignedMessageHash();
         verifySig(signHash, _src.quoteSig);
-    }
-
-    function _chainId() private view returns (uint64) {
-        return uint64(block.chainid);
     }
 }
