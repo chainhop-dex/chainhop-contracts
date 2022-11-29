@@ -71,6 +71,7 @@ library Types {
     }
 
     struct Message {
+        bytes32 id;
         Types.ExecutionInfo[] execs;
         Types.DestinationInfo dst;
     }

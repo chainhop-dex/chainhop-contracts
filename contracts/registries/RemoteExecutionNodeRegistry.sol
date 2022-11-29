@@ -32,6 +32,11 @@ abstract contract RemoteExecutionNodeRegistry is Ownable, Initializable {
         emit RemotesUpdated(_chainIds, _remotes);
     }
 
+    modifier onlyRemoteExecutionNode(uint64 _chainId, address _remote) {
+        requireRemoteExecutionNode(_chainId, _remote);
+        _;
+    }
+
     function requireRemoteExecutionNode(uint64 _chainId, address _remote) internal view {
         require(remotes[_chainId] == _remote, "unknown remote");
     }

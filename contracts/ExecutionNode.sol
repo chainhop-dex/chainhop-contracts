@@ -100,97 +100,28 @@ contract ExecutionNode is
      * @param _src info that is processed on the source chain. only required on the source chain and should not be populated on subsequent hops
      * @param _dst the receiving info of the entire operation
      */
-    function execute(
-        uint64 _remoteCallerChainId,
-        address _remoteCaller,
+    function srcExecute(
         Types.ExecutionInfo[] memory _execs,
         Types.SourceInfo memory _src,
         Types.DestinationInfo memory _dst
-    ) public payable nonReentrant whenNotPaused returns (uint256 remainingValue) {
+    ) external {
         require(_execs.length > 0, "nop");
-        bytes32 id = _computeId(_dst.receiver, _dst.nonce);
-        remainingValue = msg.value;
-
+        bytes32 id = _computeId(msg.sender, _dst.receiver, _dst.nonce);
         Types.ExecutionInfo memory exec = _execs[0];
-
-        // pull funds
-        uint256 amountIn;
-        address tokenIn;
-        if (_src.chainId == _chainId()) {
-            // if there are more executions on other chains, verify sig so that we are sure the fees
-            // to be collected will not be tempered with when we run those executions
-            // note that quote sig verification is only done on the src chain. the security of each
-            // subsequent execution's fee collection is dependant on the security of cbridge's IM
-            if (_execs.length > 1) {
-                _verify(_execs, _src, _dst);
-            }
-            (amountIn, tokenIn) = _pullFundFromSender(_src);
-            if (_src.nativeIn) {
-                remainingValue -= amountIn;
-            }
-        } else {
-            // execution is not on the src chain. the following two checks ensures that no remote
-            // contracts that are not an ExecutionNode can call this contract
-            requireMessageBus();
-            requireRemoteExecutionNode(_remoteCallerChainId, _remoteCaller);
-            (amountIn, tokenIn) = _pullFundFromPocket(id, exec);
-            // if amountIn is 0 after deducting fee, this contract keeps all amountIn as fee and
-            // ends the execution
-            if (amountIn == 0) {
-                emit StepExecuted(id, 0, tokenIn);
-                return remainingValue;
-            }
-            // refund immediately if receives bridge out fallback token
-            if (tokenIn == exec.bridgeOutFallbackToken) {
-                _sendToken(tokenIn, amountIn, _dst.receiver, false);
-                emit StepExecuted(id, amountIn, tokenIn);
-                return remainingValue;
-            }
+        if (_execs.length > 1) {
+            _verify(_execs, _src, _dst);
         }
-
-        _execs = _removeFirst(_execs);
-
+        (uint256 amountIn, address tokenIn) = _pullFundFromSender(_src);
+        require(amountIn > 0, "amount must > 0");
         // process swap if any
         uint256 nextAmount = amountIn;
         address nextToken = tokenIn;
         if (exec.swap.dex != address(0)) {
             bool success = true;
             (success, nextAmount, nextToken) = _executeSwap(exec.swap, amountIn, tokenIn);
-            if (_src.chainId == _chainId()) require(success, "swap fail");
-            // refund immediately if swap fails
-            if (!success) {
-                _sendToken(tokenIn, amountIn, _dst.receiver, false);
-                emit StepExecuted(id, amountIn, tokenIn);
-                return remainingValue;
-            }
+            require(success, "swap fail");
         }
-
-        // pay receiver if there is no more swaps or bridges
-        if (_dst.chainId == _chainId()) {
-            _sendToken(nextToken, nextAmount, _dst.receiver, _dst.nativeOut);
-            emit StepExecuted(id, nextAmount, nextToken);
-            return remainingValue;
-        }
-
-        // funds are bridged directly to the receiver if there are no subsequent executions on the destination chain.
-        // otherwise, it's sent to a "pocket" contract addr to temporarily hold the fund before it is used for swapping.
-        address bridgeOutReceiver = _dst.receiver;
-
-        // if there are more execution steps left, pack them and send to the next chain
-        if (_execs.length > 0) {
-            address remote = remotes[exec.bridge.toChainId];
-            require(remote != address(0), "remote not found");
-            bridgeOutReceiver = _getPocketAddr(id, remote);
-
-            bytes memory message = abi.encode(Types.Message({execs: _execs, dst: _dst}));
-            uint256 msgFee = IMessageBus(messageBus).calcFee(message);
-            remainingValue -= msgFee;
-            IMessageBus(messageBus).sendMessage{value: msgFee}(remote, exec.bridge.toChainId, message);
-        }
-        _bridgeSend(exec.bridge, bridgeOutReceiver, nextToken, nextAmount);
-        remainingValue -= exec.bridge.nativeFee;
-
-        emit StepExecuted(id, nextAmount, nextToken);
+        _processNextStep(id, _execs, _dst, nextToken, nextAmount);
     }
 
     /**
@@ -203,9 +134,40 @@ contract ExecutionNode is
         uint64 _srcChainId,
         bytes memory _message,
         address // _executor
-    ) external payable override onlyMessageBus returns (ExecutionStatus) {
-        Types.Message memory message = abi.decode((_message), (Types.Message));
-        uint256 remainingValue = execute(_srcChainId, _sender, message.execs, Types.emptySourceInfo(), message.dst);
+    ) external payable override onlyMessageBus onlyRemoteExecutionNode(_srcChainId, _sender) returns (ExecutionStatus) {
+        Types.Message memory m = abi.decode((_message), (Types.Message));
+        require(m.execs.length > 0, "nop");
+        uint256 remainingValue = msg.value;
+        Types.ExecutionInfo memory exec = m.execs[0];
+        (uint256 amountIn, address tokenIn) = _pullFundFromPocket(m.id, exec);
+        // if amountIn is 0 after deducting fee, this contract keeps all amountIn as fee and
+        // ends the execution
+        if (amountIn == 0) {
+            emit StepExecuted(m.id, 0, tokenIn);
+            return _refundValueAndDone(remainingValue);
+        }
+        // refund immediately if receives bridge out fallback token
+        if (tokenIn == exec.bridgeOutFallbackToken) {
+            _sendToken(tokenIn, amountIn, m.dst.receiver, false);
+            emit StepExecuted(m.id, amountIn, tokenIn);
+            return _refundValueAndDone(remainingValue);
+        }
+        Types.ExecutionInfo[] memory execs = _removeFirst(m.execs);
+        // process swap if any
+        uint256 nextAmount = amountIn;
+        address nextToken = tokenIn;
+        if (exec.swap.dex != address(0)) {
+            bool success = true;
+            (success, nextAmount, nextToken) = _executeSwap(exec.swap, amountIn, tokenIn);
+            // refund immediately if swap fails
+            if (!success) {
+                _sendToken(tokenIn, amountIn, m.dst.receiver, false);
+                emit StepExecuted(m.id, amountIn, tokenIn);
+                return _refundValueAndDone(remainingValue);
+            }
+        }
+        uint256 consumedValue = _processNextStep(m.id, execs, m.dst, nextToken, nextAmount);
+        remainingValue -= consumedValue;
         // chainhop executor would always send a set amount of native token when calling messagebus's executeMessage().
         // these tokens cover the fee introduced by chaining another message when there are more bridging.
         // refunding the unspent native tokens back to the executor
@@ -220,30 +182,28 @@ contract ExecutionNode is
     // that they are the receiver of a swap, they can always recreate the pocket contract and claim the
     // funds inside.
     function claimPocketFund(
-        address _receiver,
+        address _srcSender,
+        address _dstReceiver,
         uint64 _nonce,
         address _token
     ) external {
-        require(msg.sender == _receiver, "only receiver can claim");
+        require(msg.sender == _dstReceiver, "only receiver can claim");
         // id ensures that only the designated receiver of a swap can claim funds from the designated pocket of a swap
-        bytes32 id = _computeId(_receiver, _nonce);
-
+        bytes32 id = _computeId(_srcSender, _dstReceiver, _nonce);
         Pocket pocket = new Pocket{salt: id}();
         uint256 erc20Amount = IERC20(_token).balanceOf(address(pocket));
         uint256 nativeAmount = address(pocket).balance;
         require(erc20Amount > 0 || nativeAmount > 0, "pocket is empty");
-
         // this claims both _token and native
         _claimPocketERC20(pocket, _token, erc20Amount);
-
         if (erc20Amount > 0) {
-            IERC20(_token).safeTransfer(_receiver, erc20Amount);
+            IERC20(_token).safeTransfer(_dstReceiver, erc20Amount);
         }
         if (nativeAmount > 0) {
-            (bool ok, ) = _receiver.call{value: nativeAmount, gas: 50000}("");
+            (bool ok, ) = _dstReceiver.call{value: nativeAmount, gas: 50000}("");
             require(ok, "failed to send native");
         }
-        emit PocketFundClaimed(_receiver, erc20Amount, _token, nativeAmount);
+        emit PocketFundClaimed(_dstReceiver, erc20Amount, _token, nativeAmount);
     }
 
     /**
@@ -265,9 +225,68 @@ contract ExecutionNode is
     /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
      * Misc
      * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
-    function _computeId(address _dstReceiver, uint64 _nonce) private pure returns (bytes32) {
+
+    // encoding src sender into the id prevents the scenario where different senders can send funds to the the same receiver
+    // causing the swap behavior to be non-deterministic. e.g. if src sender is not in id generation, an attacker can send
+    // send a modified swap data as soon as they see the victim executes on the src chain. since the processing of messages
+    // is asynchronous, the hacker's message can be executed first, accessing the fund inside the victim's pocket and
+    // swapping it in some unfavorable ways.
+    //
+    // note that if the original tx sender is a contract, the integrator MUST ensure that they maintain a unique nonce so
+    // that the same sender/receiver/nonce combo cannot be used twice. otherwise, the above attack is possible via the
+    // integrator's contract. TODO: maybe add the nonce maintenance in this contract.
+    function _computeId(
+        address _srcSender,
+        address _dstReceiver,
+        uint64 _nonce
+    ) private pure returns (bytes32) {
         // the main purpose of this id is to uniquely identify a user-swap.
-        return keccak256(abi.encodePacked(_dstReceiver, _nonce));
+        return keccak256(abi.encodePacked(_srcSender, _dstReceiver, _nonce));
+    }
+
+    function _processNextStep(
+        bytes32 _id,
+        Types.ExecutionInfo[] memory _execs,
+        Types.DestinationInfo memory _dst,
+        address _nextToken,
+        uint256 _nextAmount
+    ) private returns (uint256 consumedValue) {
+        Types.ExecutionInfo memory exec = _execs[0];
+        _execs = _removeFirst(_execs);
+        // pay receiver if there is no more swaps or bridges
+        if (_dst.chainId == _chainId()) {
+            _sendToken(_nextToken, _nextAmount, _dst.receiver, _dst.nativeOut);
+            emit StepExecuted(_id, _nextAmount, _nextToken);
+            return 0;
+        }
+        // funds are bridged directly to the receiver if there are no subsequent executions on the destination chain.
+        // otherwise, it's sent to a "pocket" contract addr to temporarily hold the fund before it is used for swapping.
+        address bridgeOutReceiver = _dst.receiver;
+        // if there are more execution steps left, pack them and send to the next chain
+        if (_execs.length > 0) {
+            address remote = remotes[exec.bridge.toChainId];
+            require(remote != address(0), "remote not found");
+            bridgeOutReceiver = _getPocketAddr(_id, remote);
+
+            bytes memory message = abi.encode(Types.Message({id: _id, execs: _execs, dst: _dst}));
+            uint256 msgFee = IMessageBus(messageBus).calcFee(message);
+            IMessageBus(messageBus).sendMessage{value: msgFee}(remote, exec.bridge.toChainId, message);
+            consumedValue += msgFee;
+        }
+        _bridgeSend(exec.bridge, bridgeOutReceiver, _nextToken, _nextAmount);
+        consumedValue += exec.bridge.nativeFee;
+        emit StepExecuted(_id, _nextAmount, _nextToken);
+    }
+
+    function _refundValueAndDone(uint256 _remainingValue) private returns (ExecutionStatus status) {
+        // chainhop executor would always send a set amount of native token when calling messagebus's executeMessage().
+        // these tokens cover the fee introduced by chaining another message when there are more bridging.
+        // refunding the unspent native tokens back to the executor
+        if (_remainingValue > 0) {
+            (bool ok, ) = tx.origin.call{value: _remainingValue}("");
+            require(ok, "failed to refund remaining native token");
+        }
+        return ExecutionStatus.Success;
     }
 
     function _pullFundFromSender(Types.SourceInfo memory _src) private returns (uint256 amount, address token) {
