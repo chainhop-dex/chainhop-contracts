@@ -152,7 +152,6 @@ contract ExecutionNode is
             emit StepExecuted(m.id, amountIn, tokenIn);
             return _refundValueAndDone(remainingValue);
         }
-        Types.ExecutionInfo[] memory execs = _removeFirst(m.execs);
         // process swap if any
         uint256 nextAmount = amountIn;
         address nextToken = tokenIn;
@@ -166,7 +165,7 @@ contract ExecutionNode is
                 return _refundValueAndDone(remainingValue);
             }
         }
-        uint256 consumedValue = _processNextStep(m.id, execs, m.dst, nextToken, nextAmount);
+        uint256 consumedValue = _processNextStep(m.id, m.execs, m.dst, nextToken, nextAmount);
         remainingValue -= consumedValue;
         // chainhop executor would always send a set amount of native token when calling messagebus's executeMessage().
         // these tokens cover the fee introduced by chaining another message when there are more bridging.
@@ -251,14 +250,14 @@ contract ExecutionNode is
         address _nextToken,
         uint256 _nextAmount
     ) private returns (uint256 consumedValue) {
-        Types.ExecutionInfo memory exec = _execs[0];
-        _execs = _removeFirst(_execs);
         // pay receiver if there is no more swaps or bridges
         if (_dst.chainId == uint64(block.chainid)) {
             _sendToken(_nextToken, _nextAmount, _dst.receiver, _dst.nativeOut);
             emit StepExecuted(_id, _nextAmount, _nextToken);
             return 0;
         }
+        Types.ExecutionInfo memory exec = _execs[0];
+        _execs = _removeFirst(_execs);
         // funds are bridged directly to the receiver if there are no subsequent executions on the destination chain.
         // otherwise, it's sent to a "pocket" contract addr to temporarily hold the fund before it is used for swapping.
         address bridgeOutReceiver = _dst.receiver;

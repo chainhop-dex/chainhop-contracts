@@ -165,6 +165,7 @@ export const defaultSourceInfo = {
 
 export interface SourceInfoOverrides {
   chainId?: number;
+  nonce?: number;
   deadline?: BigNumberish;
   quoteSig?: string;
   amountIn?: BigNumberish;
@@ -175,6 +176,7 @@ export interface SourceInfoOverrides {
 export function newSourceInfo(o: SourceInfoOverrides = defaultSourceInfo) {
   return {
     chainId: o?.chainId ?? defaultSourceInfo.chainId,
+    nonce: o?.nonce ?? defaultSourceInfo.nonce,
     deadline: o?.deadline ?? defaultSourceInfo.deadline,
     quoteSig: o?.quoteSig ?? defaultSourceInfo.quoteSig,
     amountIn: o?.amountIn ?? defaultSourceInfo.amountIn,
@@ -192,7 +194,6 @@ export const defaultDestinationInfo = {
 export interface DestinationInfoOverrides {
   chainId?: number;
   receiver?: string;
-  nonce?: number;
   nativeOut?: boolean;
 }
 
@@ -200,7 +201,6 @@ export function newDestinationInfo(o: DestinationInfoOverrides = defaultDestinat
   return {
     chainId: o?.chainId ?? defaultDestinationInfo.chainId,
     receiver: o?.receiver ?? defaultDestinationInfo.receiver,
-    nonce: o?.nonce ?? defaultSourceInfo.nonce,
     nativeOut: o?.nativeOut ?? defaultDestinationInfo.nativeOut
   };
 }
@@ -210,8 +210,8 @@ export function getPocketAddr(id: string, remoteExecutionNode: string) {
   return ethers.utils.getCreate2Address(remoteExecutionNode, id, codeHash);
 }
 
-export function computeId(receiver: string, nonce: number = defaultNonce): string {
-  return keccak256(['address', 'uint64'], [receiver, nonce]);
+export function computeId(sender: string, receiver: string, nonce: number = defaultNonce): string {
+  return keccak256(['address', 'address', 'uint64'], [sender, receiver, nonce]);
 }
 
 export interface ComputeTranferIdOverride {
@@ -262,6 +262,30 @@ export function encodeSignData(execs: Types.ExecutionInfoStruct[], src: Types.So
   }
   const hash = solidityKeccak256(['bytes'], [data]);
   return hex2Bytes(hash);
+}
+
+export function encodeMessage(id: string, execs: Types.ExecutionInfoStruct[], dst: Types.DestinationInfoStruct) {
+  return ethers.utils.defaultAbiCoder.encode(
+    [
+      `
+      (
+        bytes32 id, 
+        (
+          (address dex, bytes data) swap, 
+          (uint64 toChainId, string bridgeProvider, bytes bridgeParams, uint256 nativeFee) bridge, 
+          address bridgeOutToken, 
+          address bridgeOutFallbackToken, 
+          uint256 bridgeOutMin, 
+          uint256 bridgeOutFallbackMin, 
+          uint256 feeInBridgeOutToken, 
+          uint256 feeInBridgeOutFallbackToken
+        )[], 
+        (uint64 chainId, address receiver, bool nativeOut) dst
+      )
+      `
+    ],
+    [[id, execs, dst]]
+  );
 }
 
 interface MockV2Address {
