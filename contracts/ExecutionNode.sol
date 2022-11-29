@@ -61,7 +61,9 @@ contract ExecutionNode is
         bool _testMode,
         address _messageBus,
         address _nativeWrap
-    ) MessageReceiver(_testMode, _messageBus) NativeWrap(_nativeWrap) {}
+    ) MessageReceiver(_testMode, _messageBus) NativeWrap(_nativeWrap) {
+        _disableInitializers();
+    }
 
     // init() can only be called once during the first deployment of the proxy contract.
     // any subsequent changes to the proxy contract's state must be done through their respective set methods via owner key.
@@ -75,9 +77,7 @@ contract ExecutionNode is
         string[] memory _funcs,
         address[] memory _codecs,
         string[] memory _bridgeProviders,
-        address[] memory _bridgeAdapters,
-        uint64[] memory _remoteChainIds,
-        address[] memory _remotes
+        address[] memory _bridgeAdapters
     ) external initializer {
         initOwner();
         initMessageReceiver(_testMode, _messageBus);
@@ -86,7 +86,6 @@ contract ExecutionNode is
         initFeeVaultRegistry(_feeVault);
         initSigVerifier(_signer);
         initNativeWrap(_nativeWrap);
-        initRemotes(_remoteChainIds, _remotes);
     }
 
     /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *

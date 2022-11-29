@@ -16,10 +16,6 @@ abstract contract RemoteExecutionNodeRegistry is Ownable, Initializable {
 
     event RemotesUpdated(uint64[] chainIds, address[] remotes);
 
-    function initRemotes(uint64[] memory _chainIds, address[] memory _remotes) internal onlyInitializing {
-        _setRemotes(_chainIds, _remotes);
-    }
-
     function setRemotes(uint64[] memory _chainIds, address[] memory _remotes) external onlyOwner {
         _setRemotes(_chainIds, _remotes);
     }
