@@ -106,7 +106,7 @@ contract ExecutionNode is
         Types.DestinationInfo memory _dst
     ) external payable {
         require(_execs.length > 0, "nop");
-        bytes32 id = _computeId(msg.sender, _dst.receiver, _dst.nonce);
+        bytes32 id = _computeId(msg.sender, _dst.receiver, _src.nonce);
         Types.ExecutionInfo memory exec = _execs[0];
         if (_execs.length > 1) {
             _verify(_execs, _src, _dst);
