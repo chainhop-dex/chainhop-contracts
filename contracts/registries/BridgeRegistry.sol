@@ -16,8 +16,6 @@ import "../lib/Ownable.sol";
 abstract contract BridgeRegistry is Ownable, Initializable {
     event SupportedBridgesUpdated(string[] providers, address[] adapters);
 
-    bytes32 public constant CBRIDGE_PROVIDER_HASH = keccak256(bytes("cbridge"));
-
     mapping(bytes32 => IBridgeAdapter) public bridges;
 
     function initBridgeRegistry(string[] memory _providers, address[] memory _adapters) internal onlyInitializing {
