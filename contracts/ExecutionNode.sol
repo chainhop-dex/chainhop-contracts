@@ -103,7 +103,7 @@ contract ExecutionNode is
         Types.ExecutionInfo[] memory _execs,
         Types.SourceInfo memory _src,
         Types.DestinationInfo memory _dst
-    ) external payable {
+    ) external payable whenNotPaused nonReentrant {
         require(_execs.length > 0, "nop");
         bytes32 id = _computeId(msg.sender, _dst.receiver, _src.nonce);
         Types.ExecutionInfo memory exec = _execs[0];
@@ -133,7 +133,16 @@ contract ExecutionNode is
         uint64 _srcChainId,
         bytes memory _message,
         address // _executor
-    ) external payable override onlyMessageBus onlyRemoteExecutionNode(_srcChainId, _sender) returns (ExecutionStatus) {
+    )
+        external
+        payable
+        override
+        onlyMessageBus
+        onlyRemoteExecutionNode(_srcChainId, _sender)
+        whenNotPaused
+        nonReentrant
+        returns (ExecutionStatus)
+    {
         Types.Message memory m = abi.decode((_message), (Types.Message));
         require(m.execs.length > 0, "nop");
         uint256 remainingValue = msg.value;
@@ -177,7 +186,7 @@ contract ExecutionNode is
         address _dstReceiver,
         uint64 _nonce,
         address _token
-    ) external {
+    ) external whenNotPaused nonReentrant {
         require(msg.sender == _dstReceiver, "only receiver can claim");
         // id ensures that only the designated receiver of a swap can claim funds from the designated pocket of a swap
         bytes32 id = _computeId(_srcSender, _dstReceiver, _nonce);
