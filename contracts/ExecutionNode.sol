@@ -324,29 +324,24 @@ contract ExecutionNode is
         // bridgeOutMin is determined by the server before sending out the transfer.
         // bridgeOutMin = R * bridgeAmountIn where R is an arbitrary ratio that we feel effective in
         // raising the attacker's attack cost.
-        require(
-            erc20Amount > _exec.bridgeOutMin ||
-                nativeAmount > _exec.bridgeOutMin ||
-                fallbackAmount > _exec.bridgeOutFallbackMin,
-            "MSG::ABORT:pocket is empty"
-        );
-        if (fallbackAmount > 0) {
+        if (fallbackAmount > _exec.bridgeOutFallbackMin) {
             _claimPocketERC20(pocket, _exec.bridgeOutFallbackToken, fallbackAmount);
             amount = _deductFee(fallbackAmount, _exec.feeInBridgeOutFallbackToken, _exec.bridgeOutFallbackToken);
             token = _exec.bridgeOutFallbackToken;
-        } else {
-            if (erc20Amount > 0) {
-                _claimPocketERC20(pocket, _exec.bridgeOutToken, erc20Amount);
-                amount = _deductFee(erc20Amount, _exec.feeInBridgeOutToken, _exec.bridgeOutToken);
-            } else if (nativeAmount > 0) {
-                // no need to check before/after balance here since selfdestruct is guaranteed to
-                // send all native tokens from the pocket to this contract.
-                pocket.claim(address(0), 0);
-                require(_exec.bridgeOutToken == nativeWrap, "bridgeOutToken not nativeWrap");
-                amount = _deductFee(nativeAmount, _exec.feeInBridgeOutToken, _exec.bridgeOutToken);
-                IWETH(_exec.bridgeOutToken).deposit{value: amount}();
-            }
+        } else if (erc20Amount > _exec.bridgeOutMin) {
+            _claimPocketERC20(pocket, _exec.bridgeOutToken, erc20Amount);
+            amount = _deductFee(erc20Amount, _exec.feeInBridgeOutToken, _exec.bridgeOutToken);
             token = _exec.bridgeOutToken;
+        } else if (nativeAmount > _exec.bridgeOutMin) {
+            // no need to check before/after balance here since selfdestruct is guaranteed to
+            // send all native tokens from the pocket to this contract.
+            pocket.claim(address(0), 0);
+            require(_exec.bridgeOutToken == nativeWrap, "bridgeOutToken not nativeWrap");
+            amount = _deductFee(nativeAmount, _exec.feeInBridgeOutToken, _exec.bridgeOutToken);
+            IWETH(_exec.bridgeOutToken).deposit{value: amount}();
+            token = _exec.bridgeOutToken;
+        } else {
+            revert("MSG::ABORT:pocket is empty");
         }
     }
 
