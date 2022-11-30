@@ -30,8 +30,8 @@ describe('execute() on src chain', () => {
       utils.newExecutionInfo({ swap: dstSwap, bridgeOutToken: c.tokenB.address })
     ];
     const src = utils.newSourceInfo({ chainId: c.chainId, tokenIn: c.tokenA.address });
-    const dst = utils.newDestinationInfo({ chainId: utils.defaultRemoteChainId, receiver: c.receiver.address });
-    const data = utils.encodeSignData(execs, src, dst);
+    const dst = utils.newDestinationInfo({ receiver: c.receiver.address });
+    const data = utils.encodeSignData(execs, src);
     const sig = await c.signer.signMessage(data);
     src.quoteSig = sig;
     await c.tokenA.connect(c.sender).approve(c.enode.address, amountIn);
@@ -53,8 +53,8 @@ describe('execute() on src chain', () => {
       utils.newExecutionInfo({ swap: dstSwap, bridgeOutToken: c.tokenB.address })
     ];
     const src = utils.newSourceInfo({ chainId: c.chainId, tokenIn: c.tokenA.address });
-    const dst = utils.newDestinationInfo({ chainId: utils.defaultRemoteChainId, receiver: c.receiver.address });
-    const data = utils.encodeSignData(execs, src, dst);
+    const dst = utils.newDestinationInfo({ receiver: c.receiver.address });
+    const data = utils.encodeSignData(execs, src);
     const sig = await c.signer.signMessage(data);
     src.quoteSig = sig;
     execs[0].bridge.toChainId = BigNumber.from(execs[0].bridge.toChainId).add(100); // chainId will not match what's encoded in sig
@@ -77,8 +77,8 @@ describe('execute() on src chain', () => {
       tokenIn: c.tokenA.address,
       deadline: BigNumber.from(Math.floor(Date.now() / 1000 - 300))
     });
-    const dst = utils.newDestinationInfo({ chainId: utils.defaultRemoteChainId, receiver: c.receiver.address });
-    const data = utils.encodeSignData(execs, src, dst);
+    const dst = utils.newDestinationInfo({ receiver: c.receiver.address });
+    const data = utils.encodeSignData(execs, src);
     const sig = await c.signer.signMessage(data);
     src.quoteSig = sig;
     await c.tokenA.connect(c.sender).approve(c.enode.address, amountIn);
@@ -96,8 +96,8 @@ describe('execute() on src chain', () => {
       })
     ];
     const src = utils.newSourceInfo({ chainId: c.chainId, tokenIn: c.weth.address, nativeIn: true });
-    const dst = utils.newDestinationInfo({ chainId: c.chainId, receiver: c.receiver.address });
-    const data = utils.encodeSignData(execs, src, dst);
+    const dst = utils.newDestinationInfo({ receiver: c.receiver.address });
+    const data = utils.encodeSignData(execs, src);
     const sig = await c.signer.signMessage(data);
     src.quoteSig = sig;
     await c.tokenA.connect(c.sender).approve(c.enode.address, amountIn);
@@ -115,8 +115,8 @@ describe('execute() on src chain', () => {
       })
     ];
     const src = utils.newSourceInfo({ chainId: c.chainId, tokenIn: c.tokenA.address });
-    const dst = utils.newDestinationInfo({ chainId: c.chainId, receiver: c.receiver.address });
-    const data = utils.encodeSignData(execs, src, dst);
+    const dst = utils.newDestinationInfo({ receiver: c.receiver.address });
+    const data = utils.encodeSignData(execs, src);
     const sig = await c.signer.signMessage(data);
     src.quoteSig = sig;
     await c.tokenA.connect(c.sender).approve(c.enode.address, amountIn);
@@ -140,8 +140,8 @@ describe('execute() on src chain', () => {
       utils.newExecutionInfo({ swap: dstSwap, bridgeOutToken: c.tokenB.address })
     ];
     const src = utils.newSourceInfo({ chainId: c.chainId, tokenIn: c.tokenA.address });
-    const dst = utils.newDestinationInfo({ chainId: utils.defaultRemoteChainId, receiver: c.receiver.address });
-    const data = utils.encodeSignData(execs, src, dst);
+    const dst = utils.newDestinationInfo({ receiver: c.receiver.address });
+    const data = utils.encodeSignData(execs, src);
     const sig = await c.signer.signMessage(data);
     src.quoteSig = sig;
     await c.tokenA.connect(c.sender).approve(c.enode.address, amountIn);
@@ -183,8 +183,8 @@ describe('execute() on src chain', () => {
       })
     ];
     const src = utils.newSourceInfo({ chainId: c.chainId, tokenIn: c.tokenA.address });
-    const dst = utils.newDestinationInfo({ chainId: utils.defaultRemoteChainId, receiver: c.receiver.address });
-    const data = utils.encodeSignData(execs, src, dst);
+    const dst = utils.newDestinationInfo({ receiver: c.receiver.address });
+    const data = utils.encodeSignData(execs, src);
     const sig = await c.signer.signMessage(data);
     src.quoteSig = sig;
     await c.tokenA.connect(c.sender).approve(c.enode.address, amountIn);
@@ -226,8 +226,8 @@ describe('execute() on src chain', () => {
       })
     ];
     const src = utils.newSourceInfo({ chainId: c.chainId, tokenIn: c.weth.address, amountIn, nativeIn: true });
-    const dst = utils.newDestinationInfo({ chainId: utils.defaultRemoteChainId, receiver: c.receiver.address });
-    const data = utils.encodeSignData(execs, src, dst);
+    const dst = utils.newDestinationInfo({ receiver: c.receiver.address });
+    const data = utils.encodeSignData(execs, src);
     const sig = await c.signer.signMessage(data);
     src.quoteSig = sig;
     await c.tokenA.connect(c.sender).approve(c.enode.address, amountIn);
@@ -274,9 +274,9 @@ describe('execute() on src chain', () => {
       })
     ];
     const src = utils.newSourceInfo({ chainId: c.chainId, tokenIn: c.tokenA.address });
-    const dst = utils.newDestinationInfo({ chainId: utils.defaultRemoteChainId, receiver: c.receiver.address });
+    const dst = utils.newDestinationInfo({ receiver: c.receiver.address });
     const pocket = utils.getPocketAddr(id, c.remote);
-    const data = utils.encodeSignData(execs, src, dst);
+    const data = utils.encodeSignData(execs, src);
     const sig = await c.signer.signMessage(data);
     src.quoteSig = sig;
     await c.tokenA.connect(c.sender).approve(c.enode.address, amountIn);
@@ -317,8 +317,8 @@ describe('execute() on src chain', () => {
       })
     ];
     const src = utils.newSourceInfo({ chainId: c.chainId, tokenIn: c.tokenA.address });
-    const dst = utils.newDestinationInfo({ chainId: utils.defaultRemoteChainId, receiver: c.receiver.address });
-    const data = utils.encodeSignData(execs, src, dst);
+    const dst = utils.newDestinationInfo({ receiver: c.receiver.address });
+    const data = utils.encodeSignData(execs, src);
     const sig = await c.signer.signMessage(data);
     src.quoteSig = sig;
     await c.tokenA.connect(c.sender).approve(c.enode.address, amountIn);
@@ -340,7 +340,7 @@ describe('execute() on src chain', () => {
       })
     ];
     const src = utils.newSourceInfo({ chainId: c.chainId, tokenIn: c.tokenA.address });
-    const dst = utils.newDestinationInfo({ chainId: utils.defaultRemoteChainId, receiver: c.receiver.address });
+    const dst = utils.newDestinationInfo({ receiver: c.receiver.address });
     await c.tokenA.connect(c.sender).approve(c.enode.address, amountIn);
 
     const tx = c.enode.connect(c.sender).srcExecute(execs, src, dst, { value: 3000 });
@@ -374,7 +374,7 @@ describe('execute() on src chain', () => {
       })
     ];
     const src = utils.newSourceInfo({ chainId: c.chainId, tokenIn: c.tokenA.address });
-    const dst = utils.newDestinationInfo({ chainId: c.chainId, receiver: c.receiver.address });
+    const dst = utils.newDestinationInfo({ receiver: c.receiver.address });
     await c.tokenA.connect(c.sender).approve(c.enode.address, amountIn);
     const tx = c.enode.connect(c.sender).srcExecute(execs, src, dst, { value: 3000 });
     await utils.assertBalanceChange(tx, c.receiver.address, amountOut, c.tokenB);
@@ -393,7 +393,7 @@ describe('execute() on src chain', () => {
       })
     ];
     const src = utils.newSourceInfo({ chainId: c.chainId, tokenIn: c.weth.address, amountIn, nativeIn: true });
-    const dst = utils.newDestinationInfo({ chainId: c.chainId, receiver: c.receiver.address });
+    const dst = utils.newDestinationInfo({ receiver: c.receiver.address });
     const tx = c.enode.connect(c.sender).srcExecute(execs, src, dst, { value: amountIn });
     await utils.assertBalanceChange(tx, c.receiver.address, amountOut, c.tokenB);
     await expect(tx).to.emit(c.enode, 'StepExecuted').withArgs(id, amountOut, c.tokenB.address);
@@ -417,7 +417,7 @@ describe('execute() on remote chains', function () {
         bridgeOutMin: amountIn.add(1)
       })
     ];
-    const dst = utils.newDestinationInfo({ chainId: c.chainId, receiver: c.receiver.address });
+    const dst = utils.newDestinationInfo({ receiver: c.receiver.address });
     const pocket = utils.getPocketAddr(id, c.enode.address);
     await c.tokenA.connect(c.admin).transfer(pocket, amountIn);
     const msg = utils.encodeMessage(id, execs, dst);
@@ -438,7 +438,7 @@ describe('execute() on remote chains', function () {
         feeInBridgeOutFallbackToken: utils.defaultFee
       })
     ];
-    const dst = utils.newDestinationInfo({ chainId: c.chainId, receiver: c.receiver.address });
+    const dst = utils.newDestinationInfo({ receiver: c.receiver.address });
     const pocket = utils.getPocketAddr(id, c.enode.address);
     await c.tokenB.connect(c.admin).transfer(pocket, amountIn);
     const msg = utils.encodeMessage(id, execs, dst);
@@ -459,7 +459,7 @@ describe('execute() on remote chains', function () {
         feeInBridgeOutToken: utils.defaultFee
       })
     ];
-    const dst = utils.newDestinationInfo({ chainId: c.chainId, receiver: c.receiver.address });
+    const dst = utils.newDestinationInfo({ receiver: c.receiver.address });
     const pocket = utils.getPocketAddr(id, c.enode.address);
     await c.tokenA.connect(c.admin).transfer(pocket, amountIn);
     const msg = utils.encodeMessage(id, execs, dst);
@@ -481,7 +481,7 @@ describe('execute() on remote chains', function () {
         feeInBridgeOutFallbackToken: utils.defaultFee
       })
     ];
-    const dst = utils.newDestinationInfo({ chainId: c.chainId, receiver: c.receiver.address });
+    const dst = utils.newDestinationInfo({ receiver: c.receiver.address });
     const pocket = utils.getPocketAddr(id, c.enode.address);
     await c.tokenB.connect(c.admin).transfer(pocket, amountIn);
     const msg = utils.encodeMessage(id, execs, dst);
@@ -503,7 +503,7 @@ describe('execute() on remote chains', function () {
         feeInBridgeOutFallbackToken: utils.defaultFee
       })
     ];
-    const dst = utils.newDestinationInfo({ chainId: c.chainId, receiver: c.receiver.address });
+    const dst = utils.newDestinationInfo({ receiver: c.receiver.address });
     const pocket = utils.getPocketAddr(id, c.enode.address);
     await c.tokenA.connect(c.admin).transfer(pocket, amountIn);
     const msg = utils.encodeMessage(id, execs, dst);
@@ -527,7 +527,7 @@ describe('execute() on remote chains', function () {
         feeInBridgeOutFallbackToken: utils.defaultFee
       })
     ];
-    const dst = utils.newDestinationInfo({ chainId: c.chainId, receiver: c.receiver.address });
+    const dst = utils.newDestinationInfo({ receiver: c.receiver.address });
     const pocket = utils.getPocketAddr(id, c.enode.address);
     await c.tokenA.connect(c.admin).transfer(pocket, amountIn);
     const msg = utils.encodeMessage(id, execs, dst);
@@ -550,7 +550,7 @@ describe('execute() on remote chains', function () {
         feeInBridgeOutToken: fee
       })
     ];
-    const dst = utils.newDestinationInfo({ chainId: c.chainId, receiver: c.receiver.address });
+    const dst = utils.newDestinationInfo({ receiver: c.receiver.address });
     const pocket = utils.getPocketAddr(id, c.enode.address);
     await c.admin.sendTransaction({ to: pocket, value: parseUnits('1') });
     const msg = utils.encodeMessage(id, execs, dst);
@@ -573,7 +573,7 @@ describe('execute() on remote chains', function () {
         feeInBridgeOutToken: fee
       })
     ];
-    const dst = utils.newDestinationInfo({ chainId: c.chainId, receiver: c.receiver.address, nativeOut: true });
+    const dst = utils.newDestinationInfo({ receiver: c.receiver.address, nativeOut: true });
     const pocket = utils.getPocketAddr(id, c.enode.address);
     await c.tokenA.transfer(pocket, amountIn);
     const msg = utils.encodeMessage(id, execs, dst);
@@ -601,7 +601,7 @@ describe('execute() on remote chains', function () {
         bridgeOutToken: c.tokenA.address
       })
     ];
-    const dst = utils.newDestinationInfo({ chainId: utils.defaultRemoteChainId, receiver: c.receiver.address });
+    const dst = utils.newDestinationInfo({ receiver: c.receiver.address });
     const pocket = utils.getPocketAddr(id, c.enode.address);
     await c.tokenA.connect(c.admin).transfer(pocket, amountIn);
     const msg = utils.encodeMessage(id, execs, dst);

@@ -7,7 +7,6 @@ import "../interfaces/ICodec.sol";
 
 library Types {
     struct SourceInfo {
-        uint64 chainId;
         // A number unique enough to be used in request ID generation.
         uint64 nonce;
         // the unix timestamp before which the fee is valid
@@ -21,11 +20,10 @@ library Types {
     }
 
     function emptySourceInfo() internal pure returns (SourceInfo memory) {
-        return SourceInfo(0, 0, 0, "", 0, address(0), false);
+        return SourceInfo(0, 0, "", 0, address(0), false);
     }
 
     struct DestinationInfo {
-        uint64 chainId;
         // The receiving party (the user) of the final output token
         // note that if an organization user's private key is breached, and if their original receiver is a contract
         // address, the hacker could deploy a malicious contract with the same address on the different chain and hence

@@ -108,7 +108,7 @@ contract ExecutionNode is
         bytes32 id = _computeId(msg.sender, _dst.receiver, _src.nonce);
         Types.ExecutionInfo memory exec = _execs[0];
         if (_execs.length > 1) {
-            _verify(_execs, _src, _dst);
+            _verify(_execs, _src);
         }
         (uint256 amountIn, address tokenIn) = _pullFundFromSender(_src);
         require(amountIn > 0, "amount must > 0");
@@ -251,14 +251,14 @@ contract ExecutionNode is
         address _nextToken,
         uint256 _nextAmount
     ) private returns (uint256 consumedValue) {
+        Types.ExecutionInfo memory exec = _execs[0];
+        _execs = _removeFirst(_execs);
         // pay receiver if there is no more swaps or bridges
-        if (_dst.chainId == uint64(block.chainid)) {
+        if (_execs.length == 0 && exec.bridge.toChainId == 0) {
             _sendToken(_nextToken, _nextAmount, _dst.receiver, _dst.nativeOut);
             emit StepExecuted(_id, _nextAmount, _nextToken);
             return 0;
         }
-        Types.ExecutionInfo memory exec = _execs[0];
-        _execs = _removeFirst(_execs);
         // funds are bridged directly to the receiver if there are no subsequent executions on the destination chain.
         // otherwise, it's sent to a "pocket" contract addr to temporarily hold the fund before it is used for swapping.
         address bridgeOutReceiver = _dst.receiver;
@@ -465,16 +465,11 @@ contract ExecutionNode is
         }
     }
 
-    function _verify(
-        Types.ExecutionInfo[] memory _execs,
-        Types.SourceInfo memory _src,
-        Types.DestinationInfo memory _dst
-    ) private view {
+    function _verify(Types.ExecutionInfo[] memory _execs, Types.SourceInfo memory _src) private view {
         require(_src.deadline > block.timestamp, "deadline exceeded");
         bytes memory data = abi.encodePacked(
             "chainhop quote",
             uint64(block.chainid),
-            _dst.chainId,
             _src.amountIn,
             _src.tokenIn,
             _src.deadline

@@ -186,20 +186,17 @@ export function newSourceInfo(o: SourceInfoOverrides = defaultSourceInfo) {
 }
 
 export const defaultDestinationInfo = {
-  chainId: 0,
   receiver: ZERO_ADDR,
   nativeOut: false
 };
 
 export interface DestinationInfoOverrides {
-  chainId?: number;
   receiver?: string;
   nativeOut?: boolean;
 }
 
 export function newDestinationInfo(o: DestinationInfoOverrides = defaultDestinationInfo) {
   return {
-    chainId: o?.chainId ?? defaultDestinationInfo.chainId,
     receiver: o?.receiver ?? defaultDestinationInfo.receiver,
     nativeOut: o?.nativeOut ?? defaultDestinationInfo.nativeOut
   };
@@ -236,13 +233,13 @@ export function computeTransferId(c: IntegrationTestFixture, o?: ComputeTranferI
   );
 }
 
-export function encodeSignData(execs: Types.ExecutionInfoStruct[], src: Types.SourceInfoStruct, dst: Types.DestinationInfoStruct) {
+export function encodeSignData(execs: Types.ExecutionInfoStruct[], src: Types.SourceInfoStruct) {
   if (!execs || execs.length == 1) {
     return hex2Bytes('0x');
   }
   let data = solidityPack(
-    ['string', 'uint64', 'uint64', 'uint256', 'address', 'uint64'],
-    ['chainhop quote', src.chainId, dst.chainId, src.amountIn, src.tokenIn, src.deadline]
+    ['string', 'uint64', 'uint256', 'address', 'uint64'],
+    ['chainhop quote', defaultChainId, src.amountIn, src.tokenIn, src.deadline]
   );
   for (let i = 1; i < execs.length; i++) {
     const ex = execs[i];
@@ -280,7 +277,7 @@ export function encodeMessage(id: string, execs: Types.ExecutionInfoStruct[], ds
           uint256 feeInBridgeOutToken, 
           uint256 feeInBridgeOutFallbackToken
         )[], 
-        (uint64 chainId, address receiver, bool nativeOut) dst
+        (address receiver, bool nativeOut) dst
       )
       `
     ],
