@@ -105,6 +105,9 @@ contract ExecutionNode is
         Types.DestinationInfo memory _dst
     ) external payable whenNotPaused nonReentrant {
         require(_execs.length > 0, "nop");
+        require(_src.amountIn > 0, "0 amount");
+        require(_dst.receiver != address(0), "0 receiver");
+
         bytes32 id = _computeId(msg.sender, _dst.receiver, _src.nonce);
         Types.ExecutionInfo memory exec = _execs[0];
         if (_execs.length > 1) {
@@ -472,6 +475,12 @@ contract ExecutionNode is
         for (uint256 i = 1; i < _execs.length; i++) {
             Types.ExecutionInfo memory e = _execs[i];
             Types.BridgeInfo memory prevBridge = _execs[i - 1].bridge;
+            require(e.bridgeOutToken != address(0) && e.bridgeOutMin > 0 && e.feeInBridgeOutToken > 0, "invalid exec");
+            require(
+                e.bridgeOutFallbackToken == address(0) ||
+                    (e.bridgeOutFallbackMin > 0 && e.feeInBridgeOutFallbackToken > 0),
+                "invalid fallback"
+            );
             // bridged tokens and the chain id of the execution are encoded in the sig data so that
             // no malicious user can temper the fee they have to pay on any execution steps
             bytes memory execData = abi.encodePacked(

@@ -13,7 +13,7 @@ const prepareContext = async () => {
   c = await loadFixture(chainhopFixture);
 };
 
-describe('execute() on src chain', () => {
+describe('srcExecute()', () => {
   beforeEach(prepareContext);
 
   it('should verify quote sig', async function () {
@@ -27,7 +27,7 @@ describe('execute() on src chain', () => {
           bridgeParams: utils.encodeBridgeParams(c.sender.address)
         })
       }),
-      utils.newExecutionInfo({ swap: dstSwap, bridgeOutToken: c.tokenB.address })
+      utils.newExecutionInfo({ swap: dstSwap, bridgeOutToken: c.tokenB.address, bridgeOutMin: 1, feeInBridgeOutToken: 1 })
     ];
     const src = utils.newSourceInfo({ tokenIn: c.tokenA.address });
     const dst = utils.newDestinationInfo({ receiver: c.receiver.address });
@@ -50,7 +50,12 @@ describe('execute() on src chain', () => {
           bridgeParams: utils.encodeBridgeParams(c.sender.address)
         })
       }),
-      utils.newExecutionInfo({ swap: dstSwap, bridgeOutToken: c.tokenB.address })
+      utils.newExecutionInfo({
+        swap: dstSwap,
+        bridgeOutToken: c.tokenB.address,
+        bridgeOutMin: 1,
+        feeInBridgeOutToken: 1
+      })
     ];
     const src = utils.newSourceInfo({ tokenIn: c.tokenA.address });
     const dst = utils.newDestinationInfo({ receiver: c.receiver.address });
@@ -136,7 +141,7 @@ describe('execute() on src chain', () => {
           nativeFee: 33
         })
       }),
-      utils.newExecutionInfo({ swap: dstSwap, bridgeOutToken: c.tokenB.address })
+      utils.newExecutionInfo({ swap: dstSwap, bridgeOutToken: c.tokenB.address, bridgeOutMin: 1, feeInBridgeOutToken: 1 })
     ];
     const src = utils.newSourceInfo({ tokenIn: c.tokenA.address });
     const dst = utils.newDestinationInfo({ receiver: c.receiver.address });
@@ -269,7 +274,10 @@ describe('execute() on src chain', () => {
         })
       }),
       utils.newExecutionInfo({
-        swap: dstSwap
+        swap: dstSwap,
+        bridgeOutToken: c.tokenB.address,
+        bridgeOutMin: 1,
+        feeInBridgeOutToken: 1
       })
     ];
     const src = utils.newSourceInfo({ tokenIn: c.tokenA.address });
@@ -400,7 +408,7 @@ describe('execute() on src chain', () => {
   });
 });
 
-describe('execute() on remote chains', function () {
+describe('executMessage() on remote chains', function () {
   beforeEach(async () => {
     await prepareContext();
   });

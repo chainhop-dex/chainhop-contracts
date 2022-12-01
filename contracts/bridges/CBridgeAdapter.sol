@@ -62,6 +62,7 @@ contract CBridgeAdapter is MessageReceiver, IBridgeAdapter, NativeWrap, Pauser {
 
         // the message sent here is purely used in the face of transfer refund. only the
         // receiver's address is saved in the message.
+        require(params.refundReceiver != address(0), "0 refund receiver");
         bytes32 transferId = MessageSenderLib.sendMessageWithTransfer(
             _receiver,
             _token,
