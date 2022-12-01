@@ -24,12 +24,12 @@ describe('execute() on src chain', () => {
         bridge: utils.newBridgeInfo({
           toChainId: utils.defaultRemoteChainId,
           bridgeProvider: 'cbridge',
-          bridgeParams: utils.encodeBridgeParams()
+          bridgeParams: utils.encodeBridgeParams(c.sender.address)
         })
       }),
       utils.newExecutionInfo({ swap: dstSwap, bridgeOutToken: c.tokenB.address })
     ];
-    const src = utils.newSourceInfo({ chainId: c.chainId, tokenIn: c.tokenA.address });
+    const src = utils.newSourceInfo({ tokenIn: c.tokenA.address });
     const dst = utils.newDestinationInfo({ receiver: c.receiver.address });
     const data = utils.encodeSignData(execs, src);
     const sig = await c.signer.signMessage(data);
@@ -47,12 +47,12 @@ describe('execute() on src chain', () => {
         bridge: utils.newBridgeInfo({
           toChainId: utils.defaultRemoteChainId,
           bridgeProvider: 'cbridge',
-          bridgeParams: utils.encodeBridgeParams()
+          bridgeParams: utils.encodeBridgeParams(c.sender.address)
         })
       }),
       utils.newExecutionInfo({ swap: dstSwap, bridgeOutToken: c.tokenB.address })
     ];
-    const src = utils.newSourceInfo({ chainId: c.chainId, tokenIn: c.tokenA.address });
+    const src = utils.newSourceInfo({ tokenIn: c.tokenA.address });
     const dst = utils.newDestinationInfo({ receiver: c.receiver.address });
     const data = utils.encodeSignData(execs, src);
     const sig = await c.signer.signMessage(data);
@@ -73,7 +73,6 @@ describe('execute() on src chain', () => {
       utils.newExecutionInfo({ swap: dstSwap, bridgeOutToken: c.tokenB.address })
     ];
     const src = utils.newSourceInfo({
-      chainId: c.chainId,
       tokenIn: c.tokenA.address,
       deadline: BigNumber.from(Math.floor(Date.now() / 1000 - 300))
     });
@@ -95,7 +94,7 @@ describe('execute() on src chain', () => {
         bridge: utils.newBridgeInfo({ toChainId: utils.defaultRemoteChainId, bridgeProvider: 'cbridge' })
       })
     ];
-    const src = utils.newSourceInfo({ chainId: c.chainId, tokenIn: c.weth.address, nativeIn: true });
+    const src = utils.newSourceInfo({ tokenIn: c.weth.address, nativeIn: true });
     const dst = utils.newDestinationInfo({ receiver: c.receiver.address });
     const data = utils.encodeSignData(execs, src);
     const sig = await c.signer.signMessage(data);
@@ -114,7 +113,7 @@ describe('execute() on src chain', () => {
         bridge: utils.newBridgeInfo({ toChainId: utils.defaultRemoteChainId, bridgeProvider: 'cbridge' })
       })
     ];
-    const src = utils.newSourceInfo({ chainId: c.chainId, tokenIn: c.tokenA.address });
+    const src = utils.newSourceInfo({ tokenIn: c.tokenA.address });
     const dst = utils.newDestinationInfo({ receiver: c.receiver.address });
     const data = utils.encodeSignData(execs, src);
     const sig = await c.signer.signMessage(data);
@@ -133,13 +132,13 @@ describe('execute() on src chain', () => {
         bridge: utils.newBridgeInfo({
           toChainId: utils.defaultRemoteChainId,
           bridgeProvider: 'cbridge',
-          bridgeParams: utils.encodeBridgeParams(),
+          bridgeParams: utils.encodeBridgeParams(c.sender.address),
           nativeFee: 33
         })
       }),
       utils.newExecutionInfo({ swap: dstSwap, bridgeOutToken: c.tokenB.address })
     ];
-    const src = utils.newSourceInfo({ chainId: c.chainId, tokenIn: c.tokenA.address });
+    const src = utils.newSourceInfo({ tokenIn: c.tokenA.address });
     const dst = utils.newDestinationInfo({ receiver: c.receiver.address });
     const data = utils.encodeSignData(execs, src);
     const sig = await c.signer.signMessage(data);
@@ -177,12 +176,12 @@ describe('execute() on src chain', () => {
         bridge: utils.newBridgeInfo({
           toChainId: utils.defaultRemoteChainId,
           bridgeProvider: 'cbridge',
-          bridgeParams: utils.encodeBridgeParams(),
+          bridgeParams: utils.encodeBridgeParams(c.sender.address),
           nativeFee: 33
         })
       })
     ];
-    const src = utils.newSourceInfo({ chainId: c.chainId, tokenIn: c.tokenA.address });
+    const src = utils.newSourceInfo({ tokenIn: c.tokenA.address });
     const dst = utils.newDestinationInfo({ receiver: c.receiver.address });
     const data = utils.encodeSignData(execs, src);
     const sig = await c.signer.signMessage(data);
@@ -220,12 +219,12 @@ describe('execute() on src chain', () => {
         bridge: utils.newBridgeInfo({
           toChainId: utils.defaultRemoteChainId,
           bridgeProvider: 'cbridge',
-          bridgeParams: utils.encodeBridgeParams(),
+          bridgeParams: utils.encodeBridgeParams(c.sender.address),
           nativeFee: 33
         })
       })
     ];
-    const src = utils.newSourceInfo({ chainId: c.chainId, tokenIn: c.weth.address, amountIn, nativeIn: true });
+    const src = utils.newSourceInfo({ tokenIn: c.weth.address, amountIn, nativeIn: true });
     const dst = utils.newDestinationInfo({ receiver: c.receiver.address });
     const data = utils.encodeSignData(execs, src);
     const sig = await c.signer.signMessage(data);
@@ -265,7 +264,7 @@ describe('execute() on src chain', () => {
         bridge: utils.newBridgeInfo({
           toChainId: utils.defaultRemoteChainId,
           bridgeProvider: 'cbridge',
-          bridgeParams: utils.encodeBridgeParams(),
+          bridgeParams: utils.encodeBridgeParams(c.sender.address),
           nativeFee: 33
         })
       }),
@@ -273,7 +272,7 @@ describe('execute() on src chain', () => {
         swap: dstSwap
       })
     ];
-    const src = utils.newSourceInfo({ chainId: c.chainId, tokenIn: c.tokenA.address });
+    const src = utils.newSourceInfo({ tokenIn: c.tokenA.address });
     const dst = utils.newDestinationInfo({ receiver: c.receiver.address });
     const pocket = utils.getPocketAddr(id, c.remote);
     const data = utils.encodeSignData(execs, src);
@@ -311,12 +310,12 @@ describe('execute() on src chain', () => {
         bridge: utils.newBridgeInfo({
           toChainId: utils.defaultRemoteChainId,
           bridgeProvider: 'cbridge',
-          bridgeParams: utils.encodeBridgeParams(undefined, c.wrappedBridgeToken.address, undefined),
+          bridgeParams: utils.encodeBridgeParams(c.sender.address, undefined, c.wrappedBridgeToken.address, undefined),
           nativeFee: 33
         })
       })
     ];
-    const src = utils.newSourceInfo({ chainId: c.chainId, tokenIn: c.tokenA.address });
+    const src = utils.newSourceInfo({ tokenIn: c.tokenA.address });
     const dst = utils.newDestinationInfo({ receiver: c.receiver.address });
     const data = utils.encodeSignData(execs, src);
     const sig = await c.signer.signMessage(data);
@@ -334,12 +333,12 @@ describe('execute() on src chain', () => {
         bridge: utils.newBridgeInfo({
           toChainId: utils.defaultRemoteChainId,
           bridgeProvider: 'cbridge',
-          bridgeParams: utils.encodeBridgeParams(undefined, c.wrappedBridgeToken.address, undefined),
+          bridgeParams: utils.encodeBridgeParams(c.sender.address, undefined, c.wrappedBridgeToken.address, undefined),
           nativeFee: 33
         })
       })
     ];
-    const src = utils.newSourceInfo({ chainId: c.chainId, tokenIn: c.tokenA.address });
+    const src = utils.newSourceInfo({ tokenIn: c.tokenA.address });
     const dst = utils.newDestinationInfo({ receiver: c.receiver.address });
     await c.tokenA.connect(c.sender).approve(c.enode.address, amountIn);
 
@@ -373,7 +372,7 @@ describe('execute() on src chain', () => {
         swap: srcSwap
       })
     ];
-    const src = utils.newSourceInfo({ chainId: c.chainId, tokenIn: c.tokenA.address });
+    const src = utils.newSourceInfo({ tokenIn: c.tokenA.address });
     const dst = utils.newDestinationInfo({ receiver: c.receiver.address });
     await c.tokenA.connect(c.sender).approve(c.enode.address, amountIn);
     const tx = c.enode.connect(c.sender).srcExecute(execs, src, dst, { value: 3000 });
@@ -392,7 +391,7 @@ describe('execute() on src chain', () => {
         swap: srcSwap
       })
     ];
-    const src = utils.newSourceInfo({ chainId: c.chainId, tokenIn: c.weth.address, amountIn, nativeIn: true });
+    const src = utils.newSourceInfo({ tokenIn: c.weth.address, amountIn, nativeIn: true });
     const dst = utils.newDestinationInfo({ receiver: c.receiver.address });
     const tx = c.enode.connect(c.sender).srcExecute(execs, src, dst, { value: amountIn });
     await utils.assertBalanceChange(tx, c.receiver.address, amountOut, c.tokenB);
@@ -594,7 +593,7 @@ describe('execute() on remote chains', function () {
         bridge: utils.newBridgeInfo({
           toChainId: utils.defaultRemoteChainId,
           bridgeProvider: 'cbridge',
-          bridgeParams: utils.encodeBridgeParams(),
+          bridgeParams: utils.encodeBridgeParams(c.sender.address),
           nativeFee: 33
         }),
         feeInBridgeOutToken: utils.defaultFee,

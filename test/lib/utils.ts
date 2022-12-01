@@ -154,7 +154,6 @@ export function newExecutionInfo(o: ExecutionInfoOverrides = emptyExecutionInfo)
 }
 
 export const defaultSourceInfo = {
-  chainId: 0,
   nonce: defaultNonce,
   deadline: defaultDeadline,
   quoteSig: '0x',
@@ -164,7 +163,6 @@ export const defaultSourceInfo = {
 };
 
 export interface SourceInfoOverrides {
-  chainId?: number;
   nonce?: number;
   deadline?: BigNumberish;
   quoteSig?: string;
@@ -175,7 +173,6 @@ export interface SourceInfoOverrides {
 
 export function newSourceInfo(o: SourceInfoOverrides = defaultSourceInfo) {
   return {
-    chainId: o?.chainId ?? defaultSourceInfo.chainId,
     nonce: o?.nonce ?? defaultSourceInfo.nonce,
     deadline: o?.deadline ?? defaultSourceInfo.deadline,
     quoteSig: o?.quoteSig ?? defaultSourceInfo.quoteSig,
@@ -345,12 +342,13 @@ export interface CurveSwapsOverride {
 }
 
 export function encodeBridgeParams(
+  refundReceiver: string,
   maxSlippage: number = defaultMaxSlippage,
   wrappedBridgeToken: string = ZERO_ADDR,
   nonce: number = defaultNonce
 ) {
   return ethers.utils.defaultAbiCoder.encode(
-    ['uint256', 'uint32', 'address', 'uint64'],
-    [BridgeType.Liquidity, maxSlippage, wrappedBridgeToken, nonce]
+    ['uint256', 'uint32', 'address', 'uint64', 'address'],
+    [BridgeType.Liquidity, maxSlippage, wrappedBridgeToken, nonce, refundReceiver]
   );
 }
