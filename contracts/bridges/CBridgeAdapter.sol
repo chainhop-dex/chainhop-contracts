@@ -34,6 +34,9 @@ contract CBridgeAdapter is MessageReceiver, IBridgeAdapter, NativeWrap, Pauser {
         // a unique identifier that cBridge uses to dedup transfers
         // this value is the a timestamp sent from frontend, but in theory can be any unique number
         uint64 nonce;
+        // because of the unique mechanism of cbridge that it refunds on src chain if bridge fails,
+        // we need to record a refund receiver, typically the end user's address.
+        address refundReceiver;
     }
 
     function bridge(
@@ -66,7 +69,7 @@ contract CBridgeAdapter is MessageReceiver, IBridgeAdapter, NativeWrap, Pauser {
             _dstChainId,
             params.nonce,
             params.maxSlippage,
-            abi.encode(_receiver), // used for refund only
+            abi.encode(params.refundReceiver), // used for refund only
             params.bridgeType,
             messageBus,
             msg.value
