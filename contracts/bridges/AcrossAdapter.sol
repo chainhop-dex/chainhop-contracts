@@ -4,10 +4,11 @@ pragma solidity >=0.8.15;
 
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
 
 import "../interfaces/IBridgeAdapter.sol";
 import "../interfaces/ISpokePool.sol";
+
+import "../lib/Ownable.sol";
 
 contract AcrossAdapter is IBridgeAdapter, Ownable {
     using SafeERC20 for IERC20;
@@ -30,12 +31,11 @@ contract AcrossAdapter is IBridgeAdapter, Ownable {
         address _receiver,
         uint256 _amount,
         address _token,
-        bytes memory _bridgeParams,
-        bytes memory //_requestMessage
+        bytes memory _bridgeParams
     ) external payable returns (bytes memory bridgeResp) {
         BridgeParams memory params = abi.decode(_bridgeParams, (BridgeParams));
         IERC20(_token).safeTransferFrom(msg.sender, address(this), _amount);
-        IERC20(_token).approve(spokePool, _amount);
+        IERC20(_token).safeApprove(spokePool, _amount);
         uint32 depositId = ISpokePool(spokePool).numberOfDeposits();
         ISpokePool(spokePool).deposit(
             _receiver,
@@ -45,6 +45,7 @@ contract AcrossAdapter is IBridgeAdapter, Ownable {
             params.relayerFeePct,
             params.quoteTimestamp
         );
+        IERC20(_token).safeApprove(spokePool, 0);
         return abi.encode(depositId);
     }
 

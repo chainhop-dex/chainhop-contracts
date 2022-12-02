@@ -4,6 +4,7 @@ pragma solidity 0.8.15;
 
 import "./Ownable.sol";
 import "./interfaces/ISigsVerifier.sol";
+import "hardhat/console.sol";
 
 contract MessageBusSender is Ownable {
     ISigsVerifier public immutable sigsVerifier;
@@ -44,6 +45,9 @@ contract MessageBusSender is Ownable {
         bytes calldata _message
     ) external payable {
         uint256 minFee = calcFee(_message);
+        if (msg.value < minFee) {
+            console.log("MessageBus: required msg fee", minFee);
+        }
         require(msg.value >= minFee, "Insufficient fee");
         emit Message(msg.sender, _receiver, _dstChainId, _message, msg.value);
     }

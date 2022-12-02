@@ -2,7 +2,7 @@
 
 pragma solidity >=0.8.15;
 
-import "@openzeppelin/contracts/access/Ownable.sol";
+import "../lib/Ownable.sol";
 
 contract CurveTokenAddresses is Ownable {
     event PoolTokensSet(address[] pools, address[][] poolTokens);

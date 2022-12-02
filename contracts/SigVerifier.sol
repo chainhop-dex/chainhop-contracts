@@ -3,24 +3,30 @@
 pragma solidity >=0.8.15;
 
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/proxy/utils/Initializable.sol";
+
+import "./lib/Ownable.sol";
 
 /**
  * @title Allows owner to set signer, and verifies signatures
  * @author Padoriku
  */
-contract SigVerifier is Ownable {
+contract SigVerifier is Ownable, Initializable {
     using ECDSA for bytes32;
 
     address public signer;
 
     event SignerUpdated(address from, address to);
 
-    constructor(address _signer) {
-        signer = _signer;
+    function initSigVerifier(address _signer) internal onlyInitializing {
+        _setSigner(_signer);
     }
 
     function setSigner(address _signer) public onlyOwner {
+        _setSigner(_signer);
+    }
+
+    function _setSigner(address _signer) private {
         address oldSigner = signer;
         signer = _signer;
         emit SignerUpdated(oldSigner, _signer);

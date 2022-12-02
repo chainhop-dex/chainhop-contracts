@@ -7,18 +7,15 @@
     "compile": "hardhat compile",
     "generate:typechain": "rm -rf typechain && hardhat typechain",
     "report-gas:summary": "REPORT_GAS=true hardhat test",
-    "report-gas:benchmark": "yarn report-gas:benchmark:swap && yarn report-gas:benchmark:noswap",
-    "report-gas:benchmark:swap": "REPORT_GAS=true BENCHMARK=swap hardhat test benchmark/swap.ts",
-    "report-gas:benchmark:noswap": "REPORT_GAS=true BENCHMARK=noswap hardhat test benchmark/noswap.ts",
+    "report-gas:benchmark": "REPORT_GAS=true BENCHMARK=execute hardhat test benchmark/execute.ts",
     "size-contracts": "hardhat size-contracts | sed -r 's/[[:cntrl:]]\\[[0-9]{1,3}m//g' > reports/contract_sizes.txt",
     "test": "hardhat test",
     "deploy:suite": "hardhat deploy --tags Suite --network",
-    "deploy:transferswapper": "hardhat deploy --tags TransferSwapper --network",
-    "build-docker": "COMMIT=$(git rev-parse --short HEAD) && echo $COMMIT > last_built_commit && echo $COMMIT && docker buildx build --platform linux/amd64 --load -t ghcr.io/celer-network/chainhop-mainnet-fork:$COMMIT .",
-    "push-docker": "COMMIT=$(git rev-parse --short HEAD) && echo current head $COMMIT && echo image hash $(cat last_built_commit) && docker push ghcr.io/celer-network/chainhop-mainnet-fork:$(cat last_built_commit)"
+    "solt": "solt write contracts/ExecutionNode.sol --npm --runs 800"
   },
   "license": "GPL-3.0",
   "devDependencies": {
+    "@nomicfoundation/hardhat-chai-matchers": "^1.0.4",
     "@nomiclabs/hardhat-ethers": "npm:hardhat-deploy-ethers",
     "@nomiclabs/hardhat-etherscan": "^3.0.3",
     "@nomiclabs/hardhat-waffle": "^2.0.3",

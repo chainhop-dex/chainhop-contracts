@@ -2,8 +2,8 @@
 
 pragma solidity >=0.8.15;
 
-import "@openzeppelin/contracts/security/Pausable.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
+import "./Pausable.sol";
+import "./Ownable.sol";
 
 abstract contract Pauser is Ownable, Pausable {
     mapping(address => bool) public pausers;

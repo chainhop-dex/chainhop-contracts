@@ -1,10 +1,5 @@
 import * as dotenv from 'dotenv';
-import {
-  getMetaPoolCodecConfig,
-  getSpecialMetaPoolCodecConfig,
-  getSupportedCurvePools,
-  getSupportedOneInchFuncs
-} from './functions';
+import { getMetaPoolCodecConfig, getSpecialMetaPoolCodecConfig, getSupportedCurvePools, getSupportedOneInchFuncs } from './functions';
 import {
   CurvePoolCodec,
   IConfig,

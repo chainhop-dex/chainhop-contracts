@@ -7,7 +7,7 @@ import "./interfaces/IOriginalTokenVault.sol";
 import "./interfaces/IOriginalTokenVaultV2.sol";
 import "./interfaces/IPeggedTokenBridge.sol";
 import "./interfaces/IPeggedTokenBridgeV2.sol";
-import "../interfaces/IMessageReceiverApp.sol";
+import "./interfaces/IMessageReceiverApp.sol";
 import "./Ownable.sol";
 
 contract MessageBusReceiver is Ownable {

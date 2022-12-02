@@ -4,13 +4,13 @@ pragma solidity >=0.8.15;
 
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
 
 import "../interfaces/IBridgeAdapter.sol";
 import "../interfaces/IBridgeStargate.sol";
-import "../interfaces/ITransferSwapper.sol";
 import "../interfaces/IWETH.sol";
+
 import "../lib/NativeWrap.sol";
+import "../lib/Ownable.sol";
 
 contract StargateAdapter is IBridgeAdapter, NativeWrap {
     using SafeERC20 for IERC20;
@@ -43,8 +43,7 @@ contract StargateAdapter is IBridgeAdapter, NativeWrap {
         address _receiver,
         uint256 _amount,
         address _token,
-        bytes memory _bridgeParams,
-        bytes memory //_requestMessage // Not used for now, as stargate messaging is not supported in this version
+        bytes memory _bridgeParams
     ) external payable returns (bytes memory bridgeResp) {
         StargateParams memory params = abi.decode((_bridgeParams), (StargateParams));
         require(supportedRouters[params.router], "illegal router");

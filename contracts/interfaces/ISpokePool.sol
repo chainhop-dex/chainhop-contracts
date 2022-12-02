@@ -60,6 +60,18 @@ interface ISpokePool {
         mapping(uint256 => uint256) claimedBitmap;
     }
 
+    event FundsDeposited(
+        uint256 amount,
+        uint256 originChainId,
+        uint256 destinationChainId,
+        uint64 relayerFeePct,
+        uint32 indexed depositId,
+        uint32 quoteTimestamp,
+        address indexed originToken,
+        address recipient,
+        address indexed depositor
+    );
+
     event FilledRelay(
         uint256 amount,
         uint256 totalFilledAmount,

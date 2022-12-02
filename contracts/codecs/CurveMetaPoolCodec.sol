@@ -2,7 +2,7 @@
 
 pragma solidity >=0.8.15;
 
-import "@openzeppelin/contracts/access/Ownable.sol";
+import "../lib/Ownable.sol";
 import "../interfaces/ICodec.sol";
 import "../interfaces/ICurvePool.sol";
 import "./CurveTokenAddresses.sol";

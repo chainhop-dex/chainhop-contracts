@@ -6,65 +6,71 @@ import "./MsgDataTypes.sol";
 import "../interfaces/ICodec.sol";
 
 library Types {
-    /**
-     * @notice Denotes the status of a cross-chain transfer/swap request
-     * @dev Partially filled requests are considered 'Succeeded'. There is no 'Failed' state as
-     * it's only possible if everything reverts and there is no successful transaction
-     * @param Null An empty status that should never be reached
-     * @param Succeeded Transfer/swap has succeeded and funds are received by the receiver
-     * @param Fallback Swaps have failed on the dst chain, and bridge tokens are refunded to receiver
-     */
-    enum RequestStatus {
-        Null,
-        Succeeded,
-        Fallback
-    }
-
-    struct Request {
-        bytes32 id; // see _computeId()
-        ICodec.SwapDescription[] swaps; // the swaps need to happen on the destination chain
-        address receiver; // see TransferDescription.receiver
-        bool nativeOut; // see TransferDescription.nativeOut
-        uint256 fee; // see TransferDescription.fee
-        bool allowPartialFill; // see TransferDescription.allowPartialFill
-        // sets if another cbridge hop is required on the chain, abi.encode(Forward)
-        bytes forward;
-    }
-
-    struct Forward {
-        uint64 dstChain;
-        // abi encoded cbridge params
-        bytes params;
-    }
-
-    struct TransferDescription {
-        address receiver; // The receiving party (the user) of the final output token
-        uint64 dstChainId; // Destination chain id
-        // The address of the TransferSwapper on the destination chain.
-        // Ignored if there is no swaps on the destination chain.
-        address dstTransferSwapper;
+    struct SourceInfo {
         // A number unique enough to be used in request ID generation.
         uint64 nonce;
+        // the unix timestamp before which the fee is valid
+        uint64 deadline;
+        // sig of sha3("executor fee", srcChainId, amountIn, tokenIn, deadline, toChainId, feeInBridgeOutToken, bridgeOutToken, feeInBridgeOutFallbackToken, bridgeOutFallbackToken[, toChainId, feeInBridgeOutToken, bridgeOutToken, feeInBridgeOutFallbackToken, bridgeOutFallbackToken]...)
+        // see _verifyQuote()
+        bytes quoteSig;
+        uint256 amountIn;
+        address tokenIn;
+        bool nativeIn;
+    }
+
+    function emptySourceInfo() internal pure returns (SourceInfo memory) {
+        return SourceInfo(0, 0, "", 0, address(0), false);
+    }
+
+    struct DestinationInfo {
+        // The receiving party (the user) of the final output token
+        // note that if an organization user's private key is breached, and if their original receiver is a contract
+        // address, the hacker could deploy a malicious contract with the same address on the different chain and hence
+        // get access to the user's pocket funds on that chain.
+        // WARNING users should make sure their own deployer key's safety or that the receiver is
+        // 1. not a reproducable address on any of the chains that chainhop supports
+        // 2. a contract that they already deployed on all the chains that chainhop supports
+        // 3. an EOA
+        address receiver;
+        bool nativeOut;
+    }
+
+    struct ExecutionInfo {
+        ICodec.SwapDescription swap;
+        BridgeInfo bridge;
+        address bridgeOutToken;
+        // some bridges utilize a intermediary token (e.g. hToken for Hop and anyToken for Multichain)
+        // in cases where there isn't enough underlying token liquidity on the dst chain, the user/pocket
+        // could receive this token as a fallback. remote ExecutionNode needs to know what this token is
+        // in order to check whether a fallback has happened and refund the user.
+        address bridgeOutFallbackToken;
+        // the minimum that remote ExecutionNode needs to receive in order to allow the swap message
+        // to execute. note that this differs from a normal slippages controlling variable and is
+        // purely used to deter DoS attacks (detailed in ExecutionNode).
+        uint256 bridgeOutMin;
+        uint256 bridgeOutFallbackMin;
+        // executor fee
+        uint256 feeInBridgeOutToken;
+        // in case the bridging result in in fallback tokens, this is the amount of the fee that
+        // chainhop charges
+        uint256 feeInBridgeOutFallbackToken;
+    }
+
+    struct BridgeInfo {
+        uint64 toChainId;
         // bridge provider identifier
         string bridgeProvider;
         // Bridge transfers quoted and abi encoded by chainhop backend server.
         // Bridge adapter implementations need to decode this themselves.
         bytes bridgeParams;
-        bool nativeIn; // whether to check msg.value and wrap token before swapping/sending
-        bool nativeOut; // whether to unwrap before sending the final token to user
-        uint256 fee; // this fee is only executor fee. it does not include msg bridge fee
-        uint256 feeDeadline; // the unix timestamp before which the fee is valid
-        // sig of sha3("executor fee", srcChainId, dstChainId, amountIn, tokenIn, feeDeadline, fee)
-        // see _verifyFee()
-        bytes feeSig;
-        // IMPORTANT: amountIn & tokenIn is completely ignored if src chain has a swap
-        uint256 amountIn;
-        address tokenIn;
-        address dstTokenOut; // the final output token, emitted in event for display purpose only
-        // in case of multi route swaps, whether to allow the successful swaps to go through
-        // and sending the amountIn of the failed swaps back to user
-        bool allowPartialFill;
-        // sets if another cbridge hop is required on the dst chain, abi.encode(Forward)
-        bytes forward;
+        // the native fee required by the bridge provider
+        uint256 nativeFee;
+    }
+
+    struct Message {
+        bytes32 id;
+        Types.ExecutionInfo[] execs;
+        Types.DestinationInfo dst;
     }
 }

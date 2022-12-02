@@ -4,12 +4,13 @@ pragma solidity >=0.8.15;
 
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
 
 import "../interfaces/IBridgeAdapter.sol";
 import "../interfaces/IWETH.sol";
 import "../interfaces/IHopBridge.sol";
+
 import "../lib/NativeWrap.sol";
+import "../lib/Ownable.sol";
 
 contract HopAdapter is IBridgeAdapter, NativeWrap {
     using SafeERC20 for IERC20;
@@ -43,8 +44,7 @@ contract HopAdapter is IBridgeAdapter, NativeWrap {
         address _receiver,
         uint256 _amount,
         address _token,
-        bytes memory _bridgeParams,
-        bytes memory //_requestMessage
+        bytes memory _bridgeParams
     ) external payable returns (bytes memory bridgeResp) {
         BridgeParams memory p = abi.decode(_bridgeParams, (BridgeParams));
         address _bridge = bridges[_token];

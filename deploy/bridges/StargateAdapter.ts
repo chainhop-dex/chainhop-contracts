@@ -17,7 +17,7 @@ const deployFunc: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   await deploy('StargateAdapter', {
     from: deployer,
     log: true,
-    args: [config.transferSwapper, config.stargateRouters]
+    args: [config.nativeWrap, config.stargateRouters]
   });
 };
 
