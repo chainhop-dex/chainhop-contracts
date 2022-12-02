@@ -286,6 +286,7 @@ contract ExecutionNode is
         // these tokens cover the fee introduced by chaining another message when there are more bridging.
         // refunding the unspent native tokens back to the executor
         if (_remainingValue > 0) {
+            // TODO, use the _executor param passed in from executeMessage for the refund receiver
             (bool ok, ) = tx.origin.call{value: _remainingValue, gas: 50000}("");
             require(ok, "failed to refund remaining native token");
         }
@@ -384,6 +385,8 @@ contract ExecutionNode is
             fee = _amount;
         }
         if (_token == nativeWrap) {
+            // TODO if the _executor param passed in from executeMessage is our executor, send fee
+            // to fee vault. otherwise, send fee to the _executor address
             (bool ok, ) = feeVault.call{value: fee}("");
             require(ok, "send native failed");
         } else {
