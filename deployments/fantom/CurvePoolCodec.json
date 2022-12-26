@@ -1,0 +1,111 @@
+{
+  "address": "0x8b3fc3D7a4A3604dfB35C45099C0A527BC6af4D1",
+  "abi": [
+    {
+      "inputs": [
+        {
+          "components": [
+            {
+              "internalType": "address",
+              "name": "dex",
+              "type": "address"
+            },
+            {
+              "internalType": "bytes",
+              "name": "data",
+              "type": "bytes"
+            }
+          ],
+          "internalType": "struct ICodec.SwapDescription",
+          "name": "_swap",
+          "type": "tuple"
+        }
+      ],
+      "name": "decodeCalldata",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "amountIn",
+          "type": "uint256"
+        },
+        {
+          "internalType": "address",
+          "name": "tokenIn",
+          "type": "address"
+        },
+        {
+          "internalType": "address",
+          "name": "tokenOut",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes",
+          "name": "_data",
+          "type": "bytes"
+        },
+        {
+          "internalType": "uint256",
+          "name": "_amountInOverride",
+          "type": "uint256"
+        },
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "name": "encodeCalldataWithOverride",
+      "outputs": [
+        {
+          "internalType": "bytes",
+          "name": "swapCalldata",
+          "type": "bytes"
+        }
+      ],
+      "stateMutability": "pure",
+      "type": "function"
+    }
+  ],
+  "transactionHash": "0x22777034ed83303d7d6f99843b9217c5fa8db64e82a9ffb9b44cef10d996fa06",
+  "receipt": {
+    "to": null,
+    "from": "0x8b5F94a2c2e23eE8cC0Ff56872aF973243eF7628",
+    "contractAddress": "0x8b3fc3D7a4A3604dfB35C45099C0A527BC6af4D1",
+    "transactionIndex": 6,
+    "gasUsed": "366899",
+    "logsBloom": "0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+    "blockHash": "0x00029d74000004de9f00f13780792ad0332ddeebec799dc53dd4ebf0635a5efe",
+    "transactionHash": "0x22777034ed83303d7d6f99843b9217c5fa8db64e82a9ffb9b44cef10d996fa06",
+    "logs": [],
+    "blockNumber": 50919880,
+    "cumulativeGasUsed": "1230375",
+    "status": 1,
+    "byzantium": true
+  },
+  "args": [],
+  "numDeployments": 4,
+  "solcInputHash": "e470a423e7a7cb07609261d46f2df29e",
+  "metadata": "{\"compiler\":{\"version\":\"0.8.15+commit.e14f2714\"},\"language\":\"Solidity\",\"output\":{\"abi\":[{\"inputs\":[{\"components\":[{\"internalType\":\"address\",\"name\":\"dex\",\"type\":\"address\"},{\"internalType\":\"bytes\",\"name\":\"data\",\"type\":\"bytes\"}],\"internalType\":\"struct ICodec.SwapDescription\",\"name\":\"_swap\",\"type\":\"tuple\"}],\"name\":\"decodeCalldata\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"amountIn\",\"type\":\"uint256\"},{\"internalType\":\"address\",\"name\":\"tokenIn\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"tokenOut\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"_data\",\"type\":\"bytes\"},{\"internalType\":\"uint256\",\"name\":\"_amountInOverride\",\"type\":\"uint256\"},{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"name\":\"encodeCalldataWithOverride\",\"outputs\":[{\"internalType\":\"bytes\",\"name\":\"swapCalldata\",\"type\":\"bytes\"}],\"stateMutability\":\"pure\",\"type\":\"function\"}],\"devdoc\":{\"kind\":\"dev\",\"methods\":{},\"version\":1},\"userdoc\":{\"kind\":\"user\",\"methods\":{},\"version\":1}},\"settings\":{\"compilationTarget\":{\"contracts/codecs/CurvePoolCodec.sol\":\"CurvePoolCodec\"},\"evmVersion\":\"london\",\"libraries\":{},\"metadata\":{\"bytecodeHash\":\"ipfs\",\"useLiteralContent\":true},\"optimizer\":{\"enabled\":true,\"runs\":800},\"remappings\":[]},\"sources\":{\"contracts/codecs/CurvePoolCodec.sol\":{\"content\":\"// SPDX-License-Identifier: GPL-3.0-only\\n\\npragma solidity >=0.8.15;\\n\\nimport \\\"../interfaces/ICodec.sol\\\";\\nimport \\\"../interfaces/ICurvePool.sol\\\";\\n\\ncontract CurvePoolCodec is ICodec {\\n    struct SwapCalldata {\\n        int128 i;\\n        int128 j;\\n        uint256 dx;\\n        uint256 min_dy;\\n    }\\n\\n    function decodeCalldata(ICodec.SwapDescription calldata _swap)\\n        external\\n        view\\n        returns (\\n            uint256 amountIn,\\n            address tokenIn,\\n            address tokenOut\\n        )\\n    {\\n        SwapCalldata memory data = abi.decode((_swap.data[4:]), (SwapCalldata));\\n        amountIn = data.dx;\\n        tokenIn = ICurvePool(_swap.dex).coins(uint256(int256(data.i)));\\n        tokenOut = ICurvePool(_swap.dex).coins(uint256(int256(data.j)));\\n    }\\n\\n    function encodeCalldataWithOverride(\\n        bytes calldata _data,\\n        uint256 _amountInOverride,\\n        address // receiverOverride\\n    ) external pure returns (bytes memory swapCalldata) {\\n        bytes4 selector = bytes4(_data);\\n        SwapCalldata memory data = abi.decode((_data[4:]), (SwapCalldata));\\n        data.dx = _amountInOverride;\\n        return abi.encodeWithSelector(selector, data);\\n    }\\n}\\n\",\"keccak256\":\"0x0d5627d0080d042b549c959f89dad0c0b1763c9586306e98a0b79ed63d6fbfe2\",\"license\":\"GPL-3.0-only\"},\"contracts/interfaces/ICodec.sol\":{\"content\":\"// SPDX-License-Identifier: GPL-3.0-only\\n\\npragma solidity >=0.8.0;\\n\\ninterface ICodec {\\n    struct SwapDescription {\\n        address dex; // the DEX to use for the swap, zero address implies no swap needed\\n        bytes data; // the data to call the dex with\\n    }\\n\\n    function decodeCalldata(SwapDescription calldata swap)\\n        external\\n        view\\n        returns (\\n            uint256 amountIn,\\n            address tokenIn,\\n            address tokenOut\\n        );\\n\\n    function encodeCalldataWithOverride(\\n        bytes calldata data,\\n        uint256 amountInOverride,\\n        address receiverOverride\\n    ) external pure returns (bytes memory swapCalldata);\\n}\\n\",\"keccak256\":\"0x3c063f0ffd87df3df38998c78273bc00ac835331905be997c7e3c6aa3bdbdcc4\",\"license\":\"GPL-3.0-only\"},\"contracts/interfaces/ICurvePool.sol\":{\"content\":\"// SPDX-License-Identifier: GPL-3.0-only\\n\\npragma solidity >=0.8.15;\\n\\ninterface ICurvePool {\\n    function coins(uint256 i) external view returns (address);\\n\\n    function underlying_coins(uint256 i) external view returns (address);\\n\\n    // plain & meta pool\\n    function get_dy(\\n        int128 i,\\n        int128 j,\\n        uint256 dx\\n    ) external view returns (uint256);\\n\\n    // meta pool\\n    function get_dy_underlying(\\n        int128 i,\\n        int128 j,\\n        uint256 dx\\n    ) external view returns (uint256);\\n\\n    // plain & meta pool\\n    function exchange(\\n        int128 i,\\n        int128 j,\\n        uint256 dx,\\n        uint256 min_dy\\n    ) external;\\n\\n    // meta pool\\n    function exchange_underlying(\\n        int128 i,\\n        int128 j,\\n        uint256 dx,\\n        uint256 min_dy,\\n        address _receiver\\n    ) external returns (uint256);\\n\\n    // special function signature that is only used by the sUSD pool on Ethereum 0xA5407eAE9Ba41422680e2e00537571bcC53efBfD\\n    function exchange_underlying(\\n        int128 i,\\n        int128 j,\\n        uint256 dx,\\n        uint256 min_dy\\n    ) external;\\n}\\n\",\"keccak256\":\"0x2be669549b0da2b01608c060c7ae85d3eb4f2deb42e0b12d99c7ee8a7f8fa6a3\",\"license\":\"GPL-3.0-only\"}},\"version\":1}",
+  "bytecode": "0x608060405234801561001057600080fd5b506105b0806100206000396000f3fe608060405234801561001057600080fd5b50600436106100365760003560e01c8063358f0e1c1461003b5780634c6da26914610078575b600080fd5b61004e6100493660046102af565b610098565b604080519384526001600160a01b0392831660208501529116908201526060015b60405180910390f35b61008b610086366004610309565b6101dd565b60405161006f9190610394565b60008080806100aa60208601866103e9565b6100b8916004908290610437565b8101906100c59190610478565b6040810151945090506100db60208601866104f8565b6001600160a01b031663c66106578260000151600f0b6040518263ffffffff1660e01b815260040161010f91815260200190565b602060405180830381865afa15801561012c573d6000803e3d6000fd5b505050506040513d601f19601f820116820180604052508101906101509190610515565b925061015f60208601866104f8565b6001600160a01b031663c66106578260200151600f0b6040518263ffffffff1660e01b815260040161019391815260200190565b602060405180830381865afa1580156101b0573d6000803e3d6000fd5b505050506040513d601f19601f820116820180604052508101906101d49190610515565b93959294505050565b606060006101eb8587610532565b905060006101fc866004818a610437565b8101906102099190610478565b604081810187815290518251600f90810b60248301526020840151900b60448201529051606482015260608201516084820152909150829060a40160408051601f198184030181529190526020810180517bffffffffffffffffffffffffffffffffffffffffffffffffffffffff167fffffffff000000000000000000000000000000000000000000000000000000009093169290921790915292505050949350505050565b6000602082840312156102c157600080fd5b813567ffffffffffffffff8111156102d857600080fd5b8201604081850312156102ea57600080fd5b9392505050565b6001600160a01b038116811461030657600080fd5b50565b6000806000806060858703121561031f57600080fd5b843567ffffffffffffffff8082111561033757600080fd5b818701915087601f83011261034b57600080fd5b81358181111561035a57600080fd5b88602082850101111561036c57600080fd5b6020928301965094505085013591506040850135610389816102f1565b939692955090935050565b600060208083528351808285015260005b818110156103c1578581018301518582016040015282016103a5565b818111156103d3576000604083870101525b50601f01601f1916929092016040019392505050565b6000808335601e1984360301811261040057600080fd5b83018035915067ffffffffffffffff82111561041b57600080fd5b60200191503681900382131561043057600080fd5b9250929050565b6000808585111561044757600080fd5b8386111561045457600080fd5b5050820193919092039150565b8035600f81900b811461047357600080fd5b919050565b60006080828403121561048a57600080fd5b6040516080810181811067ffffffffffffffff821117156104bb57634e487b7160e01b600052604160045260246000fd5b6040526104c783610461565b81526104d560208401610461565b602082015260408301356040820152606083013560608201528091505092915050565b60006020828403121561050a57600080fd5b81356102ea816102f1565b60006020828403121561052757600080fd5b81516102ea816102f1565b7fffffffff0000000000000000000000000000000000000000000000000000000081358181169160048510156105725780818660040360031b1b83161692505b50509291505056fea264697066735822122037101cac431c7b590dd637ec08ae81ca0a8036d62a045232299bf3940909598164736f6c634300080f0033",
+  "deployedBytecode": "0x608060405234801561001057600080fd5b50600436106100365760003560e01c8063358f0e1c1461003b5780634c6da26914610078575b600080fd5b61004e6100493660046102af565b610098565b604080519384526001600160a01b0392831660208501529116908201526060015b60405180910390f35b61008b610086366004610309565b6101dd565b60405161006f9190610394565b60008080806100aa60208601866103e9565b6100b8916004908290610437565b8101906100c59190610478565b6040810151945090506100db60208601866104f8565b6001600160a01b031663c66106578260000151600f0b6040518263ffffffff1660e01b815260040161010f91815260200190565b602060405180830381865afa15801561012c573d6000803e3d6000fd5b505050506040513d601f19601f820116820180604052508101906101509190610515565b925061015f60208601866104f8565b6001600160a01b031663c66106578260200151600f0b6040518263ffffffff1660e01b815260040161019391815260200190565b602060405180830381865afa1580156101b0573d6000803e3d6000fd5b505050506040513d601f19601f820116820180604052508101906101d49190610515565b93959294505050565b606060006101eb8587610532565b905060006101fc866004818a610437565b8101906102099190610478565b604081810187815290518251600f90810b60248301526020840151900b60448201529051606482015260608201516084820152909150829060a40160408051601f198184030181529190526020810180517bffffffffffffffffffffffffffffffffffffffffffffffffffffffff167fffffffff000000000000000000000000000000000000000000000000000000009093169290921790915292505050949350505050565b6000602082840312156102c157600080fd5b813567ffffffffffffffff8111156102d857600080fd5b8201604081850312156102ea57600080fd5b9392505050565b6001600160a01b038116811461030657600080fd5b50565b6000806000806060858703121561031f57600080fd5b843567ffffffffffffffff8082111561033757600080fd5b818701915087601f83011261034b57600080fd5b81358181111561035a57600080fd5b88602082850101111561036c57600080fd5b6020928301965094505085013591506040850135610389816102f1565b939692955090935050565b600060208083528351808285015260005b818110156103c1578581018301518582016040015282016103a5565b818111156103d3576000604083870101525b50601f01601f1916929092016040019392505050565b6000808335601e1984360301811261040057600080fd5b83018035915067ffffffffffffffff82111561041b57600080fd5b60200191503681900382131561043057600080fd5b9250929050565b6000808585111561044757600080fd5b8386111561045457600080fd5b5050820193919092039150565b8035600f81900b811461047357600080fd5b919050565b60006080828403121561048a57600080fd5b6040516080810181811067ffffffffffffffff821117156104bb57634e487b7160e01b600052604160045260246000fd5b6040526104c783610461565b81526104d560208401610461565b602082015260408301356040820152606083013560608201528091505092915050565b60006020828403121561050a57600080fd5b81356102ea816102f1565b60006020828403121561052757600080fd5b81516102ea816102f1565b7fffffffff0000000000000000000000000000000000000000000000000000000081358181169160048510156105725780818660040360031b1b83161692505b50509291505056fea264697066735822122037101cac431c7b590dd637ec08ae81ca0a8036d62a045232299bf3940909598164736f6c634300080f0033",
+  "devdoc": {
+    "kind": "dev",
+    "methods": {},
+    "version": 1
+  },
+  "userdoc": {
+    "kind": "user",
+    "methods": {},
+    "version": 1
+  },
+  "storageLayout": {
+    "storage": [],
+    "types": null
+  }
+}

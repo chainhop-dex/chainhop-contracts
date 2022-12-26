@@ -1,0 +1,111 @@
+{
+  "address": "0xED8877f8536781d2FC40C1E0054cbeB8fD960Ee4",
+  "abi": [
+    {
+      "inputs": [
+        {
+          "components": [
+            {
+              "internalType": "address",
+              "name": "dex",
+              "type": "address"
+            },
+            {
+              "internalType": "bytes",
+              "name": "data",
+              "type": "bytes"
+            }
+          ],
+          "internalType": "struct ICodec.SwapDescription",
+          "name": "_swap",
+          "type": "tuple"
+        }
+      ],
+      "name": "decodeCalldata",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "amountIn",
+          "type": "uint256"
+        },
+        {
+          "internalType": "address",
+          "name": "tokenIn",
+          "type": "address"
+        },
+        {
+          "internalType": "address",
+          "name": "tokenOut",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "pure",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes",
+          "name": "_data",
+          "type": "bytes"
+        },
+        {
+          "internalType": "uint256",
+          "name": "_amountInOverride",
+          "type": "uint256"
+        },
+        {
+          "internalType": "address",
+          "name": "_receiverOverride",
+          "type": "address"
+        }
+      ],
+      "name": "encodeCalldataWithOverride",
+      "outputs": [
+        {
+          "internalType": "bytes",
+          "name": "swapCalldata",
+          "type": "bytes"
+        }
+      ],
+      "stateMutability": "pure",
+      "type": "function"
+    }
+  ],
+  "transactionHash": "0x59f43bc755d55354618222f359956c682d5641f8f9ea0747c75b86a9aed6acb9",
+  "receipt": {
+    "to": null,
+    "from": "0x8b5F94a2c2e23eE8cC0Ff56872aF973243eF7628",
+    "contractAddress": "0xED8877f8536781d2FC40C1E0054cbeB8fD960Ee4",
+    "transactionIndex": 1,
+    "gasUsed": "2110792",
+    "logsBloom": "0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+    "blockHash": "0x0a964c63b677e7320a5257add961a8704143cc324778924cab5b707a791d83af",
+    "transactionHash": "0x59f43bc755d55354618222f359956c682d5641f8f9ea0747c75b86a9aed6acb9",
+    "logs": [],
+    "blockNumber": 38508636,
+    "cumulativeGasUsed": "2110792",
+    "status": 1,
+    "byzantium": true
+  },
+  "args": [],
+  "numDeployments": 4,
+  "solcInputHash": "fb7635353833d52c2a98e3fc1b0000fe",
+  "metadata": "{\"compiler\":{\"version\":\"0.8.15+commit.e14f2714\"},\"language\":\"Solidity\",\"output\":{\"abi\":[{\"inputs\":[{\"components\":[{\"internalType\":\"address\",\"name\":\"dex\",\"type\":\"address\"},{\"internalType\":\"bytes\",\"name\":\"data\",\"type\":\"bytes\"}],\"internalType\":\"struct ICodec.SwapDescription\",\"name\":\"_swap\",\"type\":\"tuple\"}],\"name\":\"decodeCalldata\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"amountIn\",\"type\":\"uint256\"},{\"internalType\":\"address\",\"name\":\"tokenIn\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"tokenOut\",\"type\":\"address\"}],\"stateMutability\":\"pure\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"_data\",\"type\":\"bytes\"},{\"internalType\":\"uint256\",\"name\":\"_amountInOverride\",\"type\":\"uint256\"},{\"internalType\":\"address\",\"name\":\"_receiverOverride\",\"type\":\"address\"}],\"name\":\"encodeCalldataWithOverride\",\"outputs\":[{\"internalType\":\"bytes\",\"name\":\"swapCalldata\",\"type\":\"bytes\"}],\"stateMutability\":\"pure\",\"type\":\"function\"}],\"devdoc\":{\"kind\":\"dev\",\"methods\":{},\"version\":1},\"userdoc\":{\"kind\":\"user\",\"methods\":{},\"version\":1}},\"settings\":{\"compilationTarget\":{\"contracts/codecs/UniswapV3ExactInputCodec.sol\":\"UniswapV3ExactInputCodec\"},\"evmVersion\":\"london\",\"libraries\":{},\"metadata\":{\"bytecodeHash\":\"ipfs\",\"useLiteralContent\":true},\"optimizer\":{\"enabled\":true,\"runs\":800},\"remappings\":[]},\"sources\":{\"contracts/codecs/UniswapV3ExactInputCodec.sol\":{\"content\":\"// SPDX-License-Identifier: GPL-3.0-only\\n\\npragma solidity >=0.8.15;\\n\\nimport \\\"../interfaces/ICodec.sol\\\";\\nimport \\\"../interfaces/ISwapRouter.sol\\\";\\n\\ncontract UniswapV3ExactInputCodec is ICodec {\\n    function decodeCalldata(ICodec.SwapDescription calldata _swap)\\n        external\\n        pure\\n        returns (\\n            uint256 amountIn,\\n            address tokenIn,\\n            address tokenOut\\n        )\\n    {\\n        ISwapRouter.ExactInputParams memory data = abi.decode((_swap.data[4:]), (ISwapRouter.ExactInputParams));\\n        // path is in the format of abi.encodedPacked(address tokenIn, [uint24 fee, address token[, uint24 fee, address token]...])\\n        require((data.path.length - 20) % 23 == 0, \\\"malformed path\\\");\\n        // first 20 bytes is tokenIn\\n        tokenIn = address(bytes20(copySubBytes(data.path, 0, 20)));\\n        // last 20 bytes is tokenOut\\n        tokenOut = address(bytes20(copySubBytes(data.path, data.path.length - 20, data.path.length)));\\n        amountIn = data.amountIn;\\n    }\\n\\n    function encodeCalldataWithOverride(\\n        bytes calldata _data,\\n        uint256 _amountInOverride,\\n        address _receiverOverride\\n    ) external pure returns (bytes memory swapCalldata) {\\n        bytes4 selector = bytes4(_data);\\n        ISwapRouter.ExactInputParams memory data = abi.decode((_data[4:]), (ISwapRouter.ExactInputParams));\\n        data.amountIn = _amountInOverride;\\n        data.recipient = _receiverOverride;\\n        return abi.encodeWithSelector(selector, data);\\n    }\\n\\n    // basically a bytes' version of byteN[from:to] execpt it copies\\n    function copySubBytes(\\n        bytes memory data,\\n        uint256 from,\\n        uint256 to\\n    ) private pure returns (bytes memory ret) {\\n        require(to <= data.length, \\\"index overflow\\\");\\n        uint256 len = to - from;\\n        ret = new bytes(len);\\n        for (uint256 i = 0; i < len; i++) {\\n            ret[i] = data[i + from];\\n        }\\n    }\\n}\\n\",\"keccak256\":\"0xd183bb0fbd994e3e816d03fb63cdf181fbd648795d91a927074165056f1ef6d6\",\"license\":\"GPL-3.0-only\"},\"contracts/interfaces/ICodec.sol\":{\"content\":\"// SPDX-License-Identifier: GPL-3.0-only\\n\\npragma solidity >=0.8.0;\\n\\ninterface ICodec {\\n    struct SwapDescription {\\n        address dex; // the DEX to use for the swap, zero address implies no swap needed\\n        bytes data; // the data to call the dex with\\n    }\\n\\n    function decodeCalldata(SwapDescription calldata swap)\\n        external\\n        view\\n        returns (\\n            uint256 amountIn,\\n            address tokenIn,\\n            address tokenOut\\n        );\\n\\n    function encodeCalldataWithOverride(\\n        bytes calldata data,\\n        uint256 amountInOverride,\\n        address receiverOverride\\n    ) external pure returns (bytes memory swapCalldata);\\n}\\n\",\"keccak256\":\"0x3c063f0ffd87df3df38998c78273bc00ac835331905be997c7e3c6aa3bdbdcc4\",\"license\":\"GPL-3.0-only\"},\"contracts/interfaces/ISwapRouter.sol\":{\"content\":\"// SPDX-License-Identifier: GPL-2.0-or-later\\npragma solidity >=0.8.15;\\npragma abicoder v2;\\n\\n/// @title Callback for IUniswapV3PoolActions#swap\\n/// @notice Any contract that calls IUniswapV3PoolActions#swap must implement this interface\\ninterface IUniswapV3SwapCallback {\\n    /// @notice Called to `msg.sender` after executing a swap via IUniswapV3Pool#swap.\\n    /// @dev In the implementation you must pay the pool tokens owed for the swap.\\n    /// The caller of this method must be checked to be a UniswapV3Pool deployed by the canonical UniswapV3Factory.\\n    /// amount0Delta and amount1Delta can both be 0 if no tokens were swapped.\\n    /// @param amount0Delta The amount of token0 that was sent (negative) or must be received (positive) by the pool by\\n    /// the end of the swap. If positive, the callback must send that amount of token0 to the pool.\\n    /// @param amount1Delta The amount of token1 that was sent (negative) or must be received (positive) by the pool by\\n    /// the end of the swap. If positive, the callback must send that amount of token1 to the pool.\\n    /// @param data Any data passed through by the caller via the IUniswapV3PoolActions#swap call\\n    function uniswapV3SwapCallback(\\n        int256 amount0Delta,\\n        int256 amount1Delta,\\n        bytes calldata data\\n    ) external;\\n}\\n\\n/// @title Router token swapping functionality\\n/// @notice Functions for swapping tokens via Uniswap V3\\ninterface ISwapRouter is IUniswapV3SwapCallback {\\n    struct ExactInputSingleParams {\\n        address tokenIn;\\n        address tokenOut;\\n        uint24 fee;\\n        address recipient;\\n        uint256 deadline;\\n        uint256 amountIn;\\n        uint256 amountOutMinimum;\\n        uint160 sqrtPriceLimitX96;\\n    }\\n\\n    /// @notice Swaps `amountIn` of one token for as much as possible of another token\\n    /// @param params The parameters necessary for the swap, encoded as `ExactInputSingleParams` in calldata\\n    /// @return amountOut The amount of the received token\\n    function exactInputSingle(ExactInputSingleParams calldata params) external payable returns (uint256 amountOut);\\n\\n    struct ExactInputParams {\\n        bytes path;\\n        address recipient;\\n        uint256 deadline;\\n        uint256 amountIn;\\n        uint256 amountOutMinimum;\\n    }\\n\\n    /// @notice Swaps `amountIn` of one token for as much as possible of another along the specified path\\n    /// @param params The parameters necessary for the multi-hop swap, encoded as `ExactInputParams` in calldata\\n    /// @return amountOut The amount of the received token\\n    function exactInput(ExactInputParams calldata params) external payable returns (uint256 amountOut);\\n\\n    struct ExactOutputSingleParams {\\n        address tokenIn;\\n        address tokenOut;\\n        uint24 fee;\\n        address recipient;\\n        uint256 deadline;\\n        uint256 amountOut;\\n        uint256 amountInMaximum;\\n        uint160 sqrtPriceLimitX96;\\n    }\\n\\n    /// @notice Swaps as little as possible of one token for `amountOut` of another token\\n    /// @param params The parameters necessary for the swap, encoded as `ExactOutputSingleParams` in calldata\\n    /// @return amountIn The amount of the input token\\n    function exactOutputSingle(ExactOutputSingleParams calldata params) external payable returns (uint256 amountIn);\\n\\n    struct ExactOutputParams {\\n        bytes path;\\n        address recipient;\\n        uint256 deadline;\\n        uint256 amountOut;\\n        uint256 amountInMaximum;\\n    }\\n\\n    /// @notice Swaps as little as possible of one token for `amountOut` of another along the specified path (reversed)\\n    /// @param params The parameters necessary for the multi-hop swap, encoded as `ExactOutputParams` in calldata\\n    /// @return amountIn The amount of the input token\\n    function exactOutput(ExactOutputParams calldata params) external payable returns (uint256 amountIn);\\n}\\n\",\"keccak256\":\"0xdf4e19677f76d709cec2c6e1086bea53599603aba3e216f6b52e6dbf861bff17\",\"license\":\"GPL-2.0-or-later\"}},\"version\":1}",
+  "bytecode": "0x608060405234801561001057600080fd5b5061084b806100206000396000f3fe608060405234801561001057600080fd5b50600436106100365760003560e01c8063358f0e1c1461003b5780634c6da26914610078575b600080fd5b61004e610049366004610384565b610098565b604080519384526001600160a01b0392831660208501529116908201526060015b60405180910390f35b61008b6100863660046103e2565b61018d565b60405161006f91906104b8565b60008080806100aa60208601866104cb565b6100b8916004908290610519565b8101906100c591906105b3565b9050601760148260000151516100db91906106b8565b6100e591906106cf565b156101375760405162461bcd60e51b815260206004820152600e60248201527f6d616c666f726d6564207061746800000000000000000000000000000000000060448201526064015b60405180910390fd5b80516101469060006014610250565b61014f906106f1565b8151805160609290921c94506101739161016b906014906106b8565b835151610250565b61017c906106f1565b60609182015196939550901c925050565b6060600061019b858761072d565b905060006101ac866004818a610519565b8101906101b991906105b3565b606081018690526001600160a01b038516602082015260405190915082906101e5908390602401610775565b60408051601f198184030181529190526020810180517bffffffffffffffffffffffffffffffffffffffffffffffffffffffff167fffffffff000000000000000000000000000000000000000000000000000000009093169290921790915292505050949350505050565b606083518211156102a35760405162461bcd60e51b815260206004820152600e60248201527f696e646578206f766572666c6f77000000000000000000000000000000000000604482015260640161012e565b60006102af84846106b8565b90508067ffffffffffffffff8111156102ca576102ca610543565b6040519080825280601f01601f1916602001820160405280156102f4576020820181803683370190505b50915060005b8181101561037b578561030d86836107ce565b8151811061031d5761031d6107e6565b602001015160f81c60f81b83828151811061033a5761033a6107e6565b60200101907effffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff1916908160001a90535080610373816107fc565b9150506102fa565b50509392505050565b60006020828403121561039657600080fd5b813567ffffffffffffffff8111156103ad57600080fd5b8201604081850312156103bf57600080fd5b9392505050565b80356001600160a01b03811681146103dd57600080fd5b919050565b600080600080606085870312156103f857600080fd5b843567ffffffffffffffff8082111561041057600080fd5b818701915087601f83011261042457600080fd5b81358181111561043357600080fd5b88602082850101111561044557600080fd5b602092830196509450508501359150610460604086016103c6565b905092959194509250565b6000815180845260005b8181101561049157602081850181015186830182015201610475565b818111156104a3576000602083870101525b50601f01601f19169290920160200192915050565b6020815260006103bf602083018461046b565b6000808335601e198436030181126104e257600080fd5b83018035915067ffffffffffffffff8211156104fd57600080fd5b60200191503681900382131561051257600080fd5b9250929050565b6000808585111561052957600080fd5b8386111561053657600080fd5b5050820193919092039150565b634e487b7160e01b600052604160045260246000fd5b60405160a0810167ffffffffffffffff8111828210171561057c5761057c610543565b60405290565b604051601f8201601f1916810167ffffffffffffffff811182821017156105ab576105ab610543565b604052919050565b600060208083850312156105c657600080fd5b823567ffffffffffffffff808211156105de57600080fd5b9084019060a082870312156105f257600080fd5b6105fa610559565b82358281111561060957600080fd5b8301601f8101881361061a57600080fd5b80358381111561062c5761062c610543565b61063e601f8201601f19168701610582565b9350808452888682840101111561065457600080fd5b80868301878601376000908401860152508181526106738385016103c6565b848201526040830135604082015260608301356060820152608083013560808201528094505050505092915050565b634e487b7160e01b600052601160045260246000fd5b6000828210156106ca576106ca6106a2565b500390565b6000826106ec57634e487b7160e01b600052601260045260246000fd5b500690565b805160208201516bffffffffffffffffffffffff1980821692919060148310156107255780818460140360031b1b83161693505b505050919050565b7fffffffff00000000000000000000000000000000000000000000000000000000813581811691600485101561076d5780818660040360031b1b83161692505b505092915050565b602081526000825160a0602084015261079160c084018261046b565b90506001600160a01b0360208501511660408401526040840151606084015260608401516080840152608084015160a08401528091505092915050565b600082198211156107e1576107e16106a2565b500190565b634e487b7160e01b600052603260045260246000fd5b60006001820161080e5761080e6106a2565b506001019056fea264697066735822122076f7e49e44821db3265c492d812fcc3432544acf92551fa443baed64351483af64736f6c634300080f0033",
+  "deployedBytecode": "0x608060405234801561001057600080fd5b50600436106100365760003560e01c8063358f0e1c1461003b5780634c6da26914610078575b600080fd5b61004e610049366004610384565b610098565b604080519384526001600160a01b0392831660208501529116908201526060015b60405180910390f35b61008b6100863660046103e2565b61018d565b60405161006f91906104b8565b60008080806100aa60208601866104cb565b6100b8916004908290610519565b8101906100c591906105b3565b9050601760148260000151516100db91906106b8565b6100e591906106cf565b156101375760405162461bcd60e51b815260206004820152600e60248201527f6d616c666f726d6564207061746800000000000000000000000000000000000060448201526064015b60405180910390fd5b80516101469060006014610250565b61014f906106f1565b8151805160609290921c94506101739161016b906014906106b8565b835151610250565b61017c906106f1565b60609182015196939550901c925050565b6060600061019b858761072d565b905060006101ac866004818a610519565b8101906101b991906105b3565b606081018690526001600160a01b038516602082015260405190915082906101e5908390602401610775565b60408051601f198184030181529190526020810180517bffffffffffffffffffffffffffffffffffffffffffffffffffffffff167fffffffff000000000000000000000000000000000000000000000000000000009093169290921790915292505050949350505050565b606083518211156102a35760405162461bcd60e51b815260206004820152600e60248201527f696e646578206f766572666c6f77000000000000000000000000000000000000604482015260640161012e565b60006102af84846106b8565b90508067ffffffffffffffff8111156102ca576102ca610543565b6040519080825280601f01601f1916602001820160405280156102f4576020820181803683370190505b50915060005b8181101561037b578561030d86836107ce565b8151811061031d5761031d6107e6565b602001015160f81c60f81b83828151811061033a5761033a6107e6565b60200101907effffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff1916908160001a90535080610373816107fc565b9150506102fa565b50509392505050565b60006020828403121561039657600080fd5b813567ffffffffffffffff8111156103ad57600080fd5b8201604081850312156103bf57600080fd5b9392505050565b80356001600160a01b03811681146103dd57600080fd5b919050565b600080600080606085870312156103f857600080fd5b843567ffffffffffffffff8082111561041057600080fd5b818701915087601f83011261042457600080fd5b81358181111561043357600080fd5b88602082850101111561044557600080fd5b602092830196509450508501359150610460604086016103c6565b905092959194509250565b6000815180845260005b8181101561049157602081850181015186830182015201610475565b818111156104a3576000602083870101525b50601f01601f19169290920160200192915050565b6020815260006103bf602083018461046b565b6000808335601e198436030181126104e257600080fd5b83018035915067ffffffffffffffff8211156104fd57600080fd5b60200191503681900382131561051257600080fd5b9250929050565b6000808585111561052957600080fd5b8386111561053657600080fd5b5050820193919092039150565b634e487b7160e01b600052604160045260246000fd5b60405160a0810167ffffffffffffffff8111828210171561057c5761057c610543565b60405290565b604051601f8201601f1916810167ffffffffffffffff811182821017156105ab576105ab610543565b604052919050565b600060208083850312156105c657600080fd5b823567ffffffffffffffff808211156105de57600080fd5b9084019060a082870312156105f257600080fd5b6105fa610559565b82358281111561060957600080fd5b8301601f8101881361061a57600080fd5b80358381111561062c5761062c610543565b61063e601f8201601f19168701610582565b9350808452888682840101111561065457600080fd5b80868301878601376000908401860152508181526106738385016103c6565b848201526040830135604082015260608301356060820152608083013560808201528094505050505092915050565b634e487b7160e01b600052601160045260246000fd5b6000828210156106ca576106ca6106a2565b500390565b6000826106ec57634e487b7160e01b600052601260045260246000fd5b500690565b805160208201516bffffffffffffffffffffffff1980821692919060148310156107255780818460140360031b1b83161693505b505050919050565b7fffffffff00000000000000000000000000000000000000000000000000000000813581811691600485101561076d5780818660040360031b1b83161692505b505092915050565b602081526000825160a0602084015261079160c084018261046b565b90506001600160a01b0360208501511660408401526040840151606084015260608401516080840152608084015160a08401528091505092915050565b600082198211156107e1576107e16106a2565b500190565b634e487b7160e01b600052603260045260246000fd5b60006001820161080e5761080e6106a2565b506001019056fea264697066735822122076f7e49e44821db3265c492d812fcc3432544acf92551fa443baed64351483af64736f6c634300080f0033",
+  "devdoc": {
+    "kind": "dev",
+    "methods": {},
+    "version": 1
+  },
+  "userdoc": {
+    "kind": "user",
+    "methods": {},
+    "version": 1
+  },
+  "storageLayout": {
+    "storage": [],
+    "types": null
+  }
+}
