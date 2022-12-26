@@ -543,6 +543,29 @@ describe('executMessage() on remote chains', function () {
     await expect(tx).to.emit(c.enode, 'StepExecuted').withArgs(id, amountOut, c.tokenB.address);
   });
 
+  it('should revoke allowance after swapping', async function () {
+    const amountIn = utils.defaultAmountIn;
+    const amountInSubFee = amountIn.sub(utils.defaultFee);
+    const swap = utils.buildUniV2Swap(c, amountInSubFee, { amountOutMin: amountIn }); // swap will fail
+    const id = utils.computeId(c.sender.address, c.receiver.address);
+    const execs = [
+      utils.newExecutionInfo({
+        swap: swap,
+        bridgeOutToken: c.tokenA.address,
+        bridgeOutFallbackToken: c.tokenB.address,
+        feeInBridgeOutToken: utils.defaultFee,
+        feeInBridgeOutFallbackToken: utils.defaultFee
+      })
+    ];
+    const dst = utils.newDestinationInfo({ receiver: c.receiver.address });
+    const pocket = utils.getPocketAddr(id, c.enode.address);
+    await c.tokenA.connect(c.admin).transfer(pocket, amountIn);
+    const msg = utils.encodeMessage(id, execs, dst);
+    await c.enode.connect(c.sender).executeMessage(c.remote, utils.defaultRemoteChainId, msg, ZERO_ADDR);
+    const allowance = await c.tokenA.allowance(c.enode.address, swap.dex);
+    await expect(allowance).equal(0); // allowance is set to 0 even if swap fails
+  });
+
   it('should send swap out token to receiver (bridge out is native)', async function () {
     const amountIn = parseUnits('1');
     const fee = parseUnits('0.01');
