@@ -181,6 +181,10 @@ contract ExecutionNode is
         return _refundValueAndDone(remainingValue);
     }
 
+    /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+     * Periphery
+     * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
     // the receiver of a swap is entitled to all the funds in the pocket. as long as someone can prove
     // that they are the receiver of a swap, they can always recreate the pocket contract and claim the
     // funds inside.
@@ -223,6 +227,17 @@ contract ExecutionNode is
         } else {
             IERC20(_token).safeTransfer(owner(), IERC20(_token).balanceOf(address(this)));
         }
+    }
+
+    /**
+     * @notice sets allowance to 0 for a token and spender
+     * @dev normally, all allowances are revoked from a dex after swapping. this function exists mainly to
+     * handle a historical issue where allowance is stuck at a non-zero value at a dex
+     * @param _token for which token to revoke allowance
+     * @param _spender for which spender to revoke allowance
+     */
+    function revokeAllowance(address _token, address _spender) external onlyOwner {
+        IERC20(_token).safeApprove(_spender, 0);
     }
 
     /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
@@ -428,9 +443,13 @@ contract ExecutionNode is
         require(tokenIn == _tokenIn, "swap info mismatch");
 
         bytes memory data = codec.encodeCalldataWithOverride(_swap.data, _amountIn, address(this));
-        IERC20(tokenIn).safeIncreaseAllowance(_swap.dex, _amountIn);
+        IERC20(tokenIn).safeApprove(_swap.dex, _amountIn);
         uint256 balBefore = IERC20(tokenOut).balanceOf(address(this));
         (bool success, ) = _swap.dex.call(data);
+        // always revoke all allowance after swapping to:
+        // 1. prevent malicious dex to pull funds from this contract later
+        // 2. workaround some token's impl of approve() that requires current allowance == 0
+        IERC20(tokenIn).safeApprove(_swap.dex, 0);
         if (!success) {
             return (false, 0, tokenOut);
         }
