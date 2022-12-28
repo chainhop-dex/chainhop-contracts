@@ -253,11 +253,7 @@ contract ExecutionNode is
     // note that if the original tx sender is a contract, the integrator MUST ensure that they maintain a unique nonce so
     // that the same sender/receiver/nonce combo cannot be used twice. otherwise, the above attack is possible via the
     // integrator's contract. TODO: maybe add the nonce maintenance in this contract.
-    function _computeId(
-        address _srcSender,
-        address _dstReceiver,
-        uint64 _nonce
-    ) private pure returns (bytes32) {
+    function _computeId(address _srcSender, address _dstReceiver, uint64 _nonce) private pure returns (bytes32) {
         // the main purpose of this id is to uniquely identify a user-swap.
         return keccak256(abi.encodePacked(_srcSender, _dstReceiver, _nonce));
     }
@@ -319,10 +315,10 @@ contract ExecutionNode is
         return (_src.amountIn, _src.tokenIn);
     }
 
-    function _pullFundFromPocket(bytes32 _id, Types.ExecutionInfo memory _exec)
-        private
-        returns (uint256 amount, address token)
-    {
+    function _pullFundFromPocket(
+        bytes32 _id,
+        Types.ExecutionInfo memory _exec
+    ) private returns (uint256 amount, address token) {
         Pocket pocket = new Pocket{salt: _id}();
 
         uint256 fallbackAmount;
@@ -366,11 +362,7 @@ contract ExecutionNode is
 
     // since the call result of the transfer function in the pocket contract is not checked, we check
     // the before and after balance of this contract to ensure that the amount is indeed received.
-    function _claimPocketERC20(
-        Pocket _pocket,
-        address _token,
-        uint256 _amount
-    ) private {
+    function _claimPocketERC20(Pocket _pocket, address _token, uint256 _amount) private {
         uint256 balBefore = IERC20(_token).balanceOf(address(this));
         _pocket.claim(_token, _amount);
         uint256 balAfter = IERC20(_token).balanceOf(address(this));
@@ -386,11 +378,7 @@ contract ExecutionNode is
         return address(uint160(uint256(hash)));
     }
 
-    function _deductFee(
-        uint256 _amount,
-        uint256 _fee,
-        address _token
-    ) private returns (uint256 amount) {
+    function _deductFee(uint256 _amount, uint256 _fee, address _token) private returns (uint256 amount) {
         uint256 fee;
         // handle the case where amount received is not enough to pay fee
         if (_amount > _fee) {
@@ -409,12 +397,7 @@ contract ExecutionNode is
         }
     }
 
-    function _bridgeSend(
-        Types.BridgeInfo memory _bridge,
-        address _receiver,
-        address _token,
-        uint256 _amount
-    ) private {
+    function _bridgeSend(Types.BridgeInfo memory _bridge, address _receiver, address _token, uint256 _amount) private {
         IBridgeAdapter bridge = bridges[keccak256(bytes(_bridge.bridgeProvider))];
         IERC20(_token).safeIncreaseAllowance(address(bridge), _amount);
         bridge.bridge{value: _bridge.nativeFee}(_bridge.toChainId, _receiver, _amount, _token, _bridge.bridgeParams);
@@ -424,14 +407,7 @@ contract ExecutionNode is
         ICodec.SwapDescription memory _swap,
         uint256 _amountIn,
         address _tokenIn
-    )
-        private
-        returns (
-            bool ok,
-            uint256 amountOut,
-            address tokenOut
-        )
-    {
+    ) private returns (bool ok, uint256 amountOut, address tokenOut) {
         if (_swap.dex == address(0)) {
             // nop swap
             return (true, _amountIn, _tokenIn);
@@ -449,7 +425,9 @@ contract ExecutionNode is
         // always revoke all allowance after swapping to:
         // 1. prevent malicious dex to pull funds from this contract later
         // 2. workaround some token's impl of approve() that requires current allowance == 0
-        IERC20(tokenIn).safeApprove(_swap.dex, 0);
+        if (IERC20(tokenIn).allowance(address(this), _swap.dex) > 0) {
+            IERC20(tokenIn).safeApprove(_swap.dex, 0);
+        }
         if (!success) {
             return (false, 0, tokenOut);
         }
@@ -457,12 +435,7 @@ contract ExecutionNode is
         return (true, balAfter - balBefore, tokenOut);
     }
 
-    function _sendToken(
-        address _token,
-        uint256 _amount,
-        address _receiver,
-        bool _nativeOut
-    ) private {
+    function _sendToken(address _token, uint256 _amount, address _receiver, bool _nativeOut) private {
         if (_nativeOut) {
             require(_token == nativeWrap, "token is not nativeWrap");
             IWETH(nativeWrap).withdraw(_amount);
@@ -473,11 +446,9 @@ contract ExecutionNode is
         }
     }
 
-    function _removeFirst(Types.ExecutionInfo[] memory _execs)
-        private
-        pure
-        returns (Types.ExecutionInfo[] memory rest)
-    {
+    function _removeFirst(
+        Types.ExecutionInfo[] memory _execs
+    ) private pure returns (Types.ExecutionInfo[] memory rest) {
         require(_execs.length > 0, "empty execs");
         rest = new Types.ExecutionInfo[](_execs.length - 1);
         for (uint256 i = 1; i < _execs.length; i++) {
